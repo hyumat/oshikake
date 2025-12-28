@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, RefreshCw, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { MatchFilter, type FilterState } from '@/components/MatchFilter';
+import { toast } from 'sonner';
 
 interface Match {
   id: number;
@@ -27,8 +28,7 @@ export default function Matches() {
   const [, setLocation] = useLocation();
   const [matches, setMatches] = useState<Match[]>([]);
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '',
     dateTo: '',
@@ -39,6 +39,29 @@ export default function Matches() {
   // tRPC クエリ・ミューテーション
   const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
   const fetchOfficialMutation = trpc.matches.fetchOfficial.useMutation();
+
+  // ページアクセス時に試合データを自動取得
+  useEffect(() => {
+    const fetchMatches = async () => {
+      setIsLoading(true);
+      try {
+        // First, fetch fresh data from Marinos site
+        await fetchOfficialMutation.mutateAsync({ force: true });
+        // Then, refetch from database
+        await refetch();
+        toast.success('試合情報を更新しました');
+      } catch (error) {
+        console.error('Failed to fetch matches:', error);
+        toast.error('試合情報の取得に失敗しました');
+        // Still try to show cached data
+        await refetch();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMatches();
+  }, []);
 
   useEffect(() => {
     if (matchesData?.matches) {
@@ -85,32 +108,6 @@ export default function Matches() {
       opponent: '',
       marinosSide: 'all',
     });
-  };
-
-  const handleSync = async () => {
-    setIsLoading(true);
-    try {
-      await fetchOfficialMutation.mutateAsync({ force: false });
-      setLastSync(new Date());
-      refetch();
-    } catch (error) {
-      console.error('Sync failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleForceSync = async () => {
-    setIsLoading(true);
-    try {
-      await fetchOfficialMutation.mutateAsync({ force: true });
-      setLastSync(new Date());
-      refetch();
-    } catch (error) {
-      console.error('Force sync failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -160,39 +157,14 @@ export default function Matches() {
         {/* コントロール */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
-            {lastSync && (
-              <span>
-                最終同期: {lastSync.toLocaleTimeString('ja-JP')}
+            {isLoading && (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                試合情報を読み込み中...
               </span>
             )}
           </div>
           <div className="flex gap-2">
-            <Button
-              onClick={handleSync}
-              disabled={isLoading}
-              variant="outline"
-              size="sm"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              同期
-            </Button>
-            <Button
-              onClick={handleForceSync}
-              disabled={isLoading}
-              variant="outline"
-              size="sm"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              強制同期
-            </Button>
             <Button
               onClick={() => {}}
               size="sm"
@@ -204,7 +176,7 @@ export default function Matches() {
         </div>
 
         {/* 試合リスト */}
-        {isLoadingMatches ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
           </div>
@@ -220,7 +192,7 @@ export default function Matches() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                試合情報がまだ読み込まれていません。同期ボタンをクリックしてください。
+                試合情報が見つかりません。
               </p>
             </CardContent>
           </Card>

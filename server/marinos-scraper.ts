@@ -1,7 +1,11 @@
 import * as cheerio from 'cheerio';
 
-const MARINOS_SCHEDULE_URL = 'https://www.f-marinos.com/matches/schedule';
-const MARINOS_RESULTS_URL = 'https://www.f-marinos.com/matches/results';
+const MARINOS_SCHEDULE_URL = 'https://www.f-marinos.com/match/schedule/';
+const MARINOS_RESULTS_URL = 'https://www.f-marinos.com/match/result/';
+
+// Fallback URLs if primary ones fail
+const MARINOS_SCHEDULE_URL_FALLBACK = 'https://www.f-marinos.com/schedule';
+const MARINOS_RESULTS_URL_FALLBACK = 'https://www.f-marinos.com/result';
 
 interface MarinosMatch {
   date: string; // ISO format: YYYY-MM-DD
