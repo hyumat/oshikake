@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, RefreshCw, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 
 interface Match {
   id: number;
@@ -25,8 +26,15 @@ interface Match {
 export default function Matches() {
   const [, setLocation] = useLocation();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [filters, setFilters] = useState<FilterState>({
+    dateFrom: '',
+    dateTo: '',
+    opponent: '',
+    marinosSide: 'all',
+  });
 
   // tRPC クエリ・ミューテーション
   const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
@@ -35,8 +43,49 @@ export default function Matches() {
   useEffect(() => {
     if (matchesData?.matches) {
       setMatches(matchesData.matches);
+      applyFilters(matchesData.matches, filters);
     }
   }, [matchesData]);
+
+  useEffect(() => {
+    applyFilters(matches, filters);
+  }, [filters]);
+
+  const applyFilters = (matchList: Match[], filterState: FilterState) => {
+    let result = matchList;
+
+    // Date range filter
+    if (filterState.dateFrom) {
+      result = result.filter((m) => m.date >= filterState.dateFrom);
+    }
+    if (filterState.dateTo) {
+      result = result.filter((m) => m.date <= filterState.dateTo);
+    }
+
+    // Opponent filter
+    if (filterState.opponent) {
+      const searchTerm = filterState.opponent.toLowerCase();
+      result = result.filter((m) =>
+        m.opponent.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Home/Away filter
+    if (filterState.marinosSide !== 'all') {
+      result = result.filter((m) => m.marinosSide === filterState.marinosSide);
+    }
+
+    setFilteredMatches(result);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      dateFrom: '',
+      dateTo: '',
+      opponent: '',
+      marinosSide: 'all',
+    });
+  };
 
   const handleSync = async () => {
     setIsLoading(true);
@@ -101,6 +150,13 @@ export default function Matches() {
           </p>
         </div>
 
+        {/* フィルター */}
+        <MatchFilter
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={handleResetFilters}
+        />
+
         {/* コントロール */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
@@ -152,6 +208,14 @@ export default function Matches() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
           </div>
+        ) : filteredMatches.length === 0 && matches.length > 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                フィルター条件に合致する試合がありません。
+              </p>
+            </CardContent>
+          </Card>
         ) : matches.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -162,7 +226,7 @@ export default function Matches() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {matches.map((match) => (
+            {filteredMatches.map((match) => (
               <Card key={match.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -211,16 +275,16 @@ export default function Matches() {
         )}
 
         {/* 統計情報 */}
-        {matches.length > 0 && (
+        {filteredMatches.length > 0 && (
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  総試合数
+                  表示中の試合数
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{matches.length}</div>
+                <div className="text-2xl font-bold">{filteredMatches.length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -231,7 +295,7 @@ export default function Matches() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {matches.filter(m => m.isResult).length}
+                  {filteredMatches.filter(m => m.isResult).length}
                 </div>
               </CardContent>
             </Card>
@@ -243,7 +307,7 @@ export default function Matches() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {matches.filter(m => !m.isResult).length}
+                  {filteredMatches.filter(m => !m.isResult).length}
                 </div>
               </CardContent>
             </Card>
