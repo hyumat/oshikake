@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, RefreshCw, Plus } from 'lucide-react';
@@ -22,6 +23,7 @@ interface Match {
 }
 
 export default function Matches() {
+  const [, setLocation] = useLocation();
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -196,7 +198,7 @@ export default function Matches() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {}}
+                        onClick={() => setLocation(`/matches/${match.id}`)}
                       >
                         詳細
                       </Button>

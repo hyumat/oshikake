@@ -86,3 +86,11 @@
 - [x] スクレイピング機能の統合テスト
 - [x] UI での同期結果表示改善
 - [x] ユニットテスト実装、全テスト成功 (37 tests passed)
+
+## Phase 11: Match Detail Page Implementation
+- [x] userMatches テーブルの確認・スキーマ拡張
+- [x] tRPC プロシージャ実装（getMatchDetail、addUserMatch、updateUserMatch、deleteUserMatch）
+- [x] 試合詳細ページコンポーネント実装
+- [x] 観戦記録フォーム実装（コスト、メモ、観戦日時）
+- [x] 試合一覧からの詳細ページへのナビゲーション実装
+- [x] 詳細ページのテスト実装 (22 tests passed, total 59 tests)

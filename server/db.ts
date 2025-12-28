@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, matches as matchesTable } from "../drizzle/schema";
+import { InsertUser, users, matches as matchesTable, userMatches as userMatchesTable, InsertUserMatch, UserMatch } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -165,4 +165,147 @@ export async function getMatches(filters?: { year?: number; competition?: string
   }
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getMatchById(matchId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot get match: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.select()
+      .from(matchesTable)
+      .where(eq(matchesTable.id, matchId))
+      .limit(1);
+    
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error('[Database] Failed to get match by id:', error);
+    return undefined;
+  }
+}
+
+// ========== User Match Operations ==========
+
+export async function getUserMatches(userId: number, filters?: { status?: string }) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot get user matches: database not available');
+    return [];
+  }
+  
+  try {
+    let query: any = db.select().from(userMatchesTable).where(eq(userMatchesTable.userId, userId));
+    
+    if (filters?.status) {
+      query = query.where(eq(userMatchesTable.status, filters.status as any));
+    }
+    
+    const results = await query;
+    return results;
+  } catch (error) {
+    console.error('[Database] Failed to get user matches:', error);
+    return [];
+  }
+}
+
+export async function getUserMatchById(userMatchId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot get user match: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.select()
+      .from(userMatchesTable)
+      .where(eq(userMatchesTable.id, userMatchId))
+      .limit(1);
+    
+    if (result.length === 0) return undefined;
+    if (result[0].userId !== userId) return undefined;
+    
+    return result[0];
+  } catch (error) {
+    console.error('[Database] Failed to get user match by id:', error);
+    return undefined;
+  }
+}
+
+export async function createUserMatch(userId: number, data: Omit<InsertUserMatch, 'userId'>) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot create user match: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.insert(userMatchesTable).values({
+      ...data,
+      userId,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to create user match:', error);
+    throw error;
+  }
+}
+
+export async function updateUserMatch(userMatchId: number, userId: number, data: Partial<Omit<UserMatch, 'id' | 'userId' | 'createdAt'>>) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot update user match: database not available');
+    return undefined;
+  }
+  
+  try {
+    const existing = await db.select()
+      .from(userMatchesTable)
+      .where(eq(userMatchesTable.id, userMatchId))
+      .limit(1);
+    
+    if (existing.length === 0 || existing[0].userId !== userId) {
+      throw new Error('User match not found or unauthorized');
+    }
+    
+    const result = await db.update(userMatchesTable)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(userMatchesTable.id, userMatchId));
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to update user match:', error);
+    throw error;
+  }
+}
+
+export async function deleteUserMatch(userMatchId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot delete user match: database not available');
+    return undefined;
+  }
+  
+  try {
+    const existing = await db.select()
+      .from(userMatchesTable)
+      .where(eq(userMatchesTable.id, userMatchId))
+      .limit(1);
+    
+    if (existing.length === 0 || existing[0].userId !== userId) {
+      throw new Error('User match not found or unauthorized');
+    }
+    
+    const result = await db.delete(userMatchesTable)
+      .where(eq(userMatchesTable.id, userMatchId));
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to delete user match:', error);
+    throw error;
+  }
+}
