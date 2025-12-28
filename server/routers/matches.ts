@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { protectedProcedure, publicProcedure, router } from '../_core/trpc';
 import { scrapeAllMatches } from '../scraper';
 import { scrapeAllMarinosMatches } from '../marinos-scraper';
+import { scrapeJLeagueMatches } from '../jleague-scraper';
 import { upsertMatches, getMatches } from '../db';
 
 export const matchesRouter = router({

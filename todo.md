@@ -109,3 +109,10 @@
 - [x] 同期ボタンの削除
 - [x] 強制同期ボタンの削除
 - [x] テスト実装・実行 (59 tests passed)
+
+## Phase 14: J-League Official Site Scraping
+- [x] Jリーグ公式サイトのスクレイピング検証
+- [x] Jリーグ公式サイトスクレイパーの実装
+- [x] 試合結果・会場情報の抽出
+- [x] 複数ソースの統合
+- [x] テスト実装・実行 (11 tests added, 70 total tests passed)
