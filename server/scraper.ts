@@ -224,6 +224,7 @@ export async function fetchMatchListPage(): Promise<{ matches: string[]; errors:
 
 /**
  * 試合詳細ページから情報を抽出
+ * ページタイトルから基本情報を抽出し、HTMLから補足情報を取得
  */
 export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partial<RawMatchData> | null; error: ScrapingError | null }> {
   try {
@@ -234,28 +235,64 @@ export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partia
     const title = $('title').text();
     console.log(`[Scraper] Processing: ${title.substring(0, 80)}`);
     
-    // タイトルから試合情報を解析
-    // 例：【公式】横浜FMvs上海申花の試合結果・データ（ＡＦＣチャンピオンズリーグエリート：2025年2月12日）
+    // タイトル例：【公式】横浜FMvs新潟の試合結果・データ（明治安田Ｊ１リーグ：2025年2月15日）：Ｊリーグ公式サイト（J.LEAGUE.jp）
+    
+    // 日付を抽出
     const dateMatch = title.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
     const date = dateMatch ? `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, '0')}-${String(dateMatch[3]).padStart(2, '0')}` : '';
     
     // チーム名を抽出（タイトルから）
+    // パターン1: 【公式】横浜FMvs新潟の試合結果
+    // パターン2: 【公式】新潟vs横浜FMの試合結果
+    let homeTeam = '';
+    let awayTeam = '';
+    
     const teamMatch = title.match(/【公式】(.+?)vs(.+?)の試合/);
-    const homeTeam = teamMatch ? normalizeText(teamMatch[1]) : '';
-    const awayTeam = teamMatch ? normalizeText(teamMatch[2]) : '';
+    if (teamMatch) {
+      homeTeam = normalizeText(teamMatch[1]);
+      awayTeam = normalizeText(teamMatch[2]);
+    }
+    
+    // チーム名が見つからない場合のフォールバック
+    if (!homeTeam || !awayTeam) {
+      // スキーマ.orgのデータを探す
+      const schemaScripts = $('script[type="application/ld+json"]');
+      for (let i = 0; i < schemaScripts.length; i++) {
+        try {
+          const schemaData = JSON.parse($(schemaScripts[i]).html() || '{}');
+          if (schemaData['@type'] === 'SportsEvent' && schemaData.homeTeam && schemaData.awayTeam) {
+            homeTeam = normalizeText(schemaData.homeTeam.name);
+            awayTeam = normalizeText(schemaData.awayTeam.name);
+            break;
+          }
+        } catch {
+          // スキーマパースエラーは無視
+        }
+      }
+    }
     
     // スコアを探す
     let homeScore: number | null = null;
     let awayScore: number | null = null;
     
-    // スコア要素を探す
-    const scoreElements = $('[class*="score"]');
-    if (scoreElements.length > 0) {
-      const scoreText = normalizeText(scoreElements.first().text());
-      const scoreMatch = scoreText.match(/(\d+)\s*[-:]\s*(\d+)/);
-      if (scoreMatch) {
-        homeScore = parseInt(scoreMatch[1], 10);
-        awayScore = parseInt(scoreMatch[2], 10);
+    // スコア要素を探す（複数のセレクタを試す）
+    const scoreSelectors = [
+      '.scoreload',
+      '[class*="score"]',
+      '.matchScore',
+      '.result__score',
+    ];
+    
+    for (const selector of scoreSelectors) {
+      const scoreElements = $(selector);
+      if (scoreElements.length > 0) {
+        const scoreText = normalizeText(scoreElements.first().text());
+        const scoreMatch = scoreText.match(/(\d+)\s*[-:]\s*(\d+)/);
+        if (scoreMatch) {
+          homeScore = parseInt(scoreMatch[1], 10);
+          awayScore = parseInt(scoreMatch[2], 10);
+          break;
+        }
       }
     }
     
@@ -266,6 +303,7 @@ export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partia
       '.matchData__place',
       '.matchInfo__stadium',
       '[class*="stadium"]',
+      '[class*="venue"]',
     ];
     for (const selector of stadiumSelectors) {
       const elem = $(selector).first();
@@ -279,11 +317,14 @@ export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partia
     const marinosSide = detectMarinosSide(homeTeam, awayTeam);
     
     if (!marinosSide) {
+      console.warn(`[Scraper] Could not determine Marinos side for: ${title}`);
+      // マリノスが見つからない場合でも、基本情報は返す
+      // ただし、この試合はマリノスに関連していない可能性がある
       return {
         data: null,
         error: {
           url: matchUrl,
-          message: 'Could not determine Marinos side from match data',
+          message: 'Marinos not found in match data',
           timestamp: new Date(),
         },
       };
@@ -298,6 +339,13 @@ export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partia
     // 試合結果かどうかを判定
     const isResult = homeScore !== null && awayScore !== null;
     
+    // リーグ情報を抽出
+    let competition = '';
+    const compMatch = title.match(/（([^：]*)[：:].*）/);
+    if (compMatch) {
+      competition = normalizeText(compMatch[1]);
+    }
+    
     const data: Partial<RawMatchData> = {
       sourceKey,
       date,
@@ -306,11 +354,14 @@ export async function fetchMatchDetail(matchUrl: string): Promise<{ data: Partia
       opponent,
       stadium: stadium || undefined,
       marinosSide,
-      homeScore: homeScore || undefined,
-      awayScore: awayScore || undefined,
+      homeScore: homeScore !== null ? homeScore : undefined,
+      awayScore: awayScore !== null ? awayScore : undefined,
+      competition: competition || undefined,
       isResult,
       matchUrl,
     };
+    
+    console.log(`[Scraper] Extracted: ${opponent} (${date}) - Score: ${homeScore}-${awayScore}`);
     
     return { data, error: null };
     
