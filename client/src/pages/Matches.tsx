@@ -42,6 +42,7 @@ export default function Matches() {
     dateTo: '',
     opponent: '',
     marinosSide: 'all',
+    watchedOnly: false,
   });
 
   // tRPC クエリ・ミューテーション
@@ -147,6 +148,7 @@ export default function Matches() {
       dateTo: '',
       opponent: '',
       marinosSide: 'all',
+      watchedOnly: false,
     });
   };
 
