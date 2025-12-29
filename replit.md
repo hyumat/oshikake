@@ -1,6 +1,8 @@
-# Marinos Away Log V2
+# おしかけログ (Oshikake Log)
 
 ## Overview
+マリノスサポーター向け観戦記録サービス「おしかけログ」。横浜F・マリノスの公式試合データを取り込み、ユーザーが観戦した試合の記録と費用を蓄積。観戦試合の結果集計（勝敗）と費用集計（合計・平均）を行うWebアプリケーション。
+
 A Japanese-language web application for tracking Yokohama F. Marinos (J-League) match attendance. Users can log matches they've attended, track expenses (transportation, tickets, food), and view statistics about their match attendance history.
 
 ## Project Structure
@@ -32,7 +34,18 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - `VITE_ANALYTICS_ENDPOINT` - Optional analytics endpoint
 - `VITE_ANALYTICS_WEBSITE_ID` - Optional analytics website ID
 
+## Design
+- カラースキーム: マリノストリコロール（青 #0022AA、白、赤 #C8102E）を控えめに使用
+- モバイルファースト設計
+- shadcn/ui コンポーネントベース
+
 ## Recent Changes
+- 2025-12-29: LPリブランディング
+  - サービス名を「おしかけログ」に変更
+  - マリノスカラー（トリコロール：青・白・赤）を控えめに適用
+  - 使い方セクションに説明画像3枚を追加（attached_assets/generated_images/）
+  - Vite設定でattached_assetsへのアクセスを許可
+
 - 2025-12-29: Stats機能を実装 (MVP)
   - stats.getSummary API: 観戦数、勝分敗、費用合計、平均費用を返す
   - stats.getAvailableYears API: 観戦記録がある年のリストを返す
