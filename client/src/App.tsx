@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
+import Stats from "./pages/Stats";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/app"} component={Home} />
       <Route path={"/matches"} component={Matches} />
       <Route path={"/matches/:id"} component={MatchDetail} />
+      <Route path={"/stats"} component={Stats} />
 
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
