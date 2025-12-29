@@ -590,14 +590,92 @@ export default function Matches() {
                               <div className="text-lg font-bold w-12 text-center">
                                 {formatScore(match)}
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => setLocation(`/matches/${match.id}`)}
-                              >
-                                詳細
-                              </Button>
+                              {(() => {
+                                const status = getAttendanceStatus(match.id);
+                                if (status === 'attending') {
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => setLocation(`/matches/${match.id}`)}
+                                    >
+                                      詳細
+                                    </Button>
+                                  );
+                                } else if (status === 'not-attending') {
+                                  return (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 px-2 text-xs text-red-500"
+                                        >
+                                          不参加
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-1" align="end">
+                                        <div className="flex flex-col gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
+                                            onClick={() => handleAttendanceChange(match.id, 'attending', false)}
+                                          >
+                                            <Check className="w-3 h-3 mr-2" />
+                                            参加に変更
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="justify-start h-8 text-xs text-gray-600"
+                                            onClick={() => handleAttendanceChange(match.id, 'undecided', false)}
+                                          >
+                                            不明に変更
+                                          </Button>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  );
+                                } else {
+                                  return (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 px-2 text-xs text-gray-400"
+                                        >
+                                          不明
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-1" align="end">
+                                        <div className="flex flex-col gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
+                                            onClick={() => handleAttendanceChange(match.id, 'attending', false)}
+                                          >
+                                            <Check className="w-3 h-3 mr-2" />
+                                            参加
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="justify-start h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => handleAttendanceChange(match.id, 'not-attending', false)}
+                                          >
+                                            <X className="w-3 h-3 mr-2" />
+                                            不参加
+                                          </Button>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  );
+                                }
+                              })()}
                             </div>
                           </div>
                         </CardContent>
