@@ -1,85 +1,97 @@
 import { useParams, useLocation } from 'wouter';
-import { useAuth } from '@/_core/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Clock, Trophy, Save, Wallet, Train, Ticket, Utensils, MoreHorizontal } from 'lucide-react';
+
+type ExpenseData = {
+  transportation: string;
+  ticket: string;
+  food: string;
+  other: string;
+  note: string;
+};
+
+const STORAGE_KEY = 'oshikake-expenses';
+
+function loadExpenses(): Record<string, ExpenseData> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveExpenses(expenses: Record<string, ExpenseData>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+}
 
 export default function MatchDetail() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const params = useParams();
-  const matchId = params.id ? parseInt(params.id, 10) : null;
+  const matchId = params.id || '';
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    status: 'planned' as 'planned' | 'attended',
-    resultWdl: '' as 'W' | 'D' | 'L' | '',
-    marinosGoals: '',
-    opponentGoals: '',
-    costYen: '',
+  const [expenses, setExpenses] = useState<ExpenseData>({
+    transportation: '',
+    ticket: '',
+    food: '',
+    other: '',
     note: '',
   });
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch user match data
-  const { data: userMatchData, isLoading: isLoadingUserMatch } = trpc.userMatches.getById.useQuery(
-    { id: matchId || 0 },
-    { enabled: !!matchId && !!user }
-  );
+  const { data, isLoading, error } = trpc.matches.listOfficial.useQuery({});
 
-  // Fetch official match details
-  const { data: matchDetailsData } = trpc.userMatches.getMatchDetails.useQuery(
-    { matchId: userMatchData?.match?.matchId || 0 },
-    { enabled: !!userMatchData?.match?.matchId }
-  );
+  const match = data?.matches?.find((m: { id: number | string }) => String(m.id) === matchId);
 
-  // Update mutation
-  const updateMutation = trpc.userMatches.update.useMutation({
-    onSuccess: () => {
-      toast.success('試合情報を更新しました');
-      setIsEditing(false);
-    },
-    onError: (error) => {
-      toast.error(error.message || '更新に失敗しました');
-    },
-  });
+  useEffect(() => {
+    if (matchId) {
+      const stored = loadExpenses();
+      if (stored[matchId]) {
+        setExpenses(stored[matchId]);
+      }
+    }
+  }, [matchId]);
 
-  // Delete mutation
-  const deleteMutation = trpc.userMatches.delete.useMutation({
-    onSuccess: () => {
-      toast.success('試合を削除しました');
-      setLocation('/matches');
-    },
-    onError: (error) => {
-      toast.error(error.message || '削除に失敗しました');
-    },
-  });
+  const handleSave = () => {
+    setIsSaving(true);
+    try {
+      const stored = loadExpenses();
+      stored[matchId] = expenses;
+      saveExpenses(stored);
+      toast.success('保存しました');
+    } catch {
+      toast.error('保存に失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  if (!user) {
+  const totalCost = [
+    expenses.transportation,
+    expenses.ticket,
+    expenses.food,
+    expenses.other,
+  ].reduce((sum, val) => sum + (parseInt(val, 10) || 0), 0);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg text-gray-600">ログインしてください</p>
+        <p className="text-muted-foreground">読み込み中...</p>
       </div>
     );
   }
 
-  if (isLoadingUserMatch) {
+  if (error || !match) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg text-gray-600">読み込み中...</p>
-      </div>
-    );
-  }
-
-  if (!userMatchData?.match) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-lg text-gray-600">試合が見つかりません</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+        <p className="text-muted-foreground">試合が見つかりません</p>
         <Button onClick={() => setLocation('/matches')} variant="outline">
           <ArrowLeft className="w-4 h-4 mr-2" />
           マッチログに戻る
@@ -88,286 +100,224 @@ export default function MatchDetail() {
     );
   }
 
-  const match = userMatchData.match;
-  const officialMatch = matchDetailsData?.match;
-
-  const handleSave = async () => {
+  const formatDate = (dateStr: string) => {
     try {
-      await updateMutation.mutateAsync({
-        id: match.id,
-        status: formData.status,
-        resultWdl: formData.resultWdl || undefined,
-        marinosGoals: formData.marinosGoals ? parseInt(formData.marinosGoals, 10) : undefined,
-        opponentGoals: formData.opponentGoals ? parseInt(formData.opponentGoals, 10) : undefined,
-        costYen: formData.costYen ? parseInt(formData.costYen, 10) : 0,
-        note: formData.note || undefined,
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'short',
       });
-    } catch (error) {
-      console.error('Save error:', error);
+    } catch {
+      return dateStr;
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('この試合を削除してもよろしいですか？')) {
-      try {
-        await deleteMutation.mutateAsync({ id: match.id });
-      } catch (error) {
-        console.error('Delete error:', error);
-      }
-    }
+  const marinosGoals = match.marinosSide === 'home' ? match.homeScore : match.awayScore;
+  const opponentGoals = match.marinosSide === 'home' ? match.awayScore : match.homeScore;
+  const hasScore = marinosGoals !== undefined && opponentGoals !== undefined && match.isResult;
+
+  const getResultInfo = () => {
+    if (!hasScore) return null;
+    const mg = marinosGoals!;
+    const og = opponentGoals!;
+    if (mg > og) return { label: '勝', color: 'bg-green-100 text-green-800 border-green-300' };
+    if (mg < og) return { label: '負', color: 'bg-red-100 text-red-800 border-red-300' };
+    return { label: '分', color: 'bg-gray-100 text-gray-800 border-gray-300' };
   };
+
+  const resultInfo = getResultInfo();
+  const isPastMatch = new Date(match.date) < new Date();
+  const venueLabel = match.marinosSide === 'home' ? 'HOME' : 'AWAY';
+  const venueColor = match.marinosSide === 'home' 
+    ? 'bg-blue-600 text-white' 
+    : 'bg-red-600 text-white';
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container max-w-2xl mx-auto px-4">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocation('/matches')}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-3xl font-bold">試合詳細</h1>
-        </div>
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-2xl mx-auto px-4 py-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4"
+          onClick={() => setLocation('/matches')}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          マッチログに戻る
+        </Button>
 
-        {/* Match Info Card */}
-        <Card className="mb-6 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: Match Info */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">試合情報</h2>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-gray-600">日付</p>
-                  <p className="font-medium">{match.date}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">対戦相手</p>
-                  <p className="font-medium">{match.opponent}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">ホーム/アウェイ</p>
-                  <p className="font-medium">{match.marinosSide === 'home' ? 'ホーム' : 'アウェイ'}</p>
-                </div>
-                {match.stadium && (
-                  <div>
-                    <p className="text-gray-600">スタジアム</p>
-                    <p className="font-medium">{match.stadium}</p>
-                  </div>
-                )}
-                {match.kickoff && (
-                  <div>
-                    <p className="text-gray-600">キックオフ時刻</p>
-                    <p className="font-medium">{match.kickoff}</p>
-                  </div>
-                )}
-                {match.competition && (
-                  <div>
-                    <p className="text-gray-600">大会</p>
-                    <p className="font-medium">{match.competition}</p>
-                  </div>
-                )}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`px-2 py-0.5 text-xs font-bold rounded ${venueColor}`}>
+                {venueLabel}
+              </span>
+              {match.competition && (
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded dark:bg-slate-800 dark:text-slate-300">
+                  {match.competition}
+                </span>
+              )}
+            </div>
+            <CardTitle className="text-2xl">
+              vs {match.opponent}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span>{formatDate(match.date)}</span>
               </div>
+              {match.kickoff && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span>{match.kickoff}</span>
+                </div>
+              )}
+              {match.stadium && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.stadium)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    {match.stadium}
+                  </a>
+                </div>
+              )}
             </div>
 
-            {/* Right: Score Info (if result) */}
-            {match.status === 'attended' && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">結果</h2>
-                <div className="space-y-3">
-                  {match.marinosGoals !== null && match.opponentGoals !== null ? (
-                    <div className="text-center py-4 bg-blue-50 rounded-lg">
-                      <p className="text-3xl font-bold">
-                        {match.marinosGoals} - {match.opponentGoals}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-2">
-                        {match.resultWdl === 'W' ? '勝利' : match.resultWdl === 'D' ? '引き分け' : '敗北'}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">結果未入力</p>
-                  )}
+            {hasScore && (
+              <div className="flex items-center justify-center gap-4 py-4 bg-muted/50 rounded-lg">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">マリノス</p>
+                  <p className="text-4xl font-bold">{marinosGoals}</p>
                 </div>
+                <div className="text-2xl text-muted-foreground">-</div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">{match.opponent}</p>
+                  <p className="text-4xl font-bold">{opponentGoals}</p>
+                </div>
+                {resultInfo && (
+                  <span className={`ml-4 px-3 py-1 text-lg font-bold rounded-full border ${resultInfo.color}`}>
+                    {resultInfo.label}
+                  </span>
+                )}
               </div>
             )}
-          </div>
+          </CardContent>
         </Card>
 
-        {/* Edit Form */}
-        {isEditing ? (
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">観戦記録を編集</h2>
-            <div className="space-y-4">
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium mb-2">ステータス</label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value as 'planned' | 'attended' })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="planned">予定中</SelectItem>
-                    <SelectItem value="attended">観戦済み</SelectItem>
-                  </SelectContent>
-                </Select>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wallet className="w-5 h-5" />
+              観戦費用
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="transportation" className="flex items-center gap-2 text-sm">
+                  <Train className="w-4 h-4" />
+                  交通費
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
+                  <Input
+                    id="transportation"
+                    type="number"
+                    min="0"
+                    className="pl-8"
+                    placeholder="0"
+                    value={expenses.transportation}
+                    onChange={(e) => setExpenses({ ...expenses, transportation: e.target.value })}
+                  />
+                </div>
               </div>
-
-              {/* Result (if attended) */}
-              {formData.status === 'attended' && (
-                <>
-                  <div className="grid grid-cols-3 gap-4">
-                    {/* Result WDL */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">結果</label>
-                      <Select
-                        value={formData.resultWdl}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, resultWdl: value as 'W' | 'D' | 'L' | '' })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="選択" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">未定</SelectItem>
-                          <SelectItem value="W">勝利</SelectItem>
-                          <SelectItem value="D">引き分け</SelectItem>
-                          <SelectItem value="L">敗北</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Marinos Goals */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">マリノス得点</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={formData.marinosGoals}
-                        onChange={(e) =>
-                          setFormData({ ...formData, marinosGoals: e.target.value })
-                        }
-                        placeholder="0"
-                      />
-                    </div>
-
-                    {/* Opponent Goals */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">相手得点</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={formData.opponentGoals}
-                        onChange={(e) =>
-                          setFormData({ ...formData, opponentGoals: e.target.value })
-                        }
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Cost */}
-              <div>
-                <label className="block text-sm font-medium mb-2">費用 (円)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formData.costYen}
-                  onChange={(e) =>
-                    setFormData({ ...formData, costYen: e.target.value })
-                  }
-                  placeholder="0"
-                />
+              <div className="space-y-2">
+                <Label htmlFor="ticket" className="flex items-center gap-2 text-sm">
+                  <Ticket className="w-4 h-4" />
+                  チケット代
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
+                  <Input
+                    id="ticket"
+                    type="number"
+                    min="0"
+                    className="pl-8"
+                    placeholder="0"
+                    value={expenses.ticket}
+                    onChange={(e) => setExpenses({ ...expenses, ticket: e.target.value })}
+                  />
+                </div>
               </div>
-
-              {/* Note */}
-              <div>
-                <label className="block text-sm font-medium mb-2">メモ</label>
-                <Textarea
-                  value={formData.note}
-                  onChange={(e) =>
-                    setFormData({ ...formData, note: e.target.value })
-                  }
-                  placeholder="試合の感想やメモを入力..."
-                  rows={4}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="food" className="flex items-center gap-2 text-sm">
+                  <Utensils className="w-4 h-4" />
+                  飲食代
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
+                  <Input
+                    id="food"
+                    type="number"
+                    min="0"
+                    className="pl-8"
+                    placeholder="0"
+                    value={expenses.food}
+                    onChange={(e) => setExpenses({ ...expenses, food: e.target.value })}
+                  />
+                </div>
               </div>
-
-              {/* Buttons */}
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleSave}
-                  disabled={updateMutation.isPending}
-                  className="flex-1"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  保存
-                </Button>
-                <Button
-                  onClick={() => setIsEditing(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  キャンセル
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="other" className="flex items-center gap-2 text-sm">
+                  <MoreHorizontal className="w-4 h-4" />
+                  その他
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
+                  <Input
+                    id="other"
+                    type="number"
+                    min="0"
+                    className="pl-8"
+                    placeholder="0"
+                    value={expenses.other}
+                    onChange={(e) => setExpenses({ ...expenses, other: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
-          </Card>
-        ) : (
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">観戦記録</h2>
-            <div className="space-y-3 text-sm mb-4">
-              <div>
-                <p className="text-gray-600">ステータス</p>
-                <p className="font-medium">
-                  {match.status === 'attended' ? '観戦済み' : '予定中'}
-                </p>
+
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between text-lg font-bold">
+                <span>合計</span>
+                <span>¥{totalCost.toLocaleString()}</span>
               </div>
-              {match.status === 'attended' && match.resultWdl && (
-                <div>
-                  <p className="text-gray-600">結果</p>
-                  <p className="font-medium">
-                    {match.resultWdl === 'W' ? '勝利' : match.resultWdl === 'D' ? '引き分け' : '敗北'}
-                  </p>
-                </div>
-              )}
-              {match.costYen > 0 && (
-                <div>
-                  <p className="text-gray-600">費用</p>
-                  <p className="font-medium">¥{match.costYen.toLocaleString()}</p>
-                </div>
-              )}
-              {match.note && (
-                <div>
-                  <p className="text-gray-600">メモ</p>
-                  <p className="font-medium whitespace-pre-wrap">{match.note}</p>
-                </div>
-              )}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setIsEditing(true)} className="flex-1">
-                編集
-              </Button>
-              <Button
-                onClick={handleDelete}
-                variant="destructive"
-                size="sm"
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="note" className="text-sm">メモ</Label>
+              <Textarea
+                id="note"
+                placeholder="試合の感想やメモを入力..."
+                rows={3}
+                value={expenses.note}
+                onChange={(e) => setExpenses({ ...expenses, note: e.target.value })}
+              />
             </div>
-          </Card>
-        )}
+
+            <Button onClick={handleSave} disabled={isSaving} className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              保存する
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
