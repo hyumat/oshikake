@@ -33,6 +33,13 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - `VITE_ANALYTICS_WEBSITE_ID` - Optional analytics website ID
 
 ## Recent Changes
+- 2025-12-29: Stats機能を実装 (MVP)
+  - stats.getSummary API: 観戦数、勝分敗、費用合計、平均費用を返す
+  - stats.getAvailableYears API: 観戦記録がある年のリストを返す
+  - /stats ページ: 年セレクト付きの集計画面
+  - Empty状態とError UIを実装
+  - ナビゲーションに「集計」リンクを追加
+  
 - 2025-12-29: Configured for Replit environment
   - Updated Vite config to allow all hosts for Replit proxy
   - Updated server to bind to 0.0.0.0:5000
