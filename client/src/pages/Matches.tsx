@@ -363,12 +363,12 @@ export default function Matches() {
                               </div>
                             </div>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              className="shrink-0 h-7 px-2 text-xs"
+                              className="shrink-0 h-7 px-2 text-xs bg-green-50 border-green-300 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400"
                               onClick={() => setLocation(`/matches/${match.id}`)}
                             >
-                              詳細
+                              観戦予定
                             </Button>
                           </div>
                         </CardContent>
