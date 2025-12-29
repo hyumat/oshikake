@@ -1,66 +1,82 @@
-# Marinos Away Log V2 - Project TODO
+# Marinos Away Log V2 - TODO
 
-## NorthStarGoal
-- 公式試合データを取り込み、ユーザーが観戦した試合の記録と費用を蓄積できる
-- 観戦試合の結果（勝敗など）と費用（合計・内訳）を集計できる
+## North Star Goal
+公式の試合情報を基盤データとして取り込み、ユーザーが**観戦した試合の記録**と**費用**を蓄積できる。  
+さらに、観戦試合の**結果集計（勝敗など）**と**費用集計（合計・平均・内訳）**を行えるアプリにする。
 
-## MVP
-### A. 公式試合データ（基盤）
-- 公式データを取得しDBへ同期（最低限のフィールドが埋まる）
-- 日付、キックオフ、対戦（home/away）、会場、スコア/結果、競技/大会、節/ラウンド
-- データが取れない時はログに残り、アプリは落ちない
+---
 
-### B. 観戦記録（ユーザー入力）
-- 試合を1件選んで「観戦した」として登録できる
-- 登録項目（MVP最小）
-- 観戦日（datetime）
-- 費用合計（number）
-- メモ（text、任意）
-- 任意でHome/Awayは試合情報から判定 or 選択不要
-- 編集・削除ができる
+## Current Status (High Level)
 
-### C. 集計（MVP最小）
-- 観戦試合の集計
-- 観戦試合数
-- 勝・分・敗（※スコアがある試合のみ対象、未確定は除外）
-- 費用集計
-- 費用合計
-- 1試合あたり平均費用（費用合計 / 観戦試合数）
-- フィルタ
-- 年（または期間指定）で絞れる
+### ✅ Done / Implemented
+- DBスキーマ（Drizzle）: `matches`, `userMatches`, `syncLog`
+- 公式試合データ同期（tRPC）: `matches.fetchOfficial`
+- 公式試合一覧ページ: `/matches`
+- 試合詳細ページ + 観戦ログCRUD（tRPC + UI）
+- フィルタリング（期間/対戦相手/Home-Away）※実装済み
 
-### D. 画面（MVP最小の3画面）
-- 試合一覧（公式）
-- 公式試合を一覧表示、各試合から詳細へ
-- 試合詳細（観戦ログ入力）
-- 試合情報＋「観戦記録の追加/編集/削除」
-- 集計（Stats）
-- 観戦数、勝分敗、費用合計、平均、期間フィルタ
+### 🚧 In Progress / Needs Stabilization
+- スクレイピング精度の固定（公式サイトの構造変化に追従、JSON-LD優先）
+- “実データ” を用いた統合テストの整備（季節を跨ぐデータ・欠損耐性）
 
-## Data Model（MVP最小）
-### matches（公式試合）
-id
-date（YYYY-MM-DD）
-kickoff（HH:MM）
-competition（大会名）
-roundLabel（第◯節/MD◯など）
-stadium（会場）
-home / away
-homeScore / awayScore（null可）
-status（試合終了/試合前など）
-sourceUrl（matchUrl）
-fetchedAt / updatedAt（任意）
+### ⏳ Not Started (MVP Remaining)
+- Stats（戦績・費用）集計API
+- Statsページ（集計画面）
+- 最終QA/最適化
 
-### userMatches（観戦ログ）
-id
-matchId（FK）
-watchedAt（datetime）
-costTotal（number）
-memo（text, nullable）
-createdAt / updatedAt
+---
 
-## API（MVP最小）
-matches.fetchOfficial：公式試合を取得→DB upsert（同期）
-matches.listOfficial：DBの公式試合一覧
-userMatches.add/update/delete/getByMatchId：観戦ログCRUD
-stats.getSummary：期間指定で集計（観戦数、勝分敗、費用合計、平均）
+## MVP (Must-have)
+
+### 1) Stats 集計API（tRPC）
+**Goal**: 観戦ログ（userMatches）と公式試合（matches）から集計を返す。
+
+- [ ] `stats.getSummary(year | from/to)` を追加
+- [ ] 返却: 観戦数、勝分敗（マリノス視点）、未確定数、費用合計、平均費用
+- [ ] 0件でも落ちない（watchCount=0 → average=0）
+- [ ] Unit tests（最低: 0件/勝/負/分/未確定 混在）
+
+**Acceptance**
+- [ ] 年フィルタで正しい数値が返る
+- [ ] スコア未確定は `unknown` に入る
+- [ ] costTotal が合計され、平均が正しい
+
+### 2) Stats ページ（UI）
+**Goal**: 期間フィルタ付きで集計を表示。
+
+- [ ] ページ追加（例: `/stats`）
+- [ ] 年セレクト（MVPは年のみでOK）
+- [ ] 表示: 観戦試合数 / 勝分敗 / 未確定 / 費用合計 / 平均
+- [ ] Empty（0件）と Error UI を実装
+
+**Acceptance**
+- [ ] 年変更で集計が更新される
+- [ ] 0件は “観戦記録なし” 表示
+- [ ] API失敗時も画面が落ちない
+
+### 3) スクレイピング品質固定（MVP基準）
+**Goal**: 観戦ログと集計が成立するだけの精度で、必須フィールドが埋まる。
+
+必須フィールド（目標）:
+- date, kickoff, competition, roundLabel, stadium
+- home, away, homeScore, awayScore, status
+- sourceUrl（matchUrl）
+
+- [ ] 同一試合の重複排除（URL正規化/キー統一）
+- [ ] 失敗時ログ（URL/ステータス/例外）を残す
+- [ ] 実データで統合テスト（最低: 1シーズン or 3ヶ月）
+
+---
+
+## Post-MVP (Nice-to-have)
+- [ ] 費用カテゴリ内訳（交通/チケット/飲食…）
+- [ ] グラフ/チャート（勝率推移、月別支出など）
+- [ ] オフライン体験の強化（キャッシュ戦略の明文化）
+- [ ] 共有/エクスポート（CSV等）
+
+---
+
+## Release Checklist (MVP)
+- [ ] 同期 → 一覧表示 → 詳細 → 観戦記録追加/編集/削除 → Stats表示 が一通り動く
+- [ ] モバイル幅で主要画面が破綻しない
+- [ ] テストが全て通る（`pnpm test`）
