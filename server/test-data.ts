@@ -109,8 +109,8 @@ export const SAMPLE_MATCHES: TestMatch[] = [
   },
   {
     id: 6,
-    sourceKey: 'test-2025-02-06-machida',
-    date: '2025-02-06',
+    sourceKey: 'test-2026-02-06-machida',
+    date: '2026-02-06',
     kickoff: '19:00',
     competition: 'J1リーグ 第1節',
     homeTeam: '横浜F・マリノス',
@@ -122,8 +122,8 @@ export const SAMPLE_MATCHES: TestMatch[] = [
   },
   {
     id: 7,
-    sourceKey: 'test-2025-02-14-kashima',
-    date: '2025-02-14',
+    sourceKey: 'test-2026-02-14-kashima',
+    date: '2026-02-14',
     kickoff: '15:00',
     competition: 'J1リーグ 第2節',
     homeTeam: '鹿島アントラーズ',
@@ -135,8 +135,8 @@ export const SAMPLE_MATCHES: TestMatch[] = [
   },
   {
     id: 8,
-    sourceKey: 'test-2025-02-21-urawa',
-    date: '2025-02-21',
+    sourceKey: 'test-2026-02-21-urawa',
+    date: '2026-02-21',
     kickoff: '',
     competition: 'J1リーグ 第3節',
     homeTeam: '横浜F・マリノス',

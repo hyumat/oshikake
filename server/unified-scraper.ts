@@ -419,10 +419,19 @@ async function fetchMarinosSchedule(): Promise<MatchFixture[]> {
       if (dateMatch) {
         const month = pad2(Number(dateMatch[1]));
         const day = pad2(Number(dateMatch[2]));
-        // For schedule page, matches are upcoming so use next year if month is before current month
-        // But actually Marinos schedule shows 2025 season matches
-        // Use 2025 as the base year for now (the current J1 season)
-        const year = 2025;
+        // J1 season runs Feb-Dec. Schedule page shows 2025 season (Feb 2025 - Dec 2025)
+        // If current date is after Nov, upcoming matches in Jan-May are likely next year
+        const now = new Date();
+        const matchMonth = Number(dateMatch[1]);
+        let year: number;
+        
+        if (now.getMonth() >= 10 && matchMonth <= 5) {
+          // If we're in Nov/Dec and match is Jan-May, it's next year
+          year = now.getFullYear() + 1;
+        } else {
+          // Otherwise use current year
+          year = now.getFullYear();
+        }
         dateStr = `${year}-${month}-${day}`;
       }
       
@@ -485,24 +494,34 @@ export async function scrapeAllMatches(): Promise<{
   upcoming: MatchFixture[];
   counts: { total: number; results: number; upcoming: number };
 }> {
-  const BASE_URL = `https://www.jleague.jp/match/search/all/all/yokohamafm/`;
+  // Data sources specified by user
+  const JLEAGUE_URL_2026 = 'https://www.jleague.jp/match/search/?category%5B%5D=100yj1&category%5B%5D=j2j3&category%5B%5D=j1&category%5B%5D=leaguecup&category%5B%5D=j2&category%5B%5D=j3&category%5B%5D=playoff&category%5B%5D=j2playoff&category%5B%5D=J3jflplayoff&category%5B%5D=emperor&category%5B%5D=acle&category%5B%5D=acl2&category%5B%5D=acl&category%5B%5D=fcwc&category%5B%5D=supercup&category%5B%5D=asiachallenge&category%5B%5D=jwc&club%5B%5D=yokohamafm&year=2026';
+  const JLEAGUE_URL_2025 = 'https://www.jleague.jp/match/search/?category%5B%5D=100yj1&category%5B%5D=j2j3&category%5B%5D=j1&category%5B%5D=leaguecup&category%5B%5D=j2&category%5B%5D=j3&category%5B%5D=playoff&category%5B%5D=j2playoff&category%5B%5D=J3jflplayoff&category%5B%5D=emperor&category%5B%5D=acle&category%5B%5D=acl2&category%5B%5D=acl&category%5B%5D=fcwc&category%5B%5D=supercup&category%5B%5D=asiachallenge&category%5B%5D=jwc&club%5B%5D=yokohamafm&year=2025';
+  const PHEW_URL_2026 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?start=0&sort=&team=%B2%A3%C9%CDFM&year=2026';
   const PHEW_URL_2025 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?team=%B2%A3%C9%CDFM&year=2025';
   const PHEW_URL_2024 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?team=%B2%A3%C9%CDFM&year=2024';
 
   try {
-    const [jleagueHtml, phewFixtures2025, phewFixtures2024, marinosFixtures] = await Promise.all([
-      fetchJleagueHtml(BASE_URL),
+    const [jleagueHtml2026, jleagueHtml2025, phewFixtures2026, phewFixtures2025, phewFixtures2024, marinosFixtures] = await Promise.all([
+      fetchJleagueHtml(JLEAGUE_URL_2026),
+      fetchJleagueHtml(JLEAGUE_URL_2025),
+      fetchPhewFixtures(PHEW_URL_2026),
       fetchPhewFixtures(PHEW_URL_2025),
       fetchPhewFixtures(PHEW_URL_2024),
       fetchMarinosSchedule(),
     ]);
 
     let jFixtures: MatchFixture[] = [];
-    if (jleagueHtml) {
-      jFixtures = await parseJleagueSearch(jleagueHtml);
+    if (jleagueHtml2026) {
+      const fixtures2026 = await parseJleagueSearch(jleagueHtml2026);
+      jFixtures.push(...fixtures2026);
+    }
+    if (jleagueHtml2025) {
+      const fixtures2025 = await parseJleagueSearch(jleagueHtml2025);
+      jFixtures.push(...fixtures2025);
     }
 
-    const phewFixtures = [...phewFixtures2025, ...phewFixtures2024];
+    const phewFixtures = [...phewFixtures2026, ...phewFixtures2025, ...phewFixtures2024];
     
     console.log(`[Unified Scraper] Sources: JLeague=${jFixtures.length}, Phew=${phewFixtures.length}, Marinos=${marinosFixtures.length}`);
 
