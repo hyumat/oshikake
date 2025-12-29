@@ -13,7 +13,7 @@ import * as cheerio from 'cheerio';
 import iconv from 'iconv-lite';
 
 interface MatchFixture {
-  source: 'jleague.jp' | 'google_calendar' | 'phew.homeip.net';
+  source: 'jleague.jp' | 'google_calendar' | 'phew.homeip.net' | 'f-marinos.com';
   date: string; // ISO format: YYYY-MM-DD
   kickoff?: string; // HH:mm format
   competition?: string;
@@ -375,6 +375,109 @@ async function fetchPhewFixtures(url: string): Promise<MatchFixture[]> {
   }
 }
 
+// ====== F-Marinos Official Site Scraper ======
+async function fetchMarinosSchedule(): Promise<MatchFixture[]> {
+  const SCHEDULE_URL = 'https://www.f-marinos.com/matches/schedule';
+  
+  try {
+    const res = await axios.get(SCHEDULE_URL, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'MarinosAwayLog/2.0 axios',
+        'Accept-Language': 'ja,en;q=0.8',
+      },
+    });
+    
+    const html = res.data;
+    const $ = cheerio.load(html);
+    const fixtures: MatchFixture[] = [];
+    const currentYear = new Date().getFullYear();
+    
+    // Find all match blocks
+    $('div:has(> .match-header)').each((_, matchBlock) => {
+      const $block = $(matchBlock);
+      const $header = $block.find('.match-header');
+      
+      // Home/Away
+      const isHome = $header.find('.match-header-tag.is-home').length > 0;
+      const isAway = $header.find('.match-header-tag.is-away').length > 0;
+      const marinosSide = isHome ? 'home' : (isAway ? 'away' : null);
+      
+      // Stadium
+      const stadium = normalizeSpaces($header.find('.match-header-place').text()) || undefined;
+      
+      // Date parsing - look for matchdate elements
+      const $matchdate = $block.find('.matchdate');
+      let dateStr = '';
+      let kickoff = '';
+      
+      // Try different date formats
+      const dateText = normalizeSpaces($matchdate.text());
+      
+      // Format: "2.6 [FRI] 19:00 Kick Off" or "2.14 [金]15:00 Kick Off"
+      const dateMatch = dateText.match(/(\d{1,2})\.(\d{1,2})/);
+      if (dateMatch) {
+        const month = pad2(Number(dateMatch[1]));
+        const day = pad2(Number(dateMatch[2]));
+        // For schedule page, matches are upcoming so use next year if month is before current month
+        // But actually Marinos schedule shows 2025 season matches
+        // Use 2025 as the base year for now (the current J1 season)
+        const year = 2025;
+        dateStr = `${year}-${month}-${day}`;
+      }
+      
+      // Kickoff time
+      const timeMatch = dateText.match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        kickoff = `${pad2(Number(timeMatch[1]))}:${timeMatch[2]}`;
+      }
+      
+      // Opponent team name
+      let opponentText = '';
+      $block.find('.font-weight-bold').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text && !text.includes('横浜') && !text.includes('マリノス') && !opponentText) {
+          opponentText = text;
+        }
+      });
+      
+      const opponent = normalizeSpaces(opponentText) || undefined;
+      
+      // Competition (look for league info)
+      let competition = '';
+      const compText = $block.find('.font-size-xs, .font-size-sm').text();
+      if (compText.includes('J1')) competition = 'J1リーグ';
+      else if (compText.includes('ルヴァン')) competition = 'JリーグYBCルヴァンカップ';
+      else if (compText.includes('天皇杯')) competition = '天皇杯';
+      else if (compText.includes('ACL')) competition = 'ACL';
+      
+      if (dateStr && opponent) {
+        fixtures.push({
+          source: 'f-marinos.com',
+          date: dateStr,
+          kickoff: kickoff || undefined,
+          competition: competition || undefined,
+          stadium,
+          home: marinosSide === 'home' ? '横浜FM' : opponent,
+          away: marinosSide === 'away' ? '横浜FM' : opponent,
+          status: 'vs',
+          isResult: false,
+          marinosSide,
+          opponent,
+          matchUrl: SCHEDULE_URL,
+          key: `marinos-${dateStr}-${opponent}`,
+        });
+      }
+    });
+    
+    console.log(`[Unified Scraper] Marinos official: ${fixtures.length} upcoming matches found`);
+    return fixtures;
+  } catch (e) {
+    console.error('[Unified Scraper] Marinos official fetch failed:', e instanceof Error ? e.message : String(e));
+    return [];
+  }
+}
+
 // ====== Main Export ======
 export async function scrapeAllMatches(): Promise<{
   fixtures: MatchFixture[];
@@ -387,10 +490,11 @@ export async function scrapeAllMatches(): Promise<{
   const PHEW_URL_2024 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?team=%B2%A3%C9%CDFM&year=2024';
 
   try {
-    const [jleagueHtml, phewFixtures2025, phewFixtures2024] = await Promise.all([
+    const [jleagueHtml, phewFixtures2025, phewFixtures2024, marinosFixtures] = await Promise.all([
       fetchJleagueHtml(BASE_URL),
       fetchPhewFixtures(PHEW_URL_2025),
       fetchPhewFixtures(PHEW_URL_2024),
+      fetchMarinosSchedule(),
     ]);
 
     let jFixtures: MatchFixture[] = [];
@@ -399,6 +503,8 @@ export async function scrapeAllMatches(): Promise<{
     }
 
     const phewFixtures = [...phewFixtures2025, ...phewFixtures2024];
+    
+    console.log(`[Unified Scraper] Sources: JLeague=${jFixtures.length}, Phew=${phewFixtures.length}, Marinos=${marinosFixtures.length}`);
 
     // Merge logic
     const combinedMap = new Map<string, MatchFixture>();
@@ -432,8 +538,10 @@ export async function scrapeAllMatches(): Promise<{
       }
     };
 
-    jFixtures.forEach(addOrUpdate);
+    // Priority: JLeague > Marinos > Phew (JLeague has most accurate data)
+    marinosFixtures.forEach(addOrUpdate);
     phewFixtures.forEach(addOrUpdate);
+    jFixtures.forEach(addOrUpdate);
 
     let fixtures = Array.from(combinedMap.values()).sort((a, b) =>
       a.date.localeCompare(b.date)

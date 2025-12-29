@@ -68,8 +68,23 @@ export default function Matches() {
 
   useEffect(() => {
     if (matchesData?.matches) {
-      setMatches(matchesData.matches);
-      applyFilters(matchesData.matches, filters);
+      // Sort: upcoming matches first (by date asc), then finished (by date desc)
+      const sorted = [...matchesData.matches].sort((a, b) => {
+        // Upcoming matches first
+        if (a.isResult !== b.isResult) {
+          return a.isResult - b.isResult; // 0 (upcoming) before 1 (finished)
+        }
+        // Within same category, sort by date
+        if (a.isResult === 0) {
+          // Upcoming: earliest first
+          return a.date.localeCompare(b.date);
+        } else {
+          // Finished: newest first
+          return b.date.localeCompare(a.date);
+        }
+      });
+      setMatches(sorted);
+      applyFilters(sorted, filters);
     }
   }, [matchesData]);
 

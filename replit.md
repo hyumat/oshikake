@@ -40,7 +40,15 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
-- 2025-12-29: マッチログ機能改善
+- 2025-12-29: マッチログ機能改善（第2弾）
+  - 終了試合と今後の予定を視覚的に区別（ボーダー色、バッジ）
+  - HOME/AWAYを色分けバッジで表示（青/赤）
+  - 大会名・節情報を独立バッジで表示
+  - 会場名にGoogle Mapsリンクを追加
+  - マリノス公式サイトからの今後の試合取得を追加（unified-scraper.ts）
+  - 今後の試合を先頭にソートして表示
+
+- 2025-12-29: マッチログ機能改善（第1弾）
   - スコア表示バグ修正（undefined-undefined → vs表示）
   - 手動更新ボタン追加（公式から取得）、ページ読み込み時の自動スクレイピングを廃止
   - エラーハンドリング改善：DB接続失敗時もテストデータで動作
