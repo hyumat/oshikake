@@ -27,9 +27,13 @@ jobs:
           node-version: 20
           cache: "pnpm"
 
-      # package.json の packageManager を使う（バージョン二重指定を避ける）
+      # pnpm を確実に使えるようにする（pnpmが無い問題の解消）
       - name: Enable Corepack
         run: corepack enable
+
+      # pnpm のバージョンを固定（必要なら 10.x の好きなバージョンに）
+      - name: Activate pnpm
+        run: corepack prepare pnpm@10.0.0 --activate
 
       - name: Show versions
         run: |
@@ -39,13 +43,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # ★ GitHub Pages は /<repo>/ 配下で配信されるので base を合わせる
       - name: Build (Vite)
         env:
           VITE_BASE: "/${{ github.event.repository.name }}/"
         run: pnpm exec vite build
 
-      # ★ ViteのoutDirが dist/public なのでそこをPagesへ
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
