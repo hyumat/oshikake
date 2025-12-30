@@ -40,6 +40,12 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
+- 2025-12-30: StatsページUI改善 (GitHub Issue #2)
+  - APIレスポンス形式を新構造に対応: cost.total, record.win等
+  - エラー状態に再試行ボタンを追加
+  - DB接続エラー時のグレースフルフォールバック（空結果を返す）
+  - 0件時の空表示、エラー時の再試行、円表示対応を確認
+
 - 2025-12-30: Stats集計バックエンド改善 (GitHub Issue #1)
   - stats.getSummary API: matchesテーブルとJOINしてhomeScore/awayScoreから勝敗判定
   - 出力形式を仕様に準拠: { period, watchCount, record: {win, draw, loss, unknown}, cost: {total, averagePerMatch} }
