@@ -1,8 +1,27 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { getDb } from '../db';
-import { userMatches } from '../../drizzle/schema';
+import { userMatches, matches } from '../../drizzle/schema';
 import { eq, and, sql, type SQL } from 'drizzle-orm';
+
+type MatchResult = 'win' | 'draw' | 'loss' | 'unknown';
+
+function calculateResult(
+  homeScore: number | null,
+  awayScore: number | null,
+  marinosSide: 'home' | 'away' | null
+): MatchResult {
+  if (homeScore === null || awayScore === null || !marinosSide) {
+    return 'unknown';
+  }
+  
+  const marinosScore = marinosSide === 'home' ? homeScore : awayScore;
+  const opponentScore = marinosSide === 'home' ? awayScore : homeScore;
+  
+  if (marinosScore > opponentScore) return 'win';
+  if (marinosScore < opponentScore) return 'loss';
+  return 'draw';
+}
 
 export const statsRouter = router({
   getSummary: protectedProcedure
@@ -14,19 +33,21 @@ export const statsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      const emptyResult = {
+        period: {
+          year: input.year,
+          from: input.from,
+          to: input.to,
+        },
+        watchCount: 0,
+        record: { win: 0, draw: 0, loss: 0, unknown: 0 },
+        cost: { total: 0, averagePerMatch: 0 },
+      };
+
       try {
         const db = await getDb();
         if (!db) {
-          return {
-            success: true,
-            watchCount: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            unknown: 0,
-            costTotal: 0,
-            costAverage: 0,
-          };
+          return emptyResult;
         }
 
         const userId = ctx.user.id;
@@ -50,48 +71,61 @@ export const statsRouter = router({
 
         const results = await db
           .select({
-            id: userMatches.id,
-            resultWdl: userMatches.resultWdl,
+            userMatchId: userMatches.id,
             costYen: userMatches.costYen,
+            matchId: userMatches.matchId,
+            homeScore: matches.homeScore,
+            awayScore: matches.awayScore,
+            marinosSide: matches.marinosSide,
           })
           .from(userMatches)
+          .leftJoin(matches, eq(userMatches.matchId, matches.id))
           .where(whereClause);
 
         const watchCount = results.length;
-        let wins = 0;
-        let draws = 0;
-        let losses = 0;
+        let win = 0;
+        let draw = 0;
+        let loss = 0;
         let unknown = 0;
-        let costTotal = 0;
+        let total = 0;
 
-        for (const match of results) {
-          switch (match.resultWdl) {
-            case 'W':
-              wins++;
+        for (const row of results) {
+          const result = calculateResult(
+            row.homeScore,
+            row.awayScore,
+            row.marinosSide
+          );
+          
+          switch (result) {
+            case 'win':
+              win++;
               break;
-            case 'D':
-              draws++;
+            case 'draw':
+              draw++;
               break;
-            case 'L':
-              losses++;
+            case 'loss':
+              loss++;
               break;
             default:
               unknown++;
           }
-          costTotal += match.costYen ?? 0;
+          
+          total += row.costYen ?? 0;
         }
 
-        const costAverage = watchCount > 0 ? Math.round(costTotal / watchCount) : 0;
+        const averagePerMatch = watchCount > 0 
+          ? Math.round((total / watchCount) * 100) / 100 
+          : 0;
 
         return {
-          success: true,
+          period: {
+            year: input.year,
+            from: input.from,
+            to: input.to,
+          },
           watchCount,
-          wins,
-          draws,
-          losses,
-          unknown,
-          costTotal,
-          costAverage,
+          record: { win, draw, loss, unknown },
+          cost: { total, averagePerMatch },
         };
       } catch (error) {
         console.error('[Stats Router] Error getting summary:', error);
@@ -139,3 +173,5 @@ export const statsRouter = router({
     }
   }),
 });
+
+export { calculateResult };
