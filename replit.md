@@ -40,6 +40,18 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
+- 2025-12-30: Stats集計バックエンド改善 (GitHub Issue #1)
+  - stats.getSummary API: matchesテーブルとJOINしてhomeScore/awayScoreから勝敗判定
+  - 出力形式を仕様に準拠: { period, watchCount, record: {win, draw, loss, unknown}, cost: {total, averagePerMatch} }
+  - calculateResult関数を追加（勝敗判定ロジックを分離）
+  - ユニットテスト追加: 23件（0件/勝ち/負け/引き分け/unknown混在ケースをカバー）
+
+- 2025-12-30: マッチ詳細ページ実装
+  - 観戦費用記録機能（交通費/チケット代/飲食代/その他）
+  - LocalStorageで費用データを永続化
+  - スコア表示（過去試合のみ）
+  - 観戦ステータス管理（参加/不参加/未定）を一覧ページに統合
+
 - 2025-12-29: マッチログ機能改善（第2弾）
   - 終了試合と今後の予定を視覚的に区別（ボーダー色、バッジ）
   - HOME/AWAYを色分けバッジで表示（青/赤）
