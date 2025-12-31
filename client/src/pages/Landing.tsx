@@ -69,17 +69,15 @@ export default function LandingPageOshikakeLog() {
       <section className="mx-auto max-w-5xl px-4 pt-16 pb-12 md:pt-24 md:pb-16">
         <div className="grid items-center gap-12 md:grid-cols-2">
           <div>
+            <div className="text-sm font-bold text-blue-700 mb-2">おしかけログ</div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl leading-tight">
               観戦の記録と、<br />
               観戦にかかった費用を<br />
-              <span className="text-blue-700">"ちゃんと残す"。</span>
+              <span className="text-blue-700">"ちゃんと残す"</span>。
             </h1>
 
             <p className="mt-6 text-base leading-relaxed text-slate-600 md:text-lg">
-              観戦した試合のメモや費用をまとめて残し、あとから見返しやすく整理できます。
-            </p>
-            <p className="mt-2 text-base leading-relaxed text-slate-600 md:text-lg">
-              試合結果・試合予定も同じ場所で確認できるので、記録が散らばりません。
+              試合結果・試合予定も、同じ場所で確認。
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -197,13 +195,13 @@ export default function LandingPageOshikakeLog() {
 
           <div className="grid gap-6 md:grid-cols-3">
             <FadeInSection delay={0}>
-              <StepCardWithImage step="1" title="試合一覧から対象の試合を開く" image="/lp/lp-step-1.png" />
+              <StepCardWithImage step="1" title="試合を選ぶ" image="/lp/lp-step-1.png" />
             </FadeInSection>
             <FadeInSection delay={100}>
-              <StepCardWithImage step="2" title="観戦の記録（観戦日・メモ）を残す" image="/lp/lp-step-2.png" />
+              <StepCardWithImage step="2" title="記録を残す" image="/lp/lp-step-2.png" />
             </FadeInSection>
             <FadeInSection delay={200}>
-              <StepCardWithImage step="3" title="費用（交通費・チケット・飲食・その他）を入力して保存" image="/lp/lp-step-3.png" />
+              <StepCardWithImage step="3" title="費用を保存" image="/lp/lp-step-3.png" />
             </FadeInSection>
           </div>
         </div>
