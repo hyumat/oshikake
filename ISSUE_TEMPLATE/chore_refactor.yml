@@ -1,0 +1,47 @@
+name: Chore / Refactor
+description: リファクタ・保守（やりたいことにどう効くか明記）
+title: "[Refactor] "
+labels: ["refactor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## このプロダクトがやりたいこと
+        観戦の記録と観戦費用を残し、あとで振り返れる。
+        その振り返りに必要な試合結果や試合予定も、同じサービスの中でまとめて見られる。
+
+        リファクタは「北極星への効き方」を必ず書く（速度、安定性、開発効率、バグ予防など）。
+  - type: textarea
+    id: why
+    attributes:
+      label: なぜやる？（北極星への効き方）
+      description: 例）観戦記録の保存失敗を減らす / Statsの表示バグを防ぐ / 同期を壊れにくくする
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: スコープ（やること / やらないこと）
+      value: |
+        やること:
+        - 
+        やらないこと:
+        - 
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria（完了条件）
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: 実装タスク案
+      value: |
+        - [ ] 
+        - [ ] 
