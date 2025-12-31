@@ -38,9 +38,11 @@ export default function LandingPageOshikakeLog() {
       <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm">
-              <span className="text-sm font-bold">お</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="おしかけログ"
+              className="h-9 w-9 rounded-xl shadow-sm"
+            />
             <div className="leading-tight">
               <div className="text-sm font-bold text-blue-900">おしかけログ</div>
               <div className="text-[11px] text-slate-500">観戦記録サービス</div>
