@@ -40,11 +40,11 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
-- 2025-12-31: GitHub Issue #24 完了 - LP用スクショ画像3点を差し替え
-  - match_list_app_screenshot.png: 試合一覧画面、自然な日本語テキスト
-  - match_log_form_screenshot.png: 観戦記録フォーム画面
-  - stats_dashboard_screenshot.png: 集計画面、文字化け修正
-  - フェイクエンブレム撤去、シンプルなサッカーアイコンに置換
+- 2025-12-31: GitHub Issue #26 完了 - LP用スクショ画像3点を差し替え（参考画像スタイル適用）
+  - match_list_app_screenshot.png: 試合一覧画面、シンプルiOSスタイル
+  - match_log_form_screenshot.png: 観戦記録フォーム（参考画像に準拠）
+  - stats_dashboard_screenshot.png: 集計画面、クリーンなミニマルデザイン
+  - フェイクエンブレム撤去、エンブレムなしのシンプルデザイン
 
 - 2025-12-31: GitHub Issue #12 完了 - LP開発用語削除・日本語改善
   - JSON-LD/フォールバック/MVP/PWA/Mobile-first/MD等の開発用語を削除
