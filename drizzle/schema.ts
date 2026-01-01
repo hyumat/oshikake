@@ -83,6 +83,8 @@ export const userMatches = mysqlTable("userMatches", {
   userId: int("userId").notNull(),
   /** Reference to official match (nullable for manual entries) */
   matchId: int("matchId"),
+  /** Season year for easy filtering (e.g., 2024, 2025) */
+  seasonYear: int("seasonYear"),
   /** Match date (ISO format) */
   date: varchar("date", { length: 10 }).notNull(),
   /** Kickoff time */
@@ -147,3 +149,63 @@ export const syncLogs = mysqlTable("syncLogs", {
 
 export type SyncLog = typeof syncLogs.$inferSelect;
 export type InsertSyncLog = typeof syncLogs.$inferInsert;
+
+/**
+ * Match expenses - detailed expense tracking per user match
+ * Categories: transport, ticket, food, other
+ */
+export const matchExpenses = mysqlTable("matchExpenses", {
+  id: int("id").autoincrement().primaryKey(),
+  userMatchId: int("userMatchId").notNull(),
+  userId: int("userId").notNull(),
+  category: mysqlEnum("category", ["transport", "ticket", "food", "other"]).notNull(),
+  amount: int("amount").notNull(),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatchExpense = typeof matchExpenses.$inferSelect;
+export type InsertMatchExpense = typeof matchExpenses.$inferInsert;
+
+/**
+ * Audit log - tracks important user actions for security and compliance
+ */
+export const auditLogs = mysqlTable("auditLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  action: mysqlEnum("action", [
+    "attendance_create",
+    "attendance_update",
+    "attendance_delete",
+    "expense_add",
+    "expense_update",
+    "expense_delete",
+    "auth_login",
+    "auth_logout",
+  ]).notNull(),
+  targetId: int("targetId"),
+  targetType: varchar("targetType", { length: 32 }),
+  metadata: text("metadata"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+/**
+ * Event log - product analytics events for feature usage tracking
+ */
+export const eventLogs = mysqlTable("eventLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  eventName: varchar("eventName", { length: 64 }).notNull(),
+  eventData: text("eventData"),
+  seasonYear: int("seasonYear"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EventLog = typeof eventLogs.$inferSelect;
+export type InsertEventLog = typeof eventLogs.$inferInsert;

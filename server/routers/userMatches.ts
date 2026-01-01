@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eq, and } from 'drizzle-orm';
 import { protectedProcedure, router } from '../_core/trpc';
 import {
   getUserMatches,
@@ -7,7 +8,13 @@ import {
   updateUserMatch,
   deleteUserMatch,
   getMatchById,
+  getDb,
+  createExpense,
+  deleteExpensesByUserMatch,
+  getExpensesByUserMatch,
+  logEvent,
 } from '../db';
+import { userMatches as userMatchesTable } from '../../drizzle/schema';
 
 export const userMatchesRouter = router({
   /**
@@ -186,6 +193,208 @@ export const userMatchesRouter = router({
         console.error('[User Matches Router] Error getting match details:', error);
         throw new Error(
           error instanceof Error ? error.message : 'Failed to get match details'
+        );
+      }
+    }),
+
+  /**
+   * Get user match by official match ID (for expenses flow)
+   */
+  getByMatchId: protectedProcedure
+    .input(z.object({ matchId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return { success: true, userMatch: null, expenses: [] };
+        }
+        
+        const results = await db.select()
+          .from(userMatchesTable)
+          .where(and(
+            eq(userMatchesTable.userId, ctx.user.id),
+            eq(userMatchesTable.matchId, input.matchId)
+          ))
+          .limit(1);
+        
+        const userMatch = results.length > 0 ? results[0] : null;
+        
+        let expenses: Array<{
+          id: number;
+          category: 'transport' | 'ticket' | 'food' | 'other';
+          amount: number;
+          note: string | null;
+        }> = [];
+        
+        if (userMatch) {
+          expenses = await getExpensesByUserMatch(userMatch.id, ctx.user.id);
+        }
+        
+        return {
+          success: true,
+          userMatch,
+          expenses,
+        };
+      } catch (error) {
+        console.error('[User Matches Router] Error getting by matchId:', error);
+        return { success: true, userMatch: null, expenses: [] };
+      }
+    }),
+
+  /**
+   * Save attendance and expenses for a match
+   */
+  saveAttendance: protectedProcedure
+    .input(z.object({
+      matchId: z.number(),
+      date: z.string(),
+      opponent: z.string(),
+      kickoff: z.string().optional(),
+      competition: z.string().optional(),
+      stadium: z.string().optional(),
+      marinosSide: z.enum(['home', 'away']).optional(),
+      note: z.string().optional(),
+      expenses: z.object({
+        transport: z.number().min(0).default(0),
+        ticket: z.number().min(0).default(0),
+        food: z.number().min(0).default(0),
+        other: z.number().min(0).default(0),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
+
+        const totalCost = input.expenses.transport + input.expenses.ticket + 
+                          input.expenses.food + input.expenses.other;
+        
+        const seasonYear = input.date ? parseInt(input.date.substring(0, 4)) : new Date().getFullYear();
+        
+        const existingResults = await db.select()
+          .from(userMatchesTable)
+          .where(and(
+            eq(userMatchesTable.userId, ctx.user.id),
+            eq(userMatchesTable.matchId, input.matchId)
+          ))
+          .limit(1);
+
+        let userMatchId: number;
+
+        if (existingResults.length > 0) {
+          userMatchId = existingResults[0].id;
+          await db.update(userMatchesTable)
+            .set({
+              status: 'attended',
+              costYen: totalCost,
+              note: input.note ?? null,
+              seasonYear,
+              updatedAt: new Date(),
+            })
+            .where(eq(userMatchesTable.id, userMatchId));
+
+          await deleteExpensesByUserMatch(userMatchId, ctx.user.id);
+        } else {
+          const result = await createUserMatch(ctx.user.id, {
+            matchId: input.matchId,
+            date: input.date,
+            opponent: input.opponent,
+            kickoff: input.kickoff,
+            competition: input.competition,
+            stadium: input.stadium,
+            marinosSide: input.marinosSide,
+            status: 'attended',
+            costYen: totalCost,
+            note: input.note,
+            seasonYear,
+          });
+          
+          const newResults = await db.select()
+            .from(userMatchesTable)
+            .where(and(
+              eq(userMatchesTable.userId, ctx.user.id),
+              eq(userMatchesTable.matchId, input.matchId)
+            ))
+            .limit(1);
+          
+          userMatchId = newResults[0]?.id ?? 0;
+        }
+
+        const expenseCategories: Array<{ category: 'transport' | 'ticket' | 'food' | 'other'; amount: number }> = [
+          { category: 'transport', amount: input.expenses.transport },
+          { category: 'ticket', amount: input.expenses.ticket },
+          { category: 'food', amount: input.expenses.food },
+          { category: 'other', amount: input.expenses.other },
+        ];
+
+        for (const exp of expenseCategories) {
+          if (exp.amount > 0) {
+            await createExpense(ctx.user.id, {
+              userMatchId,
+              category: exp.category,
+              amount: exp.amount,
+            });
+          }
+        }
+
+        await logEvent('attendance_create', ctx.user.id, {
+          matchId: input.matchId,
+          totalCost,
+        }, seasonYear);
+
+        return {
+          success: true,
+          userMatchId,
+          totalCost,
+        };
+      } catch (error) {
+        console.error('[User Matches Router] Error saving attendance:', error);
+        throw new Error(
+          error instanceof Error ? error.message : 'Failed to save attendance'
+        );
+      }
+    }),
+
+  /**
+   * Delete attendance record by official match ID
+   */
+  deleteByMatchId: protectedProcedure
+    .input(z.object({ matchId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
+
+        const results = await db.select()
+          .from(userMatchesTable)
+          .where(and(
+            eq(userMatchesTable.userId, ctx.user.id),
+            eq(userMatchesTable.matchId, input.matchId)
+          ))
+          .limit(1);
+
+        if (results.length === 0) {
+          return { success: true, message: 'No record found' };
+        }
+
+        const userMatchId = results[0].id;
+        
+        await deleteExpensesByUserMatch(userMatchId, ctx.user.id);
+        await deleteUserMatch(userMatchId, ctx.user.id);
+
+        await logEvent('attendance_delete', ctx.user.id, {
+          matchId: input.matchId,
+        });
+
+        return { success: true, message: 'Deleted successfully' };
+      } catch (error) {
+        console.error('[User Matches Router] Error deleting by matchId:', error);
+        throw new Error(
+          error instanceof Error ? error.message : 'Failed to delete attendance'
         );
       }
     }),

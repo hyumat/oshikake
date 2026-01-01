@@ -1,6 +1,17 @@
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, matches as matchesTable, userMatches as userMatchesTable, syncLogs as syncLogsTable, InsertUserMatch, UserMatch, InsertSyncLog } from "../drizzle/schema";
+import { 
+  InsertUser, users, 
+  matches as matchesTable, 
+  userMatches as userMatchesTable, 
+  syncLogs as syncLogsTable, 
+  matchExpenses as matchExpensesTable,
+  auditLogs as auditLogsTable,
+  eventLogs as eventLogsTable,
+  InsertUserMatch, UserMatch, InsertSyncLog,
+  InsertMatchExpense, MatchExpense,
+  InsertAuditLog, InsertEventLog
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -347,4 +358,166 @@ export async function getRecentSyncLogs(limit: number = 10) {
     console.error('[Database] Failed to get sync logs:', error);
     return [];
   }
+}
+
+// ========== Match Expense Operations ==========
+
+export async function getExpensesByUserMatch(userMatchId: number, userId: number): Promise<MatchExpense[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot get expenses: database not available');
+    return [];
+  }
+  
+  try {
+    const result = await db.select()
+      .from(matchExpensesTable)
+      .where(eq(matchExpensesTable.userMatchId, userMatchId));
+    
+    if (result.length > 0 && result[0].userId !== userId) {
+      return [];
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get expenses:', error);
+    return [];
+  }
+}
+
+export async function createExpense(userId: number, data: Omit<InsertMatchExpense, 'userId'>) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot create expense: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.insert(matchExpensesTable).values({
+      ...data,
+      userId,
+    });
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to create expense:', error);
+    throw error;
+  }
+}
+
+export async function updateExpense(expenseId: number, userId: number, data: Partial<Omit<MatchExpense, 'id' | 'userId' | 'createdAt'>>) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot update expense: database not available');
+    return undefined;
+  }
+  
+  try {
+    const existing = await db.select()
+      .from(matchExpensesTable)
+      .where(eq(matchExpensesTable.id, expenseId))
+      .limit(1);
+    
+    if (existing.length === 0 || existing[0].userId !== userId) {
+      throw new Error('Expense not found or unauthorized');
+    }
+    
+    const result = await db.update(matchExpensesTable)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(matchExpensesTable.id, expenseId));
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to update expense:', error);
+    throw error;
+  }
+}
+
+export async function deleteExpense(expenseId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot delete expense: database not available');
+    return undefined;
+  }
+  
+  try {
+    const existing = await db.select()
+      .from(matchExpensesTable)
+      .where(eq(matchExpensesTable.id, expenseId))
+      .limit(1);
+    
+    if (existing.length === 0 || existing[0].userId !== userId) {
+      throw new Error('Expense not found or unauthorized');
+    }
+    
+    const result = await db.delete(matchExpensesTable)
+      .where(eq(matchExpensesTable.id, expenseId));
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to delete expense:', error);
+    throw error;
+  }
+}
+
+export async function deleteExpensesByUserMatch(userMatchId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot delete expenses: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.delete(matchExpensesTable)
+      .where(sql`${matchExpensesTable.userMatchId} = ${userMatchId} AND ${matchExpensesTable.userId} = ${userId}`);
+    
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to delete expenses:', error);
+    throw error;
+  }
+}
+
+// ========== Audit Log Operations ==========
+
+export async function createAuditLog(data: InsertAuditLog) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot create audit log: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.insert(auditLogsTable).values(data);
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to create audit log:', error);
+    return undefined;
+  }
+}
+
+// ========== Event Log Operations ==========
+
+export async function createEventLog(data: InsertEventLog) {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot create event log: database not available');
+    return undefined;
+  }
+  
+  try {
+    const result = await db.insert(eventLogsTable).values(data);
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to create event log:', error);
+    return undefined;
+  }
+}
+
+export async function logEvent(eventName: string, userId?: number, eventData?: Record<string, unknown>, seasonYear?: number) {
+  return createEventLog({
+    eventName,
+    userId: userId ?? null,
+    eventData: eventData ? JSON.stringify(eventData) : null,
+    seasonYear: seasonYear ?? null,
+  });
 }

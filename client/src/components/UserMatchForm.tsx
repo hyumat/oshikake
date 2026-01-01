@@ -82,7 +82,7 @@ export function UserMatchForm({
                   type="number"
                   min="0"
                   className="pl-8"
-                  placeholder="0"
+                  placeholder="例）2400"
                   value={expenses.transportation}
                   onChange={(e) => handleChange('transportation', e.target.value)}
                 />
@@ -100,7 +100,7 @@ export function UserMatchForm({
                   type="number"
                   min="0"
                   className="pl-8"
-                  placeholder="0"
+                  placeholder="例）5000"
                   value={expenses.ticket}
                   onChange={(e) => handleChange('ticket', e.target.value)}
                 />
@@ -118,7 +118,7 @@ export function UserMatchForm({
                   type="number"
                   min="0"
                   className="pl-8"
-                  placeholder="0"
+                  placeholder="例）2500"
                   value={expenses.food}
                   onChange={(e) => handleChange('food', e.target.value)}
                 />
@@ -136,7 +136,7 @@ export function UserMatchForm({
                   type="number"
                   min="0"
                   className="pl-8"
-                  placeholder="0"
+                  placeholder="例）1000"
                   value={expenses.other}
                   onChange={(e) => handleChange('other', e.target.value)}
                 />

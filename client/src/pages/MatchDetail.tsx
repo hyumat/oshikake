@@ -1,6 +1,7 @@
 /**
  * Match Detail Page
  * Issue #39: Refactored to use MatchDetailView and UserMatchForm components
+ * Issue #19: Expenses now saved to DB instead of LocalStorage
  */
 
 import { useParams, useLocation } from 'wouter';
@@ -14,25 +15,11 @@ import { UserMatchForm, type ExpenseData } from '@/components/UserMatchForm';
 import { QueryLoading, QueryError } from '@/components/QueryState';
 import type { MatchDTO } from '@shared/dto';
 
-const STORAGE_KEY = 'oshikake-expenses';
-
-function loadExpenses(): Record<string, ExpenseData> {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveExpenses(expenses: Record<string, ExpenseData>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-}
-
 export default function MatchDetail() {
   const [, setLocation] = useLocation();
   const params = useParams();
   const matchId = params.id || '';
+  const matchIdNum = parseInt(matchId, 10);
 
   const [initialExpenses, setInitialExpenses] = useState<ExpenseData>({
     transportation: '',
@@ -41,41 +28,29 @@ export default function MatchDetail() {
     other: '',
     note: '',
   });
-  const [isSaving, setIsSaving] = useState(false);
 
   const { data, isLoading, error, refetch } = trpc.matches.listOfficial.useQuery({});
-
   const match = data?.matches?.find((m: { id: number | string }) => String(m.id) === matchId) as MatchDTO | undefined;
 
-  useEffect(() => {
-    if (matchId) {
-      const stored = loadExpenses();
-      if (stored[matchId]) {
-        setInitialExpenses(stored[matchId]);
-      }
-    }
-  }, [matchId]);
+  const { data: attendanceData, isLoading: isLoadingAttendance, refetch: refetchAttendance } = 
+    trpc.userMatches.getByMatchId.useQuery(
+      { matchId: matchIdNum },
+      { enabled: !isNaN(matchIdNum) }
+    );
 
-  const handleSubmit = (expenses: ExpenseData) => {
-    setIsSaving(true);
-    try {
-      const stored = loadExpenses();
-      stored[matchId] = expenses;
-      saveExpenses(stored);
-      setInitialExpenses(expenses);
+  const saveAttendanceMutation = trpc.userMatches.saveAttendance.useMutation({
+    onSuccess: () => {
       toast.success('保存しました');
-    } catch {
-      toast.error('保存に失敗しました');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+      refetchAttendance();
+    },
+    onError: (err) => {
+      toast.error(err.message || '保存に失敗しました');
+    },
+  });
 
-  const handleDelete = () => {
-    try {
-      const stored = loadExpenses();
-      delete stored[matchId];
-      saveExpenses(stored);
+  const deleteAttendanceMutation = trpc.userMatches.deleteByMatchId.useMutation({
+    onSuccess: () => {
+      toast.success('削除しました');
       setInitialExpenses({
         transportation: '',
         ticket: '',
@@ -83,10 +58,65 @@ export default function MatchDetail() {
         other: '',
         note: '',
       });
-      toast.success('削除しました');
-    } catch {
-      toast.error('削除に失敗しました');
+      refetchAttendance();
+    },
+    onError: (err) => {
+      toast.error(err.message || '削除に失敗しました');
+    },
+  });
+
+  useEffect(() => {
+    if (attendanceData?.expenses && attendanceData.expenses.length > 0) {
+      const expenseMap: Record<string, number> = {};
+      for (const exp of attendanceData.expenses) {
+        expenseMap[exp.category] = exp.amount;
+      }
+      setInitialExpenses({
+        transportation: expenseMap.transport?.toString() || '',
+        ticket: expenseMap.ticket?.toString() || '',
+        food: expenseMap.food?.toString() || '',
+        other: expenseMap.other?.toString() || '',
+        note: attendanceData.userMatch?.note || '',
+      });
+    } else if (attendanceData?.userMatch) {
+      setInitialExpenses({
+        transportation: '',
+        ticket: '',
+        food: '',
+        other: '',
+        note: attendanceData.userMatch.note || '',
+      });
     }
+  }, [attendanceData]);
+
+  const handleSubmit = (expenses: ExpenseData) => {
+    if (!match) return;
+
+    const transport = parseInt(expenses.transportation, 10) || 0;
+    const ticket = parseInt(expenses.ticket, 10) || 0;
+    const food = parseInt(expenses.food, 10) || 0;
+    const other = parseInt(expenses.other, 10) || 0;
+
+    saveAttendanceMutation.mutate({
+      matchId: matchIdNum,
+      date: match.date,
+      opponent: match.opponent,
+      kickoff: match.kickoff ?? undefined,
+      competition: match.competition ?? undefined,
+      stadium: match.stadium ?? undefined,
+      marinosSide: match.marinosSide as 'home' | 'away' | undefined,
+      note: expenses.note || undefined,
+      expenses: {
+        transport,
+        ticket,
+        food,
+        other,
+      },
+    });
+  };
+
+  const handleDelete = () => {
+    deleteAttendanceMutation.mutate({ matchId: matchIdNum });
   };
 
   const BackButton = () => (
@@ -101,7 +131,7 @@ export default function MatchDetail() {
     </Button>
   );
 
-  if (isLoading) {
+  if (isLoading || isLoadingAttendance) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -140,6 +170,8 @@ export default function MatchDetail() {
 
   const hasExpenses = initialExpenses.transportation || initialExpenses.ticket || 
                        initialExpenses.food || initialExpenses.other || initialExpenses.note;
+
+  const isSaving = saveAttendanceMutation.isPending || deleteAttendanceMutation.isPending;
 
   return (
     <div className="min-h-screen bg-background">

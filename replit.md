@@ -40,6 +40,25 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
+- 2026-01-01: GitHub Issue #19, #27, #28, #29, #30, #31, #32, #33, #47 完了 - MVPリリース直前仕上げ
+  - Issue #47: セキュリティ+アナリティクス設計
+    - matchExpenses, auditLogs, eventLogsテーブル追加
+    - seasonYearフィールドをuserMatchesに追加
+    - docs/security.md, docs/analytics.md作成
+  - Issue #19: 費用データのDB永続化
+    - LocalStorage → DB統一
+    - userMatches.saveAttendance/getByMatchId/deleteByMatchId APIを実装
+    - MatchDetail.tsxをDB-backed tRPC APIに移行
+  - Issue #31: 観戦記録フォームUX改善
+    - プレースホルダー「例）2400」「例）5000」等を追加
+    - バリデーション文言が自然な日本語
+  - Issue #29: エラー表示統一（QueryState共通コンポーネント使用）
+  - Issue #30: Stats表示調整（0件表示、年切替、数字フォーマット済み）
+  - Issue #32: モバイル表示はレスポンシブ対応済み
+  - Issue #28: 同期ボタンUX（ローディング、トースト、二重実行防止済み）
+  - Issue #33: docs/release-checklist.md作成
+  - 全141テストパス
+
 - 2025-12-31: GitHub Issue #34, #35, #40, #41, #42, #43 完了 - LP全面刷新
   - Issue #40: LP文言を確定稿に全面差し替え
     - Hero: 「観戦の記録と、観戦にかかった費用を"ちゃんと残す"。」
