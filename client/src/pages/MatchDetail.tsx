@@ -192,7 +192,7 @@ export default function MatchDetail() {
           <BackButton />
           {planStatus && !isExistingAttendance && (
             <PlanStatusBadge
-              plan={planStatus.plan}
+              effectivePlan={planStatus.effectivePlan}
               attendanceCount={planStatus.attendanceCount}
               limit={planStatus.limit === Infinity ? 999 : planStatus.limit}
               remaining={planStatus.remaining === Infinity ? 999 : planStatus.remaining}

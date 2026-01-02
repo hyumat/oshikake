@@ -41,6 +41,7 @@ export const userMatchesRouter = router({
         return {
           success: true,
           plan: 'free' as const,
+          effectivePlan: 'free' as const,
           isPro: false,
           seasonYear: getCurrentSeasonYear(),
           attendanceCount: 0,

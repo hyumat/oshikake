@@ -3,7 +3,7 @@ import { Crown } from "lucide-react";
 import { Link } from "wouter";
 
 interface PlanStatusBadgeProps {
-  plan: 'free' | 'pro';
+  effectivePlan: 'free' | 'pro';
   attendanceCount: number;
   limit: number;
   remaining: number;
@@ -11,13 +11,13 @@ interface PlanStatusBadgeProps {
 }
 
 export function PlanStatusBadge({ 
-  plan, 
+  effectivePlan, 
   attendanceCount, 
   limit, 
   remaining,
   showUpgradeLink = true 
 }: PlanStatusBadgeProps) {
-  if (plan === 'pro') {
+  if (effectivePlan === 'pro') {
     return (
       <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
         <Crown className="w-3 h-3 mr-1" />

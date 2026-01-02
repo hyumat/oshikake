@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   FREE_PLAN_LIMIT,
   isPro,
+  getEffectivePlan,
   canCreateAttendance,
   calculatePlanStatus,
   getCurrentSeasonYear,
@@ -43,6 +44,28 @@ describe('billing utilities', () => {
     });
   });
 
+  describe('getEffectivePlan', () => {
+    it('should return free for free plan', () => {
+      expect(getEffectivePlan('free', null)).toBe('free');
+    });
+
+    it('should return pro for active pro plan', () => {
+      expect(getEffectivePlan('pro', null)).toBe('pro');
+    });
+
+    it('should return pro for pro plan with future expiry', () => {
+      const future = new Date();
+      future.setFullYear(future.getFullYear() + 1);
+      expect(getEffectivePlan('pro', future)).toBe('pro');
+    });
+
+    it('should return free for expired pro plan', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      expect(getEffectivePlan('pro', past)).toBe('free');
+    });
+  });
+
   describe('canCreateAttendance', () => {
     const currentYear = new Date().getFullYear();
 
@@ -77,6 +100,7 @@ describe('billing utilities', () => {
     it('should return correct status for free user with no attendance', () => {
       const status = calculatePlanStatus('free', null, 0);
       expect(status.plan).toBe('free');
+      expect(status.effectivePlan).toBe('free');
       expect(status.isPro).toBe(false);
       expect(status.attendanceCount).toBe(0);
       expect(status.limit).toBe(10);
@@ -99,9 +123,22 @@ describe('billing utilities', () => {
     it('should return correct status for pro user', () => {
       const status = calculatePlanStatus('pro', null, 50);
       expect(status.plan).toBe('pro');
+      expect(status.effectivePlan).toBe('pro');
       expect(status.isPro).toBe(true);
       expect(status.limit).toBe(Infinity);
       expect(status.remaining).toBe(Infinity);
+      expect(status.canCreate).toBe(true);
+    });
+
+    it('should return effectivePlan as free for expired pro user', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const status = calculatePlanStatus('pro', past, 5);
+      expect(status.plan).toBe('pro');
+      expect(status.effectivePlan).toBe('free');
+      expect(status.isPro).toBe(false);
+      expect(status.limit).toBe(10);
+      expect(status.remaining).toBe(5);
       expect(status.canCreate).toBe(true);
     });
   });

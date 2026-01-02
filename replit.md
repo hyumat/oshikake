@@ -40,6 +40,14 @@ A Japanese-language web application for tracking Yokohama F. Marinos (J-League) 
 - shadcn/ui コンポーネントベース
 
 ## Recent Changes
+- 2026-01-02: GitHub Issue #50 完了 - 実効プラン値をAPIで統一（期限切れでもPro表示されない）
+  - shared/billing.ts: getEffectivePlan()関数追加、PlanStatusにeffectivePlanフィールド追加
+  - calculatePlanStatus()がeffectivePlanを返すように更新
+  - PlanStatusBadgeがeffectivePlanを使用（期限切れProはFreeとして表示）
+  - MatchDetail.tsxがeffectivePlanをPlanStatusBadgeに渡すよう更新
+  - 5件の新規テスト追加（getEffectivePlan、effectivePlan関連）
+  - 全161テストパス
+
 - 2026-01-01: GitHub Issue #44 完了 - 無料プラン制限（今季10件まで）
   - shared/billing.ts: FREE_PLAN_LIMIT, isPro, canCreateAttendance, calculatePlanStatus
   - server/db.ts: getAttendanceCountForSeason, getUserPlan

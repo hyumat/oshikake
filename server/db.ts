@@ -381,6 +381,25 @@ export async function getAttendanceCountForSeason(userId: number, seasonYear: nu
   }
 }
 
+export async function getTotalAttendanceCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) {
+    console.warn('[Database] Cannot get total attendance count: database not available');
+    return 0;
+  }
+  
+  try {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(userMatchesTable)
+      .where(sql`${userMatchesTable.userId} = ${userId} AND ${userMatchesTable.status} = 'attended'`);
+    
+    return result[0]?.count ?? 0;
+  } catch (error) {
+    console.error('[Database] Failed to get total attendance count:', error);
+    return 0;
+  }
+}
+
 export async function getUserPlan(userId: number): Promise<{ plan: 'free' | 'pro'; planExpiresAt: Date | null }> {
   const db = await getDb();
   if (!db) {
