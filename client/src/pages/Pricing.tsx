@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { PublicHeader } from "@/components/PublicHeader";
 import { Check, X, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import { getSignUpUrl } from "@/const";
@@ -33,6 +34,8 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PublicHeader />
+
       <div className="container max-w-6xl mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-4">料金プラン</h1>

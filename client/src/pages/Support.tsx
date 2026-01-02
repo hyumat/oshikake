@@ -1,6 +1,7 @@
-import { ArrowLeft, Mail, MessageCircle, FileText, CreditCard, Database, AlertCircle } from "lucide-react";
+import { Mail, MessageCircle, FileText, CreditCard, Database, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PublicHeader } from "@/components/PublicHeader";
 import { useLocation } from "wouter";
 import { useState } from "react";
 
@@ -76,17 +77,9 @@ export default function Support() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-6"
-          onClick={() => setLocation("/")}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          トップに戻る
-        </Button>
+      <PublicHeader />
 
+      <div className="container max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-4">サポート</h1>
         <p className="text-muted-foreground mb-8">
           ご質問・ご要望がございましたら、まずは「よくある質問」をご確認ください。

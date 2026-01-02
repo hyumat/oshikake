@@ -1,23 +1,11 @@
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
+import { PublicHeader } from "@/components/PublicHeader";
 
 export default function Privacy() {
-  const [, setLocation] = useLocation();
-
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-6"
-          onClick={() => setLocation("/")}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          トップに戻る
-        </Button>
+      <PublicHeader />
 
+      <div className="container max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">プライバシーポリシー</h1>
 
         <div className="prose prose-slate dark:prose-invert max-w-none space-y-6">

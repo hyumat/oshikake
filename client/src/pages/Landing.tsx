@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
 
 export default function LandingPageOshikakeLog() {
   const [year, setYear] = useState<number>(2025);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
   const statsPreview = {
     2024: { watch: 6, win: 2, draw: 2, loss: 2, unknown: 0, total: 71200 },
@@ -64,18 +67,34 @@ export default function LandingPageOshikakeLog() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <a
-              href={getLoginUrl()}
-              className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors"
-            >
-              ログイン
-            </a>
-            <a
-              href={getSignUpUrl()}
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all"
-            >
-              無料で登録
-            </a>
+            {authLoading ? (
+              <div className="h-8 w-8 rounded-full bg-slate-200 animate-pulse" />
+            ) : user ? (
+              <>
+                <a
+                  href="/app"
+                  className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors hidden sm:block"
+                >
+                  ダッシュボード
+                </a>
+                <AccountMenu />
+              </>
+            ) : (
+              <>
+                <a
+                  href={getLoginUrl()}
+                  className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors"
+                >
+                  ログイン
+                </a>
+                <a
+                  href={getSignUpUrl()}
+                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all"
+                >
+                  無料で登録
+                </a>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -96,22 +115,35 @@ export default function LandingPageOshikakeLog() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={getSignUpUrl()}
-                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
-              >
-                無料で登録して始める
-              </a>
-              <a
-                href={getLoginUrl()}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-all"
-              >
-                ログイン
-              </a>
+              {user ? (
+                <a
+                  href="/app"
+                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
+                >
+                  ダッシュボードへ
+                </a>
+              ) : (
+                <>
+                  <a
+                    href={getSignUpUrl()}
+                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
+                  >
+                    無料で登録して始める
+                  </a>
+                  <a
+                    href={getLoginUrl()}
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-all"
+                  >
+                    ログイン
+                  </a>
+                </>
+              )}
             </div>
-            <p className="mt-4 text-xs text-slate-500">
-              登録すると、記録を端末間で引き継げます
-            </p>
+            {!user && (
+              <p className="mt-4 text-xs text-slate-500">
+                登録すると、記録を端末間で引き継げます
+              </p>
+            )}
           </div>
 
           <div className="relative">
@@ -364,10 +396,10 @@ export default function LandingPageOshikakeLog() {
                 <p className="mt-3 text-xs text-slate-400">※「記録可能試合」は、観戦記録（観戦済み）として保存できる件数です。</p>
                 <div className="mt-4">
                   <a
-                    href={getSignUpUrl()}
+                    href={user ? "/app" : getSignUpUrl()}
                     className="block w-full rounded-xl border border-slate-200 bg-white py-2 text-center text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
                   >
-                    無料で登録
+                    {user ? "ダッシュボードへ" : "無料で登録"}
                   </a>
                 </div>
               </div>
@@ -511,10 +543,10 @@ export default function LandingPageOshikakeLog() {
                 </p>
                 <div className="mt-8">
                   <a
-                    href={getSignUpUrl()}
+                    href={user ? "/app" : getSignUpUrl()}
                     className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-blue-800 shadow-md hover:bg-slate-50 transition-all"
                   >
-                    無料で登録して始める
+                    {user ? "ダッシュボードへ" : "無料で登録して始める"}
                   </a>
                 </div>
               </div>

@@ -61,6 +61,12 @@
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-02: GitHub Issue #76 完了 - ログイン時のアカウントメニュー表示
+  - AccountMenuコンポーネント作成（アカウント/プラン・お支払い/設定/サポート/ログアウト）
+  - DashboardLayoutモバイルヘッダーにAccountMenu追加
+  - Landingページヘッダー：ログイン状態でAccountMenu表示、未ログインでログイン/登録ボタン表示
+  - Hero/CTA：ログイン時は「ダッシュボードへ」に変更
+  - ログアウト後はLPにリダイレクト
 - 2026-01-02: GitHub Issue #75 完了 - LP導線先ページ全面アップデート
   - Pricing: 3プラン比較表追加、記録可能試合の定義説明、FAQ強化（解約・返金・支払い方法）
   - Privacy: Stripe決済の取り扱い、データ保存期間・削除、セキュリティ対策を明文化

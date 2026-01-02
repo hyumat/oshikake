@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { AccountMenu } from "@/components/AccountMenu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -256,6 +257,7 @@ function DashboardLayoutContent({
                 </div>
               </div>
             </div>
+            <AccountMenu variant="compact" showChevron={false} />
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
