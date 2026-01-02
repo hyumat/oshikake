@@ -14,12 +14,16 @@ export default function LandingPageOshikakeLog() {
 
   const faq = [
     {
-      q: "どこまでFreeで使えますか？",
+      q: "どこまで無料で使えますか？",
       a: "Freeプランでは、観戦記録（観戦済み）を10件まで保存できます。メモや費用の記録、基本の集計もお試しいただけます。",
     },
     {
-      q: "「記録可能試合」って何ですか？",
-      a: "観戦した試合を「観戦記録（観戦済み）」として保存できる件数のことです。予定（観戦予定）は上限に含みません。",
+      q: "記録したデータは消えませんか？",
+      a: "ログインしている限り、記録したデータはサーバーに保存されます。端末を変えても、ログインすれば同じデータを見返せます。",
+    },
+    {
+      q: "スマホでも使えますか？",
+      a: "はい、スマホ優先で設計しています。PCやタブレットからもご利用いただけます。",
     },
     {
       q: "途中でプラン変更や解約はできますか？",
@@ -62,7 +66,7 @@ export default function LandingPageOshikakeLog() {
             href="/app"
             className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all"
           >
-            今すぐ始める
+            無料で始める
           </a>
         </div>
       </header>
@@ -78,7 +82,8 @@ export default function LandingPageOshikakeLog() {
             </h1>
 
             <p className="mt-6 text-base leading-relaxed text-slate-600 md:text-lg">
-              観戦の記録と費用を、まとめて残して、いつでも見返せる。
+              観戦メモ、費用（チケット・交通・飲食など）、試合情報（予定・結果）を<br className="hidden sm:inline" />
+              まとめて残して、いつでも見返せる。
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -86,7 +91,7 @@ export default function LandingPageOshikakeLog() {
                 href="/app"
                 className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
               >
-                今すぐ始める
+                無料で始める
               </a>
               <a
                 href="#how"
@@ -118,19 +123,22 @@ export default function LandingPageOshikakeLog() {
             <div className="text-center mb-10">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">共感</div>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">こんな悩み、ありませんか？</h2>
+              <p className="mt-3 text-sm text-slate-500 max-w-xl mx-auto">
+                放っておくと、今季いくら使ったか分からない。あとから思い出そうとしても、記録がバラバラで探せない...
+              </p>
             </div>
           </FadeInSection>
 
           <div className="grid gap-8 md:grid-cols-2 items-center">
             <div className="grid gap-4 sm:grid-cols-2">
               <FadeInSection delay={0}>
-                <PainCard icon="📱" text="観戦メモがSNS・メモアプリ・写真フォルダに散らばって探せない" />
+                <PainCard icon="📱" text="観戦メモがSNS・メモアプリ・写真フォルダに散らばって、あとから探せない" />
               </FadeInSection>
               <FadeInSection delay={100}>
-                <PainCard icon="💸" text="チケット代や交通費、飲食代など、結局いくら使ったか分からなくなる" />
+                <PainCard icon="💸" text="気づいたら今季の出費が分からない。次の遠征の予算も立てづらい" />
               </FadeInSection>
               <FadeInSection delay={200}>
-                <PainCard icon="🔍" text="試合結果・試合予定を確認するために、毎回別のサイトを開いてしまう" />
+                <PainCard icon="🔍" text="試合予定・結果を確認するたびに、毎回別のサイトを開いてしまう" />
               </FadeInSection>
               <FadeInSection delay={300}>
                 <PainCard icon="📅" text="シーズンが終わったあと、どの試合を観に行ったか思い出せない" />
@@ -163,22 +171,22 @@ export default function LandingPageOshikakeLog() {
             <FadeInSection delay={0}>
               <SolutionCard
                 icon="📝"
-                title="観戦の記録"
-                desc="試合ごとに「観戦日」とメモを残せます。"
+                title="観戦メモが散らばらない"
+                desc="試合ごとに観戦日とメモを1か所にまとめて残せます。"
               />
             </FadeInSection>
             <FadeInSection delay={100}>
               <SolutionCard
                 icon="💰"
-                title="観戦費用の記録"
-                desc="交通費／チケット代／飲食代／その他で費用を記録できます。"
+                title="いくら使ったか、あとで一発で分かる"
+                desc="チケット・交通・飲食など、費用をカテゴリ別に記録できます。"
               />
             </FadeInSection>
             <FadeInSection delay={200}>
               <SolutionCard
                 icon="📊"
-                title="試合結果・試合予定の閲覧"
-                desc="試合一覧と試合詳細で、予定/結果を同じ場所で確認できます。"
+                title="予定・結果を同じ場所で見返せる"
+                desc="試合一覧と詳細で、別のサイトを開かなくても確認できます。"
               />
             </FadeInSection>
           </div>
@@ -205,6 +213,14 @@ export default function LandingPageOshikakeLog() {
               <StepCardWithImage step="3" title="費用を保存" image="/lp/lp-step-3.png" />
             </FadeInSection>
           </div>
+
+          <FadeInSection delay={300}>
+            <div className="mt-8 text-center">
+              <p className="text-sm text-slate-500">
+                無料で10試合まで試せます。記録はいつでも編集できます。
+              </p>
+            </div>
+          </FadeInSection>
         </div>
       </section>
 
@@ -486,7 +502,7 @@ export default function LandingPageOshikakeLog() {
                     href="/app"
                     className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-blue-800 shadow-md hover:bg-slate-50 transition-all"
                   >
-                    今すぐ始める
+                    無料で始める
                   </a>
                 </div>
               </div>
