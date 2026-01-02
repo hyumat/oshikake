@@ -21,6 +21,10 @@ export const users = mysqlTable("users", {
   plan: mysqlEnum("plan", ["free", "plus", "pro"]).default("free").notNull(),
   /** Pro plan expiration date (null = no expiration / lifetime) */
   planExpiresAt: timestamp("planExpiresAt"),
+  /** Stripe customer ID */
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+  /** Stripe subscription ID */
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
