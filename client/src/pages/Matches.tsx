@@ -268,7 +268,7 @@ export default function Matches() {
               disabled={isLoading}
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              公式から取得
+              最新に更新
             </Button>
             <Button
               onClick={() => {}}

@@ -20,7 +20,7 @@ export default function Home() {
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               横浜F・マリノスの試合情報を管理し、観戦記録を残しましょう。
-              正確なスクレイピングで常に最新の試合情報を提供します。
+              試合予定・結果を自動で取り込み、いつでも見返せます。
             </p>
           </div>
 
@@ -33,7 +33,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Jリーグ公式サイトから最新の試合情報を自動で取得します。
+                  試合予定・結果を自動で取り込みます。
                 </p>
               </CardContent>
             </Card>
