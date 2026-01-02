@@ -23,6 +23,8 @@ function createMockDevUser(): User {
     role: "user",
     plan: "free",
     planExpiresAt: null,
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),

@@ -4,8 +4,10 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AuthGuard from "./components/AuthGuard";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
+import Login from "./pages/Login";
 import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
 import Stats from "./pages/Stats";
@@ -15,20 +17,28 @@ import Support from "./pages/Support";
 import Upgrade from "./pages/Upgrade";
 import Pricing from "./pages/Pricing";
 
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <AuthGuard>
+      <Component />
+    </AuthGuard>
+  );
+}
+
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      {/* LP */}
+      {/* LP & Auth */}
       <Route path={"/"} component={Landing} />
+      <Route path={"/login"} component={Login} />
 
-      {/* App */}
-      <Route path={"/app"} component={Home} />
-      <Route path={"/matches"} component={Matches} />
-      <Route path={"/matches/:id"} component={MatchDetail} />
-      <Route path={"/stats"} component={Stats} />
+      {/* Protected App Routes */}
+      <Route path={"/app"}>{() => <ProtectedRoute component={Home} />}</Route>
+      <Route path={"/matches"}>{() => <ProtectedRoute component={Matches} />}</Route>
+      <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
+      <Route path={"/stats"}>{() => <ProtectedRoute component={Stats} />}</Route>
 
-      {/* Legal & Support */}
+      {/* Legal & Support (Public) */}
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/terms"} component={Terms} />
       <Route path={"/support"} component={Support} />
