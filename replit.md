@@ -61,6 +61,11 @@
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-02: GitHub Issue #75 完了 - LP導線先ページ全面アップデート
+  - Pricing: 3プラン比較表追加、記録可能試合の定義説明、FAQ強化（解約・返金・支払い方法）
+  - Privacy: Stripe決済の取り扱い、データ保存期間・削除、セキュリティ対策を明文化
+  - Terms: 3プラン/サブスク運用対応、自動更新・解約・返金方針を明確化
+  - Support: FAQ拡充（料金・プラン、データ・アカウント、不具合・その他カテゴリ分け）、問い合わせ導線整備
 - 2026-01-02: GitHub Issue #73 完了 - 「まずFreeで登録」導線に統一（認証必須化）
   - LP: ヘッダーに「ログイン」「無料で登録」ボタン追加
   - LP: Hero CTAを「無料で登録して始める」「ログイン」に変更
