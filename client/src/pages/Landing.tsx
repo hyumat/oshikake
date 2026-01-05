@@ -108,14 +108,9 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-blue-100/40 blur-3xl" />
-        <div className="absolute top-40 -right-24 h-64 w-64 rounded-full bg-red-100/20 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-blue-50/50 blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-[#F5F1E6] text-slate-900" style={{ "--lp-bg": "#F5F1E6" } as React.CSSProperties}>
 
-      <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-[#E8E4D9] bg-[#F5F1E6]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <img
@@ -173,7 +168,7 @@ export default function LandingPage() {
 
       <HeroSection />
 
-      <section id="pain" className="bg-slate-50/80 py-16 md:py-20">
+      <section id="pain" className="bg-[#EDE9DE] py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
             <div className="text-center mb-10">
@@ -249,7 +244,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="howto" className="bg-gradient-to-br from-blue-50/60 to-white py-16 md:py-20">
+      <section id="howto" className="py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
             <div className="text-center mb-10">
@@ -331,7 +326,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="roadmap" className="bg-slate-50/80 py-16 md:py-20">
+      <section id="roadmap" className="bg-[#EDE9DE] py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
           <div className="grid gap-8 md:grid-cols-2 items-center max-w-4xl mx-auto">
             <div>
@@ -501,7 +496,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="faq" className="bg-slate-50/80 py-16 md:py-20">
+      <section id="faq" className="bg-[#EDE9DE] py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInSection>
             <div className="text-center mb-10">

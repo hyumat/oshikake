@@ -61,6 +61,11 @@ Oshikaは、横浜F・マリノスのサポーター向けに特化した観戦�
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-05: GitHub Issue #99 完了 - LP全体の背景色をヒーロー画像に統一
+  - LP背景色を#F5F1E6（暖色系ベージュ）に変更
+  - ヘッダー背景を#F5F1E6/95に変更
+  - セクション背景を#EDE9DE（少し濃いベージュ）に変更
+  - CSS変数--lp-bgで管理（将来の変更が容易）
 - 2026-01-05: GitHub Issue #98 完了 - Hero画像全面レイアウト＋ホットスポット
   - Heroセクションを画像のみの全面表示に変更（左テキスト撤去）
   - HeroSectionコンポーネント新規作成（ホットスポット付き）
