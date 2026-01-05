@@ -3,6 +3,89 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
 
+const DEBUG_HOTSPOTS = false;
+
+interface HeroHotspot {
+  id: string;
+  href: string;
+  pc: { top: string; left: string; width: string; height: string };
+  sp: { top: string; left: string; width: string; height: string };
+}
+
+const HOTSPOTS: HeroHotspot[] = [
+  {
+    id: "signup",
+    href: getSignUpUrl(),
+    pc: { top: "78%", left: "25%", width: "18%", height: "8%" },
+    sp: { top: "82%", left: "10%", width: "35%", height: "6%" },
+  },
+  {
+    id: "howto",
+    href: "#howto",
+    pc: { top: "78%", left: "48%", width: "18%", height: "8%" },
+    sp: { top: "82%", left: "55%", width: "35%", height: "6%" },
+  },
+];
+
+function HeroSection({ user }: { user: unknown }) {
+  const [isSp, setIsSp] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsSp(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsSp(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return (
+    <section className="relative w-full">
+      <picture>
+        <source media="(max-width: 768px)" srcSet="/lp/hero-sp.webp" type="image/webp" />
+        <source srcSet="/lp/hero-pc.webp" type="image/webp" />
+        <img
+          src="/lp/lp-hero.png"
+          alt="Oshika hero"
+          className="w-full h-auto"
+          loading="eager"
+          decoding="async"
+        />
+      </picture>
+
+      {user ? (
+        <a
+          href="/app"
+          className="absolute inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
+          style={isSp
+            ? { top: "82%", left: "50%", transform: "translateX(-50%)" }
+            : { top: "78%", left: "35%", transform: "translateX(-50%)" }
+          }
+        >
+          ダッシュボードへ
+        </a>
+      ) : (
+        HOTSPOTS.map((hs) => {
+          const pos = isSp ? hs.sp : hs.pc;
+          return (
+            <a
+              key={hs.id}
+              href={hs.href}
+              className={`absolute ${DEBUG_HOTSPOTS ? "bg-blue-500/30 border-2 border-blue-600" : ""}`}
+              style={{
+                top: pos.top,
+                left: pos.left,
+                width: pos.width,
+                height: pos.height,
+              }}
+              aria-label={hs.id === "signup" ? "無料で始める" : "使い方を見る"}
+            />
+          );
+        })
+      )}
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const [year, setYear] = useState<number>(2025);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -60,7 +143,7 @@ export default function LandingPage() {
           <nav className="hidden items-center gap-6 md:flex">
             <a href="#pain" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">悩み</a>
             <a href="#solution" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">できること</a>
-            <a href="#how-it-works" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">使い方</a>
+            <a href="#howto" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">使い方</a>
             <a href="#stats" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">集計</a>
             <a href="#pricing" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">料金</a>
             <a href="#faq" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">FAQ</a>
@@ -99,109 +182,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-5xl px-4 pt-16 pb-12 md:pt-24 md:pb-16">
-        <div className="grid items-center gap-12 md:grid-cols-2">
-          <div>
-            <div className="text-sm font-bold text-blue-700 mb-2">Oshika</div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl leading-tight">
-              あの試合、<br />
-              いくら使った？<br />
-              <span className="text-blue-700">全部わかる。</span>
-            </h1>
-
-            <p className="mt-6 text-base leading-relaxed text-slate-600 md:text-lg">
-              観戦メモ、費用（チケット・交通・飲食など）、試合情報（予定・結果）を<br className="hidden sm:inline" />
-              まとめて残して、いつでも見返せる。
-            </p>
-
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-              {user ? (
-                <a
-                  href="/app"
-                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 text-base font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
-                >
-                  ダッシュボードへ
-                </a>
-              ) : (
-                <>
-                  <a
-                    href={getSignUpUrl()}
-                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 text-base font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
-                  >
-                    無料で始める
-                  </a>
-                  <a
-                    href="#how-it-works"
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-                  >
-                    使い方を見る
-                  </a>
-                </>
-              )}
-            </div>
-            {!user && (
-              <p className="mt-4 text-sm text-slate-500">
-                まずはFreeで。10試合まで無料で記録できます。
-                <a href={getLoginUrl()} className="ml-2 text-blue-600 hover:underline">ログインはこちら</a>
-              </p>
-            )}
-          </div>
-
-          <div className="relative">
-            <FadeInSection>
-              <picture>
-                <source media="(max-width: 768px)" srcSet="/lp/hero-sp.webp" type="image/webp" />
-                <source srcSet="/lp/hero-pc.webp" type="image/webp" />
-                <img
-                  src="/lp/lp-hero.png"
-                  alt="観戦の記録と費用をまとめて残せるイメージ"
-                  className="rounded-3xl shadow-xl w-full"
-                  width={600}
-                  height={338}
-                  loading="eager"
-                  decoding="async"
-                />
-              </picture>
-            </FadeInSection>
-          </div>
-        </div>
-
-        <div className="mt-12 grid gap-4 sm:grid-cols-3">
-          <FadeInSection delay={0}>
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                📝
-              </div>
-              <div>
-                <div className="font-semibold text-slate-800">観戦の記録</div>
-                <div className="mt-1 text-sm text-slate-500">メモ・写真・同行者など</div>
-              </div>
-            </div>
-          </FadeInSection>
-          <FadeInSection delay={100}>
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                💰
-              </div>
-              <div>
-                <div className="font-semibold text-slate-800">費用の記録</div>
-                <div className="mt-1 text-sm text-slate-500">交通/宿/チケット/飲食を合計・内訳で</div>
-              </div>
-            </div>
-          </FadeInSection>
-          <FadeInSection delay={200}>
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                📅
-              </div>
-              <div>
-                <div className="font-semibold text-slate-800">試合の確認</div>
-                <div className="mt-1 text-sm text-slate-500">日程・会場・結果を同じ場所で</div>
-              </div>
-            </div>
-          </FadeInSection>
-        </div>
-      </section>
+      <HeroSection user={user} />
 
       <section id="pain" className="bg-slate-50/80 py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
@@ -279,7 +260,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="bg-gradient-to-br from-blue-50/60 to-white py-16 md:py-20">
+      <section id="howto" className="bg-gradient-to-br from-blue-50/60 to-white py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
             <div className="text-center mb-10">
@@ -605,7 +586,7 @@ export default function LandingPage() {
           </div>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-500">
             <a href="#solution" className="hover:text-blue-700 transition-colors">機能</a>
-            <a href="#how-it-works" className="hover:text-blue-700 transition-colors">使い方</a>
+            <a href="#howto" className="hover:text-blue-700 transition-colors">使い方</a>
             <a href="#faq" className="hover:text-blue-700 transition-colors">FAQ</a>
             <a href="/pricing" className="hover:text-blue-700 transition-colors">料金</a>
             <span className="text-slate-300">|</span>
