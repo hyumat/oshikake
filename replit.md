@@ -61,6 +61,11 @@ Oshikaは、横浜F・マリノスのサポーター向けに特化した観戦�
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-05: GitHub Issue #91 完了 - 旧表記「Oshikake」「おしかけ」を全面削除
+  - docs/export-design.md: ファイル名を「oshika_」に変更
+  - docs/offline-design.md: localStorageキーを「oshika:」に変更
+  - Landing.tsx: 関数名をLandingPageに変更
+  - Support.tsx: メールアドレスをsupport@oshika.appに変更
 - 2026-01-05: GitHub Issue #87 完了 - サービス名を「Oshika」に統一
   - client/index.html: title、OG/Twitterメタタグを「Oshika - 観戦と費用を、ひとつに。」に変更
   - manifest.webmanifest: name/short_name/descriptionを更新
