@@ -16,14 +16,14 @@ const HOTSPOTS: HeroHotspot[] = [
   {
     id: "signup",
     href: getSignUpUrl(),
-    pc: { top: "78%", left: "25%", width: "18%", height: "8%" },
-    sp: { top: "82%", left: "10%", width: "35%", height: "6%" },
+    pc: { top: "69%", left: "10%", width: "14%", height: "6%" },
+    sp: { top: "75%", left: "8%", width: "30%", height: "6%" },
   },
   {
     id: "howto",
     href: "#howto",
-    pc: { top: "78%", left: "48%", width: "18%", height: "8%" },
-    sp: { top: "82%", left: "55%", width: "35%", height: "6%" },
+    pc: { top: "69%", left: "26%", width: "12%", height: "6%" },
+    sp: { top: "75%", left: "42%", width: "28%", height: "6%" },
   },
 ];
 
