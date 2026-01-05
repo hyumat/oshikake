@@ -1,7 +1,7 @@
 {
-  "name": "おしかけログ",
-  "short_name": "おしかけログ",
-  "description": "観戦の記録と費用をまとめて残す",
+  "name": "Oshika",
+  "short_name": "Oshika",
+  "description": "観戦と費用を、ひとつに。",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

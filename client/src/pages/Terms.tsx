@@ -14,7 +14,7 @@ export default function Terms() {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-4">第1条（適用）</h2>
             <p>
-              本規約は、「おしかけログ」（以下「本サービス」）の利用に関する条件を定めるものです。
+              本規約は、「Oshika」（以下「本サービス」）の利用に関する条件を定めるものです。
               ユーザーは本規約に同意の上、本サービスを利用するものとします。
             </p>
           </section>

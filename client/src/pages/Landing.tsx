@@ -48,12 +48,12 @@ export default function LandingPageOshikakeLog() {
           <div className="flex items-center gap-2">
             <img
               src="/logo.png"
-              alt="おしかけログ"
+              alt="Oshika"
               className="h-9 w-9 rounded-xl shadow-sm"
             />
             <div className="leading-tight">
-              <div className="text-sm font-bold text-blue-900">おしかけログ</div>
-              <div className="text-[11px] text-slate-500">観戦記録サービス</div>
+              <div className="text-sm font-bold text-blue-900">Oshika</div>
+              <div className="text-[11px] text-slate-500">観戦と費用を、ひとつに。</div>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export default function LandingPageOshikakeLog() {
       <section className="mx-auto max-w-5xl px-4 pt-16 pb-12 md:pt-24 md:pb-16">
         <div className="grid items-center gap-12 md:grid-cols-2">
           <div>
-            <div className="text-sm font-bold text-blue-700 mb-2">おしかけログ</div>
+            <div className="text-sm font-bold text-blue-700 mb-2">Oshika</div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl leading-tight">
               あの試合、<br />
               いくら使った？<br />
@@ -207,7 +207,7 @@ export default function LandingPageOshikakeLog() {
           <FadeInSection>
             <div className="text-center mb-10">
               <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">解決</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">おしかけログでできること</h2>
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">Oshikaでできること</h2>
             </div>
           </FadeInSection>
 
@@ -558,7 +558,7 @@ export default function LandingPageOshikakeLog() {
       <footer className="border-t border-slate-100 py-8">
         <div className="mx-auto max-w-5xl px-4 flex flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-2">
-            <span className="text-blue-600 font-semibold">おしかけログ</span>
+            <span className="text-blue-600 font-semibold">Oshika</span>
             <span className="text-xs text-slate-500">© {new Date().getFullYear()}</span>
           </div>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-500">
