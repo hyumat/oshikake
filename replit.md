@@ -61,6 +61,11 @@
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-05: GitHub Issue #90 完了 - 新アイコンをReplitへ取り込み
+  - mnt/data/icon-source.pngに生成元画像を保存
+  - scripts/generate-icons.mjsで各サイズのアイコンを自動生成
+  - favicon(16/32)、apple-touch-icon(180)、PWAアイコン(192/512/maskable)を差し替え
+  - logo.pngも同時に更新
 - 2026-01-02: GitHub Issue #76 完了 - ログイン時のアカウントメニュー表示
   - AccountMenuコンポーネント作成（アカウント/プラン・お支払い/設定/サポート/ログアウト）
   - DashboardLayoutモバイルヘッダーにAccountMenu追加
