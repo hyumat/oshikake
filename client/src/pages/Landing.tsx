@@ -60,7 +60,7 @@ export default function LandingPage() {
           <nav className="hidden items-center gap-6 md:flex">
             <a href="#pain" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">悩み</a>
             <a href="#solution" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">できること</a>
-            <a href="#how" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">使い方</a>
+            <a href="#how-it-works" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">使い方</a>
             <a href="#stats" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">集計</a>
             <a href="#pricing" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">料金</a>
             <a href="#faq" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">FAQ</a>
@@ -128,13 +128,13 @@ export default function LandingPage() {
                     href={getSignUpUrl()}
                     className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 text-base font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
                   >
-                    Freeで始める
+                    無料で始める
                   </a>
                   <a
-                    href={getLoginUrl()}
-                    className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors underline-offset-2 hover:underline"
+                    href="#how-it-works"
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
                   >
-                    ログインはこちら
+                    使い方を見る
                   </a>
                 </>
               )}
@@ -142,20 +142,26 @@ export default function LandingPage() {
             {!user && (
               <p className="mt-4 text-sm text-slate-500">
                 まずはFreeで。10試合まで無料で記録できます。
+                <a href={getLoginUrl()} className="ml-2 text-blue-600 hover:underline">ログインはこちら</a>
               </p>
             )}
           </div>
 
           <div className="relative">
             <FadeInSection>
-              <img
-                src="/lp/lp-hero.png"
-                alt="観戦の記録と費用をまとめて残せるイメージ"
-                className="rounded-3xl shadow-xl w-full"
-                width={600}
-                height={338}
-                loading="eager"
-              />
+              <picture>
+                <source media="(max-width: 768px)" srcSet="/lp/hero-sp.webp" type="image/webp" />
+                <source srcSet="/lp/hero-pc.webp" type="image/webp" />
+                <img
+                  src="/lp/lp-hero.png"
+                  alt="観戦の記録と費用をまとめて残せるイメージ"
+                  className="rounded-3xl shadow-xl w-full"
+                  width={600}
+                  height={338}
+                  loading="eager"
+                  decoding="async"
+                />
+              </picture>
             </FadeInSection>
           </div>
         </div>
@@ -273,7 +279,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how" className="bg-gradient-to-br from-blue-50/60 to-white py-16 md:py-20">
+      <section id="how-it-works" className="bg-gradient-to-br from-blue-50/60 to-white py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
             <div className="text-center mb-10">
@@ -599,7 +605,7 @@ export default function LandingPage() {
           </div>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-500">
             <a href="#solution" className="hover:text-blue-700 transition-colors">機能</a>
-            <a href="#how" className="hover:text-blue-700 transition-colors">使い方</a>
+            <a href="#how-it-works" className="hover:text-blue-700 transition-colors">使い方</a>
             <a href="#faq" className="hover:text-blue-700 transition-colors">FAQ</a>
             <a href="/pricing" className="hover:text-blue-700 transition-colors">料金</a>
             <span className="text-slate-300">|</span>
