@@ -61,6 +61,11 @@ Oshikaは、横浜F・マリノスのサポーター向けに特化した観戦�
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-05: GitHub Issue #92/93/94/95 完了 - Hero刷新（SurveySparrow風）
+  - lp-hero.png: 旧名称「おしかけログ」を含まない新画像に差し替え（文字なしビジュアル）
+  - Hero直下に価値カード3枚追加（観戦の記録/費用の記録/試合の確認）
+  - CTA統一：Primary「Freeで始める」1つ + テキストリンク「ログインはこちら」
+  - 補助文追加：「まずはFreeで。10試合まで無料で記録できます。」
 - 2026-01-05: GitHub Issue #91 完了 - 旧表記「Oshikake」「おしかけ」を全面削除
   - docs/export-design.md: ファイル名を「oshika_」に変更
   - docs/offline-design.md: localStorageキーを「oshika:」に変更
