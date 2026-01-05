@@ -114,11 +114,11 @@ export default function LandingPage() {
               まとめて残して、いつでも見返せる。
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
               {user ? (
                 <a
                   href="/app"
-                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
+                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 text-base font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
                 >
                   ダッシュボードへ
                 </a>
@@ -126,22 +126,22 @@ export default function LandingPage() {
                 <>
                   <a
                     href={getSignUpUrl()}
-                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
+                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 text-base font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 transition-all"
                   >
-                    無料で登録して始める
+                    Freeで始める
                   </a>
                   <a
                     href={getLoginUrl()}
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-all"
+                    className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors underline-offset-2 hover:underline"
                   >
-                    ログイン
+                    ログインはこちら
                   </a>
                 </>
               )}
             </div>
             {!user && (
-              <p className="mt-4 text-xs text-slate-500">
-                登録すると、記録を端末間で引き継げます
+              <p className="mt-4 text-sm text-slate-500">
+                まずはFreeで。10試合まで無料で記録できます。
               </p>
             )}
           </div>
@@ -158,6 +158,42 @@ export default function LandingPage() {
               />
             </FadeInSection>
           </div>
+        </div>
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          <FadeInSection delay={0}>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
+                📝
+              </div>
+              <div>
+                <div className="font-semibold text-slate-800">観戦の記録</div>
+                <div className="mt-1 text-sm text-slate-500">メモ・写真・同行者など</div>
+              </div>
+            </div>
+          </FadeInSection>
+          <FadeInSection delay={100}>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
+                💰
+              </div>
+              <div>
+                <div className="font-semibold text-slate-800">費用の記録</div>
+                <div className="mt-1 text-sm text-slate-500">交通/宿/チケット/飲食を合計・内訳で</div>
+              </div>
+            </div>
+          </FadeInSection>
+          <FadeInSection delay={200}>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
+                📅
+              </div>
+              <div>
+                <div className="font-semibold text-slate-800">試合の確認</div>
+                <div className="mt-1 text-sm text-slate-500">日程・会場・結果を同じ場所で</div>
+              </div>
+            </div>
+          </FadeInSection>
         </div>
       </section>
 
