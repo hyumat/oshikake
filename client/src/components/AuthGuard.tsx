@@ -9,13 +9,14 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, loading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      navigate("/login");
+      const returnTo = encodeURIComponent(location);
+      navigate(`/login?returnTo=${returnTo}`);
     }
-  }, [loading, isAuthenticated, navigate]);
+  }, [loading, isAuthenticated, navigate, location]);
 
   if (loading) {
     return (

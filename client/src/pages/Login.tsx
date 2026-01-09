@@ -1,18 +1,22 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useEffect } from "react";
 
 export default function Login() {
   const { isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const returnTo = searchParams.get("returnTo");
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/app");
+      const destination = returnTo ? decodeURIComponent(returnTo) : "/app";
+      navigate(destination);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, returnTo]);
 
   if (loading) {
     return (

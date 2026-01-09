@@ -44,6 +44,11 @@ const faqItems: FaqItem[] = [
   },
   {
     category: "データ・アカウント",
+    question: "ログインできない場合は？",
+    answer: "Google/Appleでログインできない場合は、以下をお試しください：(1) ブラウザのCookieをクリアする (2) シークレットモードで試す (3) 別のブラウザで試す。それでも解決しない場合はサポートまでご連絡ください。",
+  },
+  {
+    category: "データ・アカウント",
     question: "記録したデータは消えませんか？",
     answer: "ログインしている限り、記録したデータはサーバーに安全に保存されます。端末を変えても、ログインすれば同じデータを見返せます。",
   },
@@ -169,11 +174,11 @@ export default function Support() {
               </div>
               <div className="mt-4">
                 <a
-                  href="mailto:support@oshika.app"
+                  href="mailto:support@oshikake.app"
                   className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
                 >
                   <Mail className="h-4 w-4" />
-                  support@oshika.app
+                  support@oshikake.app
                 </a>
                 <p className="text-xs text-muted-foreground mt-2">
                   通常1〜3営業日以内に返信いたします
