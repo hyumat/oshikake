@@ -3,82 +3,86 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
 
+const DEBUG_HOTSPOTS = false;
+
+interface HeroHotspot {
+  id: string;
+  href: string;
+  pc: { top: string; left: string; width: string; height: string };
+  sp: { top: string; left: string; width: string; height: string };
+}
+
+const HOTSPOTS: HeroHotspot[] = [
+  {
+    id: "signup",
+    href: getSignUpUrl(),
+    pc: { top: "69%", left: "10%", width: "14%", height: "6%" },
+    sp: { top: "75%", left: "8%", width: "30%", height: "6%" },
+  },
+  {
+    id: "howto",
+    href: "#howto",
+    pc: { top: "69%", left: "26%", width: "12%", height: "6%" },
+    sp: { top: "75%", left: "42%", width: "28%", height: "6%" },
+  },
+];
+
 function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const [isSp, setIsSp] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsSp(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsSp(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-8 pb-12 md:pt-12 md:pb-16">
-      <div 
-        className="relative rounded-2xl md:rounded-3xl overflow-hidden"
-        style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.12)" }}
-      >
-        <div className="grid md:grid-cols-2 items-center">
-          <div className="p-8 md:p-12 lg:p-16 bg-gradient-to-br from-white/95 to-white/85">
-            <div className="flex items-center gap-3 mb-6">
-              <img
-                src="/logo.png"
-                alt="オシカケ"
-                className="h-12 w-12 rounded-xl shadow-sm"
-              />
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-blue-900">オシカケ</h1>
-                <p className="text-sm text-slate-600">観戦と費用を、ひとつに。</p>
-              </div>
-            </div>
-            
-            <p className="text-slate-700 text-base md:text-lg leading-relaxed mb-8">
-              チケット代・交通費や宿泊費・スタグル等の飲食代まで
-              <br className="hidden md:block" />
-              試合ごとにまとめて記録。
-              <br />
-              「去年どうしてた？」が、すぐ思い出せます。
-            </p>
-            
-            <div className="flex flex-wrap gap-3">
-              {isLoggedIn ? (
-                <a
-                  href="/app"
-                  className="inline-flex items-center justify-center px-6 py-3 bg-blue-900 text-white font-semibold rounded-lg hover:bg-blue-800 transition-colors"
-                >
-                  ダッシュボードへ
-                </a>
-              ) : (
-                <>
-                  <a
-                    href={getSignUpUrl()}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-blue-900 text-white font-semibold rounded-lg hover:bg-blue-800 transition-colors"
-                  >
-                    無料で始める
-                  </a>
-                  <a
-                    href="#howto"
-                    className="inline-flex items-center justify-center px-6 py-3 border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 transition-colors"
-                  >
-                    使い方を見る
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="hidden md:block relative">
-            <img
-              src="/lp/hero-illustration.png"
-              alt="オシカケ アプリイメージ"
-              className="w-full h-full object-cover"
-              loading="eager"
-              decoding="async"
-            />
-          </div>
-        </div>
-        
-        <div className="md:hidden p-4">
+    <section className="mx-auto max-w-6xl px-4 pt-6 pb-8 md:pt-8 md:pb-12">
+      <div className="relative">
+        <picture>
+          <source media="(max-width: 768px)" srcSet="/lp/hero-sp.webp" type="image/webp" />
+          <source srcSet="/lp/hero-pc.webp" type="image/webp" />
           <img
-            src="/lp/hero-illustration.png"
-            alt="オシカケ アプリイメージ"
-            className="w-full h-auto rounded-xl"
+            src="/lp/hero-pc.webp"
+            alt="オシカケ - 観戦と費用を、ひとつに"
+            className="w-full h-auto rounded-2xl md:rounded-3xl"
+            style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.12)" }}
             loading="eager"
             decoding="async"
           />
-        </div>
+        </picture>
+
+        {isLoggedIn ? (
+          <a
+            href="/app"
+            className={`absolute ${DEBUG_HOTSPOTS ? "bg-green-500/30 border-2 border-green-600" : ""}`}
+            style={isSp 
+              ? { top: "75%", left: "8%", width: "40%", height: "6%" }
+              : { top: "69%", left: "10%", width: "18%", height: "6%" }
+            }
+            aria-label="ダッシュボードへ"
+          />
+        ) : (
+          HOTSPOTS.map((hs) => {
+            const pos = isSp ? hs.sp : hs.pc;
+            return (
+              <a
+                key={hs.id}
+                href={hs.href}
+                className={`absolute ${DEBUG_HOTSPOTS ? "bg-blue-500/30 border-2 border-blue-600" : ""}`}
+                style={{
+                  top: pos.top,
+                  left: pos.left,
+                  width: pos.width,
+                  height: pos.height,
+                }}
+                aria-label={hs.id === "signup" ? "無料で始める" : "使い方を見る"}
+              />
+            );
+          })
+        )}
       </div>
     </section>
   );
