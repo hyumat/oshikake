@@ -1,7 +1,7 @@
-# Oshika
+# オシカケ (Oshikake)
 
 ## Overview
-Oshikaは、横浜F・マリノスのサポーター向けに特化した観戦記録Webアプリケーションです。ユーザーは観戦した公式試合の記録、それに伴う交通費、チケット代、飲食費などの費用を詳細に追跡できます。本サービスは、観戦記録から得られる勝敗、費用合計、平均費用などの統計データをユーザーに提供し、観戦体験の振り返りと費用管理をサポートすることを目的としています。
+オシカケは、横浜F・マリノスのサポーター向けに特化した観戦記録Webアプリケーションです。ユーザーは観戦した公式試合の記録、それに伴う交通費、チケット代、飲食費などの費用を詳細に追跡できます。本サービスは、観戦記録から得られる勝敗、費用合計、平均費用などの統計データをユーザーに提供し、観戦体験の振り返りと費用管理をサポートすることを目的としています。
 
 ## Product Principles（プロダクト原則）
 1. 中心は「観戦の記録」と「観戦にかかる費用の記録」
@@ -61,6 +61,12 @@ Oshikaは、横浜F・マリノスのサポーター向けに特化した観戦�
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-09: GitHub Issue #120 完了 - サービス名を「オシカケ」に統一（旧「Oshika」表記を全面削除）
+  - 日本語表記: オシカケ / 英字表記: Oshikake
+  - index.html/manifest.webmanifest: title/OGP/meta更新
+  - Landing.tsx/Login.tsx/PublicHeader.tsx: UI表記更新
+  - Terms.tsx/Privacy.tsx: 法的ページ更新
+  - docs/*.md, README.md, MVP.md: ドキュメント全面更新
 - 2026-01-05: GitHub Issue #100/101/102 完了 - LP視覚的改善
   - #100: セクション区切りに交互背景（rgba(255,255,255,0.35)）を追加
   - #101: カードUI調整（背景rgba(255,255,255,0.9)、影0 8px 24px rgba(0,0,0,0.06)、枠線rgba(0,0,0,0.06)）
