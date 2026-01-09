@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
 
-const DEBUG_HOTSPOTS = true;
+const DEBUG_HOTSPOTS = false;
 
 interface HeroHotspot {
   id: string;
