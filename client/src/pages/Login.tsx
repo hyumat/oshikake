@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+import { getLoginUrl, sanitizeReturnTo } from "@/const";
 import { Loader2 } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import { useEffect } from "react";
@@ -9,12 +9,11 @@ export default function Login() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
-  const returnTo = searchParams.get("returnTo");
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
 
   useEffect(() => {
     if (isAuthenticated) {
-      const destination = returnTo ? decodeURIComponent(returnTo) : "/app";
-      navigate(destination);
+      navigate(returnTo);
     }
   }, [isAuthenticated, navigate, returnTo]);
 
@@ -49,7 +48,7 @@ export default function Login() {
 
           <div className="space-y-3">
             <a
-              href={getLoginUrl()}
+              href={getLoginUrl(returnTo)}
               className="flex items-center justify-center gap-3 w-full rounded-xl bg-white border border-slate-200 px-6 py-3.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-all"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -62,7 +61,7 @@ export default function Login() {
             </a>
 
             <a
-              href={getLoginUrl()}
+              href={getLoginUrl(returnTo)}
               className="flex items-center justify-center gap-3 w-full rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-all"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -75,7 +74,7 @@ export default function Login() {
           <div className="mt-6 pt-6 border-t border-slate-200 text-center">
             <p className="text-sm text-slate-600">
               アカウントをお持ちでないですか？{" "}
-              <a href="/signup" className="text-blue-600 font-medium hover:underline">
+              <a href={`/signup${returnTo !== "/app" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`} className="text-blue-600 font-medium hover:underline">
                 新規登録
               </a>
             </p>

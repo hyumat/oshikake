@@ -35,7 +35,7 @@
     - Normalizing `matchUrl` and generating `matchKey` to prevent duplicates.
     - Tracking sync logs (`syncLog`) for scraper operations.
 - **Statistics Module**: Provides APIs (`stats.getSummary`, `stats.getAvailableYears`) for calculating and displaying attendance counts, win/draw/loss records, total expenses, and average expenses per match, with support for year selection.
-- **User Authentication**: Handled via session secrets and includes OAuth warning level adjustments to allow app functionality without authentication.
+- **User Authentication**: OAuth-only authentication (Google/Apple) via external OAuth server. Session management uses JWT stored in HttpOnly cookies. No email/password authentication. Includes `returnTo` parameter support for post-login redirects.
 - **Error Handling**: Standardized error display using `TRPCError` with a `LIMIT_REACHED` code for plan restrictions, and unified error presentation using `QueryState` components.
 - **Deployment**: Configured for Replit environment, including Vite configuration for proxy and server binding.
 
@@ -61,6 +61,12 @@
 - **Analytics**: Optional integration via `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID`
 
 ## Recent Changes
+- 2026-01-09: GitHub Issue #113/#105 完了 - OAuth認証（Google/Apple）で登録・ログインを統一
+  - /signupページ新規作成（Google/Appleボタンのみ）
+  - Login.tsxをGoogle/Appleボタン専用UIに変更
+  - AuthGuardにreturnToパラメータ対応を追加
+  - Support.tsxにOAuthログイン関連FAQを追加
+  - メールアドレスをsupport@oshikake.appに更新
 - 2026-01-09: GitHub Issue #120 完了 - サービス名を「オシカケ」に統一（旧「Oshika」表記を全面削除）
   - 日本語表記: オシカケ / 英字表記: Oshikake
   - index.html/manifest.webmanifest: title/OGP/meta更新
