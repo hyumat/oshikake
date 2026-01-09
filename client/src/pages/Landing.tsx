@@ -16,14 +16,14 @@ const HOTSPOTS: HeroHotspot[] = [
   {
     id: "signup",
     href: getSignUpUrl(),
-    pc: { top: "69%", left: "10%", width: "14%", height: "6%" },
-    sp: { top: "75%", left: "8%", width: "30%", height: "6%" },
+    pc: { top: "68%", left: "10%", width: "13%", height: "8%" },
+    sp: { top: "68%", left: "8%", width: "28%", height: "6%" },
   },
   {
     id: "howto",
     href: "#howto",
-    pc: { top: "69%", left: "26%", width: "12%", height: "6%" },
-    sp: { top: "75%", left: "42%", width: "28%", height: "6%" },
+    pc: { top: "68%", left: "25%", width: "11%", height: "8%" },
+    sp: { top: "68%", left: "40%", width: "24%", height: "6%" },
   },
 ];
 
@@ -54,13 +54,42 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           />
         </picture>
 
-        {isLoggedIn ? (
+        {DEBUG_HOTSPOTS ? (
+          <>
+            {HOTSPOTS.map((hs) => {
+              const pos = isSp ? hs.sp : hs.pc;
+              return (
+                <a
+                  key={hs.id}
+                  href={hs.href}
+                  className="absolute bg-blue-500/30 border-2 border-blue-600"
+                  style={{
+                    top: pos.top,
+                    left: pos.left,
+                    width: pos.width,
+                    height: pos.height,
+                  }}
+                  aria-label={hs.id === "signup" ? "無料で始める" : "使い方を見る"}
+                />
+              );
+            })}
+            <a
+              href="/app"
+              className="absolute bg-green-500/30 border-2 border-green-600"
+              style={isSp 
+                ? { top: "68%", left: "8%", width: "56%", height: "6%" }
+                : { top: "68%", left: "10%", width: "26%", height: "8%" }
+              }
+              aria-label="ダッシュボードへ"
+            />
+          </>
+        ) : isLoggedIn ? (
           <a
             href="/app"
-            className={`absolute ${DEBUG_HOTSPOTS ? "bg-green-500/30 border-2 border-green-600" : ""}`}
+            className="absolute"
             style={isSp 
-              ? { top: "75%", left: "8%", width: "40%", height: "6%" }
-              : { top: "69%", left: "10%", width: "18%", height: "6%" }
+              ? { top: "68%", left: "8%", width: "56%", height: "6%" }
+              : { top: "68%", left: "10%", width: "26%", height: "8%" }
             }
             aria-label="ダッシュボードへ"
           />
@@ -71,7 +100,7 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
               <a
                 key={hs.id}
                 href={hs.href}
-                className={`absolute ${DEBUG_HOTSPOTS ? "bg-blue-500/30 border-2 border-blue-600" : ""}`}
+                className="absolute"
                 style={{
                   top: pos.top,
                   left: pos.left,
