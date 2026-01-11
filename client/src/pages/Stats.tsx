@@ -13,6 +13,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Trophy, Minus, X, HelpCircle, Wallet, Calculator } from "lucide-react";
 import { formatCurrency } from "@shared/formatters";
 import { QueryState } from "@/components/QueryState";
+import { AdBanner } from "@/components/AdBanner";
 
 function StatsPage() {
   const currentYear = new Date().getFullYear();
@@ -205,6 +206,9 @@ function StatsPage() {
             </Card>
           </div>
         </QueryState>
+
+        {/* 広告バナー */}
+        <AdBanner placement="stats" />
       </div>
     </DashboardLayout>
   );

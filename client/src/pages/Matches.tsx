@@ -9,12 +9,15 @@ import { trpc } from '@/lib/trpc';
 import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 import { toast } from 'sonner';
 import { formatDateTime, formatScore } from '@shared/formatters';
+import { shouldShowTicketInfo, getTicketSalesStatus, getMatchCountdown } from '@/lib/matchHelpers';
+import { AdBanner } from '@/components/AdBanner';
 
 type AttendanceStatus = 'undecided' | 'attending' | 'not-attending';
 
 interface Match {
   id: number;
   sourceKey: string;
+  matchId?: string; // Issue #146: 新しいスキーマ対応
   date: string;
   kickoff?: string;
   competition?: string;
@@ -27,6 +30,8 @@ interface Match {
   awayScore?: number;
   isResult: number;
   matchUrl: string;
+  ticketSalesStart?: string | null; // Issue #148: チケット販売開始日
+  notes?: string | null; // Issue #146: 備考
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -362,6 +367,22 @@ export default function Matches() {
                                   </a>
                                 )}
                               </div>
+                              {/* Issue #148: チケット販売情報表示制御 */}
+                              {(() => {
+                                const ticketStatus = getTicketSalesStatus(match.date, match.ticketSalesStart);
+                                if (ticketStatus.show) {
+                                  return (
+                                    <div className={`text-xs px-2 py-1 rounded border ${ticketStatus.bgColor} ${ticketStatus.color} mt-1`}>
+                                      {ticketStatus.label}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              {/* 試合までのカウントダウン */}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {getMatchCountdown(match.date)}
+                              </div>
                             </div>
                             {(() => {
                               const status = getAttendanceStatus(match.id);
@@ -681,6 +702,9 @@ export default function Matches() {
             )}
           </div>
         )}
+
+        {/* 広告バナー */}
+        <AdBanner placement="matchLog" />
 
         {/* 統計情報 */}
         {filteredMatches.length > 0 && (
