@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
 import Stats from "./pages/Stats";
+import Savings from "./pages/Savings";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Support from "./pages/Support";
@@ -37,6 +38,7 @@ function Router() {
       <Route path={"/matches"}>{() => <ProtectedRoute component={Matches} />}</Route>
       <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
       <Route path={"/stats"}>{() => <ProtectedRoute component={Stats} />}</Route>
+      <Route path={"/savings"}>{() => <ProtectedRoute component={Savings} />}</Route>
 
       {/* Legal & Support (Public) */}
       <Route path={"/privacy"} component={Privacy} />
