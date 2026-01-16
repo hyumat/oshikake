@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleStripeWebhook } from "../webhookHandler";
+import { initializeScheduler, stopScheduler } from "../scheduler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -81,7 +82,23 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
+
+    // Initialize Google Sheets sync scheduler
+    initializeScheduler();
   });
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log('\n[Server] Shutting down gracefully...');
+    stopScheduler();
+    server.close(() => {
+      console.log('[Server] Server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 startServer().catch(console.error);

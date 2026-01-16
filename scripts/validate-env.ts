@@ -86,6 +86,30 @@ const ENV_VARS: EnvVar[] = [
     category: 'sheets',
     description: 'Google Apps Script API token',
   },
+  {
+    name: 'SHEETS_SYNC_ENABLED',
+    required: false,
+    category: 'sheets',
+    description: 'Enable Google Sheets auto-sync scheduler (default: true)',
+    validator: (v) => ['true', 'false'].includes(v.toLowerCase()),
+    example: 'true',
+  },
+  {
+    name: 'SHEETS_SYNC_INTERVAL_MS',
+    required: false,
+    category: 'sheets',
+    description: 'Sync interval in milliseconds (default: 3600000 = 1 hour)',
+    validator: (v) => !isNaN(parseInt(v)) && parseInt(v) > 0,
+    example: '3600000',
+  },
+  {
+    name: 'SHEETS_SYNC_ON_STARTUP',
+    required: false,
+    category: 'sheets',
+    description: 'Run sync immediately on server startup (default: true)',
+    validator: (v) => ['true', 'false'].includes(v.toLowerCase()),
+    example: 'true',
+  },
 
   // Stripe Payment Integration
   {

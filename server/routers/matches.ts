@@ -8,6 +8,7 @@ import { upsertMatches, getMatches, getMatchById, createSyncLog, getRecentSyncLo
 import { getSampleMatches } from '../test-data';
 import { scrapeAllMatches, generateMatchKey, normalizeMatchUrl } from '../unified-scraper';
 import { syncFromGoogleSheets, getRecentSyncLogs as getSheetsSyncLogs } from '../sheets-sync';
+import { getScheduler } from '../scheduler';
 import { TRPCError } from '@trpc/server';
 import type { Match } from '../../drizzle/schema';
 
@@ -327,4 +328,72 @@ export const matchesRouter = router({
         });
       }
     }),
+
+  /**
+   * Issue #145: Get scheduler status
+   * 管理者のみ実行可能
+   */
+  getSchedulerStatus: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view scheduler status'
+      });
+    }
+
+    const scheduler = getScheduler();
+    if (!scheduler) {
+      return {
+        enabled: false,
+        message: 'Scheduler not initialized',
+      };
+    }
+
+    const status = scheduler.getStatus();
+    const config = scheduler.getConfig();
+
+    return {
+      enabled: config.enabled,
+      status,
+      config: {
+        syncIntervalMs: config.syncIntervalMs,
+        syncOnStartup: config.syncOnStartup,
+      },
+    };
+  }),
+
+  /**
+   * Issue #145: Manually trigger scheduler sync
+   * 管理者のみ実行可能
+   * スケジューラー経由で同期を実行（次回実行時刻はリセットされない）
+   */
+  triggerSchedulerSync: protectedProcedure.mutation(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can trigger scheduler sync'
+      });
+    }
+
+    const scheduler = getScheduler();
+    if (!scheduler) {
+      throw new TRPCError({
+        code: 'PRECONDITION_FAILED',
+        message: 'Scheduler not initialized',
+      });
+    }
+
+    try {
+      await scheduler.triggerManualSync();
+      return {
+        success: true,
+        message: '同期を開始しました',
+      };
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Sync failed',
+      });
+    }
+  }),
 });

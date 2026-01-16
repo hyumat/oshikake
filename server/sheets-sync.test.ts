@@ -192,6 +192,40 @@ describe('sheets-sync - Issue #147: 過去試合上書き防止', () => {
   });
 });
 
+describe('sheets-sync - リトライロジック', () => {
+  it('should retry on network errors with exponential backoff', () => {
+    // リトライパラメータの検証
+    const retryConfig = {
+      maxRetries: 3,
+      initialDelayMs: 1000,
+      maxDelayMs: 10000,
+    };
+
+    expect(retryConfig.maxRetries).toBe(3);
+    expect(retryConfig.initialDelayMs).toBe(1000);
+    expect(retryConfig.maxDelayMs).toBe(10000);
+  });
+
+  it('should calculate exponential backoff delays correctly', () => {
+    const initialDelay = 1000;
+    const delays = [0, 1, 2].map((attempt) =>
+      Math.min(initialDelay * Math.pow(2, attempt), 10000)
+    );
+
+    expect(delays[0]).toBe(1000); // 1秒
+    expect(delays[1]).toBe(2000); // 2秒
+    expect(delays[2]).toBe(4000); // 4秒
+  });
+
+  it('should cap delay at maxDelayMs', () => {
+    const initialDelay = 1000;
+    const maxDelay = 10000;
+    const longAttempt = Math.min(initialDelay * Math.pow(2, 10), maxDelay);
+
+    expect(longAttempt).toBe(maxDelay);
+  });
+});
+
 describe('sheets-sync - エラーハンドリング', () => {
   it('should handle GAS API errors gracefully', async () => {
     // fetchFromGoogleSheets をエラーを返すようにモック

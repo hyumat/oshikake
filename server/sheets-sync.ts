@@ -41,40 +41,102 @@ const GAS_API_URL = process.env.GAS_API_URL || '';
 const GAS_API_TOKEN = process.env.GAS_API_TOKEN || '';
 
 /**
- * Google Sheets から試合データを取得
+ * 指数バックオフでリトライ実行
+ * ネットワークエラーや一時的な障害に対して自動リトライを実行
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    initialDelayMs?: number;
+    maxDelayMs?: number;
+    onRetry?: (attempt: number, error: any) => void;
+  } = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelayMs = 1000,
+    maxDelayMs = 10000,
+    onRetry,
+  } = options;
+
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < maxRetries) {
+        // 指数バックオフで待機時間を計算 (1s, 2s, 4s...)
+        const delayMs = Math.min(initialDelayMs * Math.pow(2, attempt), maxDelayMs);
+
+        if (onRetry) {
+          onRetry(attempt + 1, error);
+        }
+
+        console.log(`[sheets-sync] Retry ${attempt + 1}/${maxRetries} after ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Google Sheets から試合データを取得（リトライ付き）
  * GAS API 経由でデータを取得
+ *
+ * エラー時は最大3回まで自動リトライ（指数バックオフ）
  */
 export async function fetchFromGoogleSheets(): Promise<SheetMatchRow[]> {
   if (!GAS_API_URL || !GAS_API_TOKEN) {
     throw new Error('GAS_API_URL or GAS_API_TOKEN is not configured');
   }
 
+  console.log('[sheets-sync] Fetching from Google Sheets via GAS API...');
+
   try {
-    console.log('[sheets-sync] Fetching from Google Sheets via GAS API...');
-    
-    const response = await axios.post(
-      GAS_API_URL,
-      { action: 'getMatches' },
+    // リトライ付きでGAS APIを呼び出し
+    const matches = await retryWithBackoff(
+      async () => {
+        const response = await axios.post(
+          GAS_API_URL,
+          { action: 'getMatches' },
+          {
+            headers: {
+              'Authorization': `Bearer ${GAS_API_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        );
+
+        if (!response.data) {
+          throw new Error('Empty response from GAS API');
+        }
+
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'GAS API returned error');
+        }
+
+        return response.data.data as SheetMatchRow[];
+      },
       {
-        headers: {
-          'Authorization': `Bearer ${GAS_API_TOKEN}`,
-          'Content-Type': 'application/json',
+        maxRetries: 3,
+        initialDelayMs: 1000,
+        onRetry: (attempt, error) => {
+          const errorMsg = axios.isAxiosError(error)
+            ? `${error.code}: ${error.message}`
+            : String(error);
+          console.warn(`[sheets-sync] Request failed (${errorMsg}), retrying...`);
         },
-        timeout: 30000,
       }
     );
 
-    if (!response.data) {
-      throw new Error('Empty response from GAS API');
-    }
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'GAS API returned error');
-    }
-
-    const matches = response.data.data as SheetMatchRow[];
     console.log(`[sheets-sync] Fetched ${matches.length} matches from Sheets`);
-
     return matches;
   } catch (error) {
     console.error('[sheets-sync] Failed to fetch from Google Sheets:', error);
