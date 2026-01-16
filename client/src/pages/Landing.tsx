@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
@@ -88,6 +89,27 @@ export default function LandingPage() {
   const [year, setYear] = useState<number>(2025);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const { user, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Issue #150/#152: ログイン済みユーザーの自動リダイレクト
+  useEffect(() => {
+    // 認証チェック中は何もしない
+    if (authLoading) return;
+
+    // ユーザーがログインしていない場合は何もしない
+    if (!user) return;
+
+    // URLパラメータをチェック
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceLanding = urlParams.get('lp') === '1';
+
+    // lp=1パラメータがある場合はLPを表示（リダイレクトしない）
+    if (forceLanding) return;
+
+    // ログイン済みユーザーは /app にリダイレクト
+    console.log('[Landing] Redirecting logged-in user to /app');
+    setLocation('/app');
+  }, [user, authLoading, setLocation]);
 
   const statsPreview = {
     2024: { watch: 6, win: 2, draw: 2, loss: 2, unknown: 0, total: 71200 },
