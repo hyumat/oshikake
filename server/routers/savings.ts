@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { db } from '../db';
 import { savingsRules, savingsHistory, matches } from '../../drizzle/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 export const savingsRouter = router({
   /**
@@ -264,4 +264,132 @@ export const savingsRouter = router({
           : '該当するルールがありませんでした',
       };
     }),
+
+  /**
+   * 未処理の試合結果をチェックして自動的に貯金をトリガー
+   *
+   * ユーザーがアプリを開いたときや、Statsページを開いたときに自動実行
+   * 既に貯金履歴に記録されている試合はスキップ
+   */
+  checkPendingSavings: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      // 有効なルールを取得
+      const rules = await db.query.savingsRules.findMany({
+        where: and(
+          eq(savingsRules.userId, ctx.user.openId),
+          eq(savingsRules.enabled, true)
+        ),
+      });
+
+      // ルールがない場合は何もしない
+      if (rules.length === 0) {
+        return {
+          success: true,
+          processed: 0,
+          totalAmount: 0,
+          newSavings: [],
+        };
+      }
+
+      // 結果が確定している試合を取得
+      const completedMatches = await db.query.matches.findMany({
+        where: eq(matches.isResult, 1),
+      });
+
+      // 既に貯金履歴に記録されている試合IDを取得
+      const existingHistory = await db.query.savingsHistory.findMany({
+        where: eq(savingsHistory.userId, ctx.user.openId),
+      });
+
+      const processedMatchIds = new Set(
+        existingHistory.map((h) => h.matchId).filter((id): id is number => id !== null)
+      );
+
+      // 未処理の試合を抽出
+      const pendingMatches = completedMatches.filter(
+        (match) => match.id && !processedMatchIds.has(match.id)
+      );
+
+      const newSavings: Array<{
+        matchId: number;
+        matchDate: string;
+        opponent: string;
+        result: string;
+        amount: number;
+        conditions: string[];
+      }> = [];
+
+      // 各未処理試合に対して貯金をトリガー
+      for (const match of pendingMatches) {
+        if (match.homeScore === null || match.awayScore === null) continue;
+        if (!match.id) continue;
+
+        // 試合結果を判定
+        let result: '勝利' | '引き分け' | '敗北';
+        const marinosSide = match.marinosSide || 'home';
+        const marinosScore = marinosSide === 'home' ? match.homeScore : match.awayScore;
+        const opponentScore = marinosSide === 'home' ? match.awayScore : match.homeScore;
+
+        if (marinosScore > opponentScore) {
+          result = '勝利';
+        } else if (marinosScore < opponentScore) {
+          result = '敗北';
+        } else {
+          result = '引き分け';
+        }
+
+        const triggeredRules = [];
+
+        // ルールをチェック
+        for (const rule of rules) {
+          if (rule.condition === result) {
+            triggeredRules.push(rule);
+          }
+          // TODO: 得点者のチェック（将来実装）
+        }
+
+        // 貯金履歴に追加
+        for (const rule of triggeredRules) {
+          await db.insert(savingsHistory).values({
+            userId: ctx.user.openId,
+            ruleId: rule.id,
+            matchId: match.id,
+            condition: rule.condition,
+            amount: rule.amount,
+          });
+        }
+
+        if (triggeredRules.length > 0) {
+          const matchAmount = triggeredRules.reduce((sum, r) => sum + r.amount, 0);
+          newSavings.push({
+            matchId: match.id,
+            matchDate: match.date,
+            opponent: match.opponent || '',
+            result,
+            amount: matchAmount,
+            conditions: triggeredRules.map((r) => r.condition),
+          });
+        }
+      }
+
+      const totalAmount = newSavings.reduce((sum, s) => sum + s.amount, 0);
+
+      return {
+        success: true,
+        processed: newSavings.length,
+        totalAmount,
+        newSavings,
+        message:
+          newSavings.length > 0
+            ? `${newSavings.length}件の試合で ${totalAmount}円の貯金が追加されました！`
+            : '新しい貯金はありませんでした',
+      };
+    } catch (error) {
+      console.error('[Savings Router] checkPendingSavings error:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: '貯金チェック中にエラーが発生しました',
+      });
+    }
+  }),
 });

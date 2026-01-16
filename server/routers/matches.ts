@@ -9,9 +9,19 @@ import { getSampleMatches } from '../test-data';
 import { scrapeAllMatches, generateMatchKey, normalizeMatchUrl } from '../unified-scraper';
 import { syncFromGoogleSheets, getRecentSyncLogs as getSheetsSyncLogs } from '../sheets-sync';
 import { TRPCError } from '@trpc/server';
+import type { Match } from '../../drizzle/schema';
+
+// Cached match type (partial Match with required fields from scraper)
+type CachedMatch = Partial<Match> & {
+  id: number;
+  sourceKey: string;
+  date: string;
+  kickoff: string;
+  opponent: string;
+};
 
 // In-memory cache for scraped matches (when DB unavailable)
-let cachedMatches: any[] | null = null;
+let cachedMatches: CachedMatch[] | null = null;
 
 
 
