@@ -12,6 +12,7 @@ import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
 import Stats from "./pages/Stats";
 import Savings from "./pages/Savings";
+import Settings from "./pages/Settings";
 import AdminSync from "./pages/AdminSync";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -38,8 +39,10 @@ function Router() {
       <Route path={"/app"}>{() => <ProtectedRoute component={Home} />}</Route>
       <Route path={"/matches"}>{() => <ProtectedRoute component={Matches} />}</Route>
       <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
+      <Route path={"/expenses"}>{() => <ProtectedRoute component={Stats} />}</Route>
       <Route path={"/stats"}>{() => <ProtectedRoute component={Stats} />}</Route>
       <Route path={"/savings"}>{() => <ProtectedRoute component={Savings} />}</Route>
+      <Route path={"/settings"}>{() => <ProtectedRoute component={Settings} />}</Route>
       <Route path={"/admin/sync"}>{() => <ProtectedRoute component={AdminSync} />}</Route>
 
       {/* Legal & Support (Public) */}
@@ -64,7 +67,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider
         defaultTheme="light"
-        // switchable
+        switchable={true}
       >
         <TooltipProvider>
           <Toaster />

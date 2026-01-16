@@ -396,4 +396,75 @@ export const matchesRouter = router({
       });
     }
   }),
+
+  /**
+   * Manually create a match entry (Issue #122-3)
+   * For matches not available in official data
+   */
+  createManual: protectedProcedure
+    .input(
+      z.object({
+        date: z.string(), // YYYY-MM-DD
+        kickoff: z.string().optional(),
+        opponent: z.string(),
+        marinosSide: z.enum(['home', 'away']),
+        stadium: z.string().optional(),
+        competition: z.string().optional(),
+        homeScore: z.number().optional(),
+        awayScore: z.number().optional(),
+        isResult: z.number(), // 0=未実施, 1=実施済み
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        // Generate unique matchId and sourceKey
+        const dateStr = input.date.replace(/-/g, '');
+        const opponentShort = input.opponent.substring(0, 8);
+        const matchId = `manual_${dateStr}_${opponentShort}`;
+        const sourceKey = `manual:${input.date}:${input.opponent}:${input.marinosSide}`;
+
+        // Determine home/away teams
+        const homeTeam = input.marinosSide === 'home' ? '横浜F・マリノス' : input.opponent;
+        const awayTeam = input.marinosSide === 'away' ? '横浜F・マリノス' : input.opponent;
+
+        const newMatch = {
+          matchId,
+          sourceKey,
+          date: input.date,
+          kickoff: input.kickoff || null,
+          opponent: input.opponent,
+          marinosSide: input.marinosSide,
+          stadium: input.stadium || null,
+          competition: input.competition || 'その他',
+          homeScore: input.homeScore ?? null,
+          awayScore: input.awayScore ?? null,
+          isResult: input.isResult,
+          notes: input.notes || null,
+          homeTeam,
+          awayTeam,
+          source: 'manual',
+          matchUrl: null,
+          roundLabel: null,
+          roundNumber: null,
+          status: input.isResult ? 'Finished' : 'Scheduled',
+        };
+
+        // Save to database
+        await upsertMatches([newMatch]);
+
+        console.log(`[Matches Router] Created manual match: ${matchId}`);
+
+        return {
+          success: true,
+          matchId,
+        };
+      } catch (error) {
+        console.error('[Matches Router] Error creating manual match:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to create match',
+        });
+      }
+    }),
 });
