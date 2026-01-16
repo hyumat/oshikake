@@ -210,7 +210,7 @@ export const matchesRouter = router({
 
         // Check in-memory cache (populated by fetchOfficial)
         if (cachedMatches && cachedMatches.length > 0) {
-          const cachedMatch = cachedMatches.find((m: any) => m.id === input.id);
+          const cachedMatch = cachedMatches.find((m) => m.id === input.id);
           if (cachedMatch) {
             console.log(`[Matches Router] Returning cached match ${input.id}`);
             return {
@@ -222,7 +222,7 @@ export const matchesRouter = router({
 
         // Check test data as fallback
         const testMatches = getSampleMatches();
-        const testMatch = testMatches.find((m: any) => m.id === input.id);
+        const testMatch = testMatches.find((m) => m.id === input.id);
 
         if (testMatch) {
           console.log(`[Matches Router] Returning test match ${input.id}`);
