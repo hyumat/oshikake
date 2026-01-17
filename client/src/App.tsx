@@ -8,6 +8,8 @@ import AuthGuard from "./components/AuthGuard";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Account from "./pages/Account";
 import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
 import Stats from "./pages/Stats";
@@ -35,9 +37,11 @@ function Router() {
       {/* LP & Auth */}
       <Route path={"/"} component={Landing} />
       <Route path={"/login"} component={Login} />
+      <Route path={"/signup"} component={Signup} />
 
       {/* Protected App Routes */}
       <Route path={"/app"}>{() => <ProtectedRoute component={Home} />}</Route>
+      <Route path={"/account"}>{() => <ProtectedRoute component={Account} />}</Route>
       <Route path={"/matches"}>{() => <ProtectedRoute component={Matches} />}</Route>
       <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
       <Route path={"/expenses"}>{() => <ProtectedRoute component={Stats} />}</Route>
