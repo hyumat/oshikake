@@ -69,7 +69,8 @@ export async function createContext(
 
       if (session) {
         // ユーザー情報取得
-        user = await db.getUserByOpenId(session.userId);
+        const fetchedUser = await db.getUserByOpenId(session.userId);
+        user = fetchedUser ?? null;
 
         if (user) {
           // 最終ログイン時刻更新

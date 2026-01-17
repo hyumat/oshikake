@@ -10,7 +10,7 @@ function createAuthContext(userId: number = 1): TrpcContext {
     openId: `test-user-${userId}`,
     email: `test${userId}@example.com`,
     name: `Test User ${userId}`,
-    loginMethod: 'manus',
+    loginMethod: 'google',
     role: 'user',
     createdAt: new Date(),
     updatedAt: new Date(),

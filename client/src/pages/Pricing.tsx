@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PublicHeader } from "@/components/PublicHeader";
 import { Check, X, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
-import { getSignUpUrl } from "@/const";
 
 interface PlanFeature {
   text: string;

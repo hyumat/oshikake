@@ -7,21 +7,7 @@
 
 import { SignJWT, jwtVerify } from 'jose';
 import { COOKIE_NAME, ONE_YEAR_MS } from '@shared/const';
-
-/**
- * セッションペイロード
- * JWTに含まれるユーザー情報
- */
-export type SessionPayload = {
-  /** ユーザーID (users.openId) */
-  userId: string;
-  /** メールアドレス */
-  email: string;
-  /** 表示名 */
-  name: string;
-  /** 認証プロバイダー */
-  provider: 'google' | 'apple' | 'dev';
-};
+import type { SessionPayload, AuthProvider } from '@shared/auth';
 
 /**
  * セッション管理クラス
@@ -100,11 +86,13 @@ export class SessionManager {
       // ペイロードの型検証
       const { userId, email, name, provider } = payload as Record<string, unknown>;
 
+      const validProviders: AuthProvider[] = ['google', 'apple', 'dev'];
+
       if (
         typeof userId !== 'string' || userId.length === 0 ||
         typeof email !== 'string' ||
         typeof name !== 'string' ||
-        (provider !== 'google' && provider !== 'apple' && provider !== 'dev')
+        typeof provider !== 'string' || !validProviders.includes(provider as AuthProvider)
       ) {
         console.warn('[Session] Invalid session payload structure');
         return null;
@@ -114,7 +102,7 @@ export class SessionManager {
         userId,
         email,
         name,
-        provider: provider as 'google' | 'apple' | 'dev',
+        provider: provider as AuthProvider,
       };
     } catch (error) {
       // JWT検証エラー（期限切れ、署名不正など）
