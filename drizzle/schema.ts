@@ -296,3 +296,55 @@ export const eventLogs = mysqlTable("eventLogs", {
 
 export type EventLog = typeof eventLogs.$inferSelect;
 export type InsertEventLog = typeof eventLogs.$inferInsert;
+
+/**
+ * Issue #116: Webhook冪等性管理
+ *
+ * Stripe Webhookイベントの処理履歴を記録し、重複処理を防止する
+ */
+export const webhookEvents = mysqlTable("webhook_events", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Stripe event ID (例: evt_1234567890) */
+  eventId: varchar("eventId", { length: 255 }).notNull().unique(),
+  /** Event type (例: checkout.session.completed) */
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  /** 処理日時 */
+  processedAt: timestamp("processedAt").defaultNow().notNull(),
+  /** イベント全体のペイロード（JSON形式、デバッグ用） */
+  payload: text("payload"),
+  /** 処理結果 (success/failed) */
+  status: mysqlEnum("status", ["success", "failed"]).default("success").notNull(),
+  /** エラーメッセージ（処理失敗時） */
+  errorMessage: text("errorMessage"),
+});
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = typeof webhookEvents.$inferInsert;
+
+/**
+ * Issue #116: ユーザー権限の正規化
+ *
+ * プラン情報を一元管理し、「唯一の真実」として機能する
+ * usersテーブルのplan/planExpiresAtは互換性のため残すが、
+ * entitlementsが正式な参照先となる
+ */
+export const entitlements = mysqlTable("entitlements", {
+  id: int("id").autoincrement().primaryKey(),
+  /** ユーザーID (users.openIdを参照) */
+  userId: varchar("userId", { length: 64 }).notNull().references(() => users.openId),
+  /** プラン (free, plus, pro) */
+  plan: mysqlEnum("plan", ["free", "plus", "pro"]).default("free").notNull(),
+  /** プラン有効期限 */
+  planExpiresAt: timestamp("planExpiresAt"),
+  /** Stripe subscription ID */
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
+  /** サブスクリプション状態 */
+  status: mysqlEnum("status", ["active", "inactive", "canceled", "past_due", "trialing"]).default("active").notNull(),
+  /** 作成日時 */
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  /** 更新日時 */
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Entitlement = typeof entitlements.$inferSelect;
+export type InsertEntitlement = typeof entitlements.$inferInsert;
