@@ -8,6 +8,25 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { AuthErrorType } from "@shared/auth";
+
+/**
+ * エラータイプに対応するエラーメッセージを取得
+ */
+const getErrorMessage = (errorType: AuthErrorType): string => {
+  switch (errorType) {
+    case 'auth_failed':
+      return 'ログインに失敗しました。もう一度お試しください。';
+    case 'oauth_not_configured':
+      return 'OAuth設定が完了していません。管理者にお問い合わせください。';
+    case 'session_creation_failed':
+      return 'セッション作成に失敗しました。もう一度お試しください。';
+    case 'session_expired':
+      return 'セッションが期限切れです。もう一度ログインしてください。';
+    case 'invalid_token':
+      return 'セッショントークンが無効です。もう一度ログインしてください。';
+  }
+};
 
 export default function Login() {
   const { isAuthenticated, loading } = useAuth();
@@ -27,18 +46,18 @@ export default function Login() {
     const errorParam = params.get('error');
 
     if (errorParam) {
-      switch (errorParam) {
-        case 'auth_failed':
-          setError('ログインに失敗しました。もう一度お試しください。');
-          break;
-        case 'oauth_not_configured':
-          setError('OAuth設定が完了していません。管理者にお問い合わせください。');
-          break;
-        case 'session_creation_failed':
-          setError('セッション作成に失敗しました。もう一度お試しください。');
-          break;
-        default:
-          setError('エラーが発生しました。');
+      const validErrorTypes: AuthErrorType[] = [
+        'auth_failed',
+        'oauth_not_configured',
+        'session_creation_failed',
+        'session_expired',
+        'invalid_token',
+      ];
+
+      if (validErrorTypes.includes(errorParam as AuthErrorType)) {
+        setError(getErrorMessage(errorParam as AuthErrorType));
+      } else {
+        setError('エラーが発生しました。');
       }
     }
   }, []);
