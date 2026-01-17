@@ -5,7 +5,7 @@
 
 import axios from 'axios';
 import { db } from './db';
-import { matches, syncLogs, type InsertMatch, type InsertSyncLog } from '@/drizzle/schema';
+import { matches, syncLogs, type InsertMatch, type InsertSyncLog } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
 /**

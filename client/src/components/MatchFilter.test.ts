@@ -214,11 +214,12 @@ describe('MatchFilter Component', () => {
         opponent: '',
         marinosSide: 'all',
       };
-      const hasActiveFilters =
+      const hasActiveFilters = !!(
         filter.dateFrom ||
         filter.dateTo ||
         filter.opponent ||
-        filter.marinosSide !== 'all';
+        filter.marinosSide !== 'all'
+      );
       expect(hasActiveFilters).toBe(true);
     });
 
@@ -229,11 +230,12 @@ describe('MatchFilter Component', () => {
         opponent: '',
         marinosSide: 'all',
       };
-      const hasActiveFilters =
+      const hasActiveFilters = !!(
         filter.dateFrom ||
         filter.dateTo ||
         filter.opponent ||
-        filter.marinosSide !== 'all';
+        filter.marinosSide !== 'all'
+      );
       expect(hasActiveFilters).toBe(false);
     });
 
