@@ -9,9 +9,10 @@ import { trpc } from '@/lib/trpc';
 import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 import { toast } from 'sonner';
 import { formatDateTime, formatScore } from '@shared/formatters';
-import { shouldShowTicketInfo, getTicketSalesStatus, getMatchCountdown } from '@/lib/matchHelpers';
+import { shouldShowTicketInfo, getTicketSalesStatus, getMatchCountdown, isPastMatch, getTicketInfoFallback } from '@/lib/matchHelpers';
 import { AdBanner } from '@/components/AdBanner';
 import { AddMatchDialog } from '@/components/AddMatchDialog';
+import { TicketFallbackMessage } from '@/components/TicketFallbackMessage';
 
 type AttendanceStatus = 'undecided' | 'attending' | 'not-attending';
 
@@ -369,13 +370,26 @@ export default function Matches() {
                                   </a>
                                 )}
                               </div>
-                              {/* Issue #148: チケット販売情報表示制御 */}
+                              {/* Issue #148/#124: チケット販売情報表示制御 + フォールバック */}
                               {(() => {
                                 const ticketStatus = getTicketSalesStatus(match.date, match.ticketSalesStart);
                                 if (ticketStatus.show) {
                                   return (
                                     <div className={`text-xs px-2 py-1 rounded border ${ticketStatus.bgColor} ${ticketStatus.color} mt-1`}>
                                       {ticketStatus.label}
+                                    </div>
+                                  );
+                                }
+                                // Issue #124: チケット情報未取得時のフォールバック
+                                if (!isPastMatch(match.date) && !match.ticketSalesStart) {
+                                  const fallback = getTicketInfoFallback(match.marinosSide, match.opponent);
+                                  return (
+                                    <div className="mt-2">
+                                      <TicketFallbackMessage
+                                        message={fallback.message}
+                                        linkText={fallback.linkText}
+                                        linkUrl={fallback.linkUrl}
+                                      />
                                     </div>
                                   );
                                 }

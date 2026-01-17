@@ -1,10 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { 
-  InsertUser, users, 
-  matches as matchesTable, 
-  userMatches as userMatchesTable, 
-  syncLogs as syncLogsTable, 
+import {
+  InsertUser, users,
+  matches as matchesTable,
+  userMatches as userMatchesTable,
+  syncLogs as syncLogsTable,
   matchExpenses as matchExpensesTable,
   auditLogs as auditLogsTable,
   eventLogs as eventLogsTable,
@@ -12,16 +12,20 @@ import {
   InsertMatchExpense, MatchExpense,
   InsertAuditLog, InsertEventLog
 } from "../drizzle/schema";
+import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { Plan } from '../shared/billing';
+import type { MySql2Database } from 'drizzle-orm/mysql2';
 
-let _db: ReturnType<typeof drizzle> | null = null;
+type DrizzleDB = MySql2Database<typeof schema>;
+
+let _db: DrizzleDB | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
+export async function getDb(): Promise<DrizzleDB | null> {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _db = drizzle(process.env.DATABASE_URL, { schema }) as DrizzleDB;
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -29,6 +33,26 @@ export async function getDb() {
   }
   return _db;
 }
+
+// Synchronous db instance for newer routers (Issue #123, #144)
+// Initialize eagerly if DATABASE_URL is available
+if (process.env.DATABASE_URL) {
+  try {
+    _db = drizzle(process.env.DATABASE_URL, { schema }) as DrizzleDB;
+  } catch (error) {
+    console.warn("[Database] Failed to initialize db:", error);
+  }
+}
+
+// Export db instance - will throw if accessed before initialization
+export const db = new Proxy({} as DrizzleDB, {
+  get(target, prop) {
+    if (!_db) {
+      throw new Error('[Database] Database not initialized. Set DATABASE_URL environment variable.');
+    }
+    return (_db as any)[prop];
+  }
+});
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {

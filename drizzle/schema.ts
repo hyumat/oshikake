@@ -123,7 +123,13 @@ export const matches = mysqlTable("matches", {
   ticketSalesStart: varchar("ticketSalesStart", { length: 10 }),
   /** notes: 備考 */
   notes: text("notes"),
-  
+
+  // === Issue #123: perform_id マッピング (J.LEAGUE チケットシステム連携) ===
+  /** J.LEAGUE ticket system perform_id (for future automation) */
+  performId: varchar("performId", { length: 64 }),
+  /** perform_id mapping status: null=未設定, "suggested"=候補, "approved"=承認済み */
+  performIdStatus: mysqlEnum("performIdStatus", ["suggested", "approved"]),
+
   // === メタデータ (内部管理用) ===
   /** データソース ("sheets", "jleague", "phew") */
   source: varchar("source", { length: 32 }).default("sheets").notNull(),

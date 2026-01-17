@@ -14,6 +14,7 @@ import Stats from "./pages/Stats";
 import Savings from "./pages/Savings";
 import Settings from "./pages/Settings";
 import AdminSync from "./pages/AdminSync";
+import AdminTicketMapping from "./pages/AdminTicketMapping";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Support from "./pages/Support";
@@ -44,6 +45,7 @@ function Router() {
       <Route path={"/savings"}>{() => <ProtectedRoute component={Savings} />}</Route>
       <Route path={"/settings"}>{() => <ProtectedRoute component={Settings} />}</Route>
       <Route path={"/admin/sync"}>{() => <ProtectedRoute component={AdminSync} />}</Route>
+      <Route path={"/admin/ticket-mapping"}>{() => <ProtectedRoute component={AdminTicketMapping} />}</Route>
 
       {/* Legal & Support (Public) */}
       <Route path={"/privacy"} component={Privacy} />
