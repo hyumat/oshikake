@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Plus, RefreshCw, MapPin, Calendar, Clock, Check, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Plus, RefreshCw, MapPin, Calendar, Clock, Check, X, Info } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { shouldShowTicketInfo, getTicketSalesStatus, getMatchCountdown, isPastMa
 import { AdBanner } from '@/components/AdBanner';
 import { AddMatchDialog } from '@/components/AddMatchDialog';
 import { TicketFallbackMessage } from '@/components/TicketFallbackMessage';
+import { getPlanLimitMessage } from '@shared/billing';
 
 type AttendanceStatus = 'undecided' | 'attending' | 'not-attending';
 
@@ -75,6 +77,16 @@ export default function Matches() {
   // tRPC クエリ・ミューテーション
   const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
   const fetchOfficialMutation = trpc.matches.fetchOfficial.useMutation();
+  const { data: planStatus } = trpc.billing.getPlanStatus.useQuery();
+
+  // Issue #106: Freeプラン7件制限メッセージ
+  const planLimitMessage = planStatus
+    ? getPlanLimitMessage(
+        planStatus.plan,
+        planStatus.planExpiresAt ? new Date(planStatus.planExpiresAt) : null,
+        planStatus.attendanceCount
+      )
+    : null;
 
   // ページアクセス時はキャッシュデータを表示（スクレイピングは手動）
   useEffect(() => {
@@ -244,6 +256,24 @@ export default function Matches() {
           onFiltersChange={setFilters}
           onReset={handleResetFilters}
         />
+
+        {/* Issue #106: Freeプラン7件制限の通知 */}
+        {planLimitMessage && (
+          <Alert className="mb-6">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{planLimitMessage}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/upgrade")}
+                className="ml-4 shrink-0"
+              >
+                アップグレード
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* コントロール */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

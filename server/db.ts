@@ -8,9 +8,13 @@ import {
   matchExpenses as matchExpensesTable,
   auditLogs as auditLogsTable,
   eventLogs as eventLogsTable,
+  webhookEvents as webhookEventsTable,
+  entitlements as entitlementsTable,
   InsertUserMatch, UserMatch, InsertSyncLog,
   InsertMatchExpense, MatchExpense,
-  InsertAuditLog, InsertEventLog
+  InsertAuditLog, InsertEventLog,
+  InsertWebhookEvent, WebhookEvent,
+  InsertEntitlement, Entitlement
 } from "../drizzle/schema";
 import * as schema from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -676,16 +680,175 @@ export async function getUserById(userId: number) {
     console.warn('[Database] Cannot get user by id: database not available');
     return undefined;
   }
-  
+
   try {
     const result = await db.select()
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    
+
     return result.length > 0 ? result[0] : undefined;
   } catch (error) {
     console.error('[Database] Failed to get user by id:', error);
     return undefined;
+  }
+}
+
+// ==================== Issue #116: Webhook Idempotency ====================
+
+/**
+ * Webhookイベントが既に処理済みか確認
+ */
+export async function isWebhookProcessed(eventId: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    const result = await db.select()
+      .from(webhookEventsTable)
+      .where(eq(webhookEventsTable.eventId, eventId))
+      .limit(1);
+
+    return result.length > 0;
+  } catch (error) {
+    console.error('[Database] Failed to check webhook processed:', error);
+    return false;
+  }
+}
+
+/**
+ * Webhookイベントを記録
+ */
+export async function recordWebhookEvent(data: InsertWebhookEvent): Promise<WebhookEvent | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.insert(webhookEventsTable).values(data);
+    const insertedId = Number(result[0].insertId);
+
+    const inserted = await db.select()
+      .from(webhookEventsTable)
+      .where(eq(webhookEventsTable.id, insertedId))
+      .limit(1);
+
+    return inserted[0] || null;
+  } catch (error) {
+    console.error('[Database] Failed to record webhook event:', error);
+    return null;
+  }
+}
+
+/**
+ * Webhookイベントの処理状態を更新
+ */
+export async function updateWebhookEventStatus(
+  eventId: string,
+  status: 'success' | 'failed',
+  errorMessage?: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.update(webhookEventsTable)
+      .set({ status, errorMessage: errorMessage || null })
+      .where(eq(webhookEventsTable.eventId, eventId));
+  } catch (error) {
+    console.error('[Database] Failed to update webhook event status:', error);
+  }
+}
+
+// ==================== Issue #116: Entitlements ====================
+
+/**
+ * ユーザーのentitlementを取得（唯一の真実）
+ */
+export async function getUserEntitlement(userId: string): Promise<Entitlement | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.select()
+      .from(entitlementsTable)
+      .where(eq(entitlementsTable.userId, userId))
+      .limit(1);
+
+    return result[0] || null;
+  } catch (error) {
+    console.error('[Database] Failed to get user entitlement:', error);
+    return null;
+  }
+}
+
+/**
+ * ユーザーのentitlementを作成または更新（upsert）
+ */
+export async function upsertEntitlement(
+  userId: string,
+  data: Partial<Omit<Entitlement, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
+): Promise<Entitlement | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    // 既存のentitlementを確認
+    const existing = await getUserEntitlement(userId);
+
+    if (existing) {
+      // 更新
+      await db.update(entitlementsTable)
+        .set(data)
+        .where(eq(entitlementsTable.userId, userId));
+
+      // 更新後のデータを取得
+      return await getUserEntitlement(userId);
+    } else {
+      // 新規作成
+      const insertData: InsertEntitlement = {
+        userId,
+        plan: data.plan || 'free',
+        planExpiresAt: data.planExpiresAt || null,
+        stripeSubscriptionId: data.stripeSubscriptionId || null,
+        status: data.status || 'active',
+      };
+
+      const result = await db.insert(entitlementsTable).values(insertData);
+      const insertedId = Number(result[0].insertId);
+
+      const inserted = await db.select()
+        .from(entitlementsTable)
+        .where(eq(entitlementsTable.id, insertedId))
+        .limit(1);
+
+      return inserted[0] || null;
+    }
+  } catch (error) {
+    console.error('[Database] Failed to upsert entitlement:', error);
+    return null;
+  }
+}
+
+/**
+ * Entitlementからusersテーブルを同期（後方互換性）
+ */
+export async function syncEntitlementToUser(userId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    const entitlement = await getUserEntitlement(userId);
+    if (!entitlement) return;
+
+    // usersテーブルのplan/planExpiresAtを更新
+    await db.update(users)
+      .set({
+        plan: entitlement.plan,
+        planExpiresAt: entitlement.planExpiresAt,
+        stripeSubscriptionId: entitlement.stripeSubscriptionId,
+      })
+      .where(eq(users.openId, userId));
+  } catch (error) {
+    console.error('[Database] Failed to sync entitlement to user:', error);
   }
 }

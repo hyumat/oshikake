@@ -7,17 +7,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Trophy, Minus, X, HelpCircle, Wallet, Calculator } from "lucide-react";
+import { Trophy, Minus, X, HelpCircle, Wallet, Calculator, Info } from "lucide-react";
 import { formatCurrency } from "@shared/formatters";
 import { QueryState } from "@/components/QueryState";
 import { AdBanner } from "@/components/AdBanner";
+import { getStatsLimitMessage } from "@shared/billing";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 function StatsPage() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [, setLocation] = useLocation();
 
   const { data: yearsData, isLoading: yearsLoading } = trpc.stats.getAvailableYears.useQuery();
   const {
@@ -26,9 +31,15 @@ function StatsPage() {
     error: statsError,
     refetch: refetchStats,
   } = trpc.stats.getSummary.useQuery({ year: selectedYear });
+  const { data: planStatus } = trpc.billing.getPlanStatus.useQuery();
 
   const years = yearsData?.years ?? [];
   const allYears = years.length > 0 ? years : [currentYear];
+
+  // Issue #106: Freeプランの365日制限メッセージ
+  const statsLimitMessage = planStatus
+    ? getStatsLimitMessage(planStatus.plan, planStatus.planExpiresAt ? new Date(planStatus.planExpiresAt) : null)
+    : null;
 
   useEffect(() => {
     if (years.length > 0 && !years.includes(selectedYear)) {
@@ -68,6 +79,24 @@ function StatsPage() {
             </Select>
           </div>
         </div>
+
+        {/* Issue #106: Freeプラン365日制限の通知 */}
+        {statsLimitMessage && (
+          <Alert className="mb-6">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{statsLimitMessage}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/upgrade")}
+                className="ml-4 shrink-0"
+              >
+                アップグレード
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <QueryState
           isLoading={isLoading}

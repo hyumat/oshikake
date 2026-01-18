@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   FREE_PLAN_LIMIT,
+  FREE_STATS_DAYS,
   isPro,
   isPlus,
   getEffectivePlan,
@@ -9,12 +10,15 @@ import {
   getCurrentSeasonYear,
   getPlanLimit,
   getEntitlements,
+  getStatsDateLimit,
+  getPlanLimitMessage,
+  getStatsLimitMessage,
 } from './billing';
 
 describe('billing utilities', () => {
   describe('Plan Limits', () => {
-    it('FREE_PLAN_LIMIT should be 10', () => {
-      expect(FREE_PLAN_LIMIT).toBe(10);
+    it('FREE_PLAN_LIMIT should be 7', () => {
+      expect(FREE_PLAN_LIMIT).toBe(7);
     });
 
     it('Plus plan should have unlimited records', () => {
@@ -127,10 +131,11 @@ describe('billing utilities', () => {
     it('should allow free users under limit', () => {
       expect(canCreateAttendance('free', null, 0)).toBe(true);
       expect(canCreateAttendance('free', null, 5)).toBe(true);
-      expect(canCreateAttendance('free', null, 9)).toBe(true);
+      expect(canCreateAttendance('free', null, 6)).toBe(true);
     });
 
     it('should block free users at limit', () => {
+      expect(canCreateAttendance('free', null, 7)).toBe(false);
       expect(canCreateAttendance('free', null, 10)).toBe(false);
       expect(canCreateAttendance('free', null, 15)).toBe(false);
     });
@@ -138,13 +143,13 @@ describe('billing utilities', () => {
     it('should block expired pro users at limit', () => {
       const past = new Date();
       past.setFullYear(past.getFullYear() - 1);
-      expect(canCreateAttendance('pro', past, 10)).toBe(false);
+      expect(canCreateAttendance('pro', past, 7)).toBe(false);
     });
 
     it('should block expired plus users at free limit', () => {
       const past = new Date();
       past.setFullYear(past.getFullYear() - 1);
-      expect(canCreateAttendance('plus', past, 10)).toBe(false);
+      expect(canCreateAttendance('plus', past, 7)).toBe(false);
     });
   });
 
@@ -156,19 +161,19 @@ describe('billing utilities', () => {
       expect(status.isPro).toBe(false);
       expect(status.isPlus).toBe(false);
       expect(status.attendanceCount).toBe(0);
-      expect(status.limit).toBe(10);
-      expect(status.remaining).toBe(10);
+      expect(status.limit).toBe(7);
+      expect(status.remaining).toBe(7);
       expect(status.canCreate).toBe(true);
     });
 
     it('should return correct status for free user near limit', () => {
-      const status = calculatePlanStatus('free', null, 8);
-      expect(status.remaining).toBe(2);
+      const status = calculatePlanStatus('free', null, 6);
+      expect(status.remaining).toBe(1);
       expect(status.canCreate).toBe(true);
     });
 
     it('should return correct status for free user at limit', () => {
-      const status = calculatePlanStatus('free', null, 10);
+      const status = calculatePlanStatus('free', null, 7);
       expect(status.remaining).toBe(0);
       expect(status.canCreate).toBe(false);
     });
@@ -209,8 +214,8 @@ describe('billing utilities', () => {
       expect(status.effectivePlan).toBe('free');
       expect(status.isPro).toBe(false);
       expect(status.isPlus).toBe(false);
-      expect(status.limit).toBe(10);
-      expect(status.remaining).toBe(5);
+      expect(status.limit).toBe(7);
+      expect(status.remaining).toBe(2);
       expect(status.canCreate).toBe(true);
     });
 
@@ -222,8 +227,8 @@ describe('billing utilities', () => {
       expect(status.effectivePlan).toBe('free');
       expect(status.isPro).toBe(false);
       expect(status.isPlus).toBe(false);
-      expect(status.limit).toBe(10);
-      expect(status.remaining).toBe(5);
+      expect(status.limit).toBe(7);
+      expect(status.remaining).toBe(2);
       expect(status.canCreate).toBe(true);
     });
 
@@ -239,16 +244,18 @@ describe('billing utilities', () => {
     it('should return correct entitlements for free user', () => {
       const entitlements = getEntitlements('free', null, 5);
       expect(entitlements.effectivePlan).toBe('free');
-      expect(entitlements.maxAttendances).toBe(10);
+      expect(entitlements.maxAttendances).toBe(7);
       expect(entitlements.canAddAttendance).toBe(true);
       expect(entitlements.canExport).toBe(false);
       expect(entitlements.canMultiSeason).toBe(false);
       expect(entitlements.canAdvancedStats).toBe(false);
       expect(entitlements.canPrioritySupport).toBe(false);
+      expect(entitlements.canSeeMyPastPlans).toBe(false);
+      expect(entitlements.canSeeCommunityTrends).toBe(false);
     });
 
     it('should block attendance for free user at limit', () => {
-      const entitlements = getEntitlements('free', null, 10);
+      const entitlements = getEntitlements('free', null, 7);
       expect(entitlements.canAddAttendance).toBe(false);
     });
 
@@ -261,6 +268,8 @@ describe('billing utilities', () => {
       expect(entitlements.canMultiSeason).toBe(false);
       expect(entitlements.canAdvancedStats).toBe(false);
       expect(entitlements.canPrioritySupport).toBe(false);
+      expect(entitlements.canSeeMyPastPlans).toBe(true);
+      expect(entitlements.canSeeCommunityTrends).toBe(false);
     });
 
     it('should return correct entitlements for pro user', () => {
@@ -272,6 +281,8 @@ describe('billing utilities', () => {
       expect(entitlements.canMultiSeason).toBe(true);
       expect(entitlements.canAdvancedStats).toBe(true);
       expect(entitlements.canPrioritySupport).toBe(true);
+      expect(entitlements.canSeeMyPastPlans).toBe(true);
+      expect(entitlements.canSeeCommunityTrends).toBe(true);
     });
 
     it('should treat expired pro as free', () => {
@@ -279,9 +290,11 @@ describe('billing utilities', () => {
       past.setFullYear(past.getFullYear() - 1);
       const entitlements = getEntitlements('pro', past, 5);
       expect(entitlements.effectivePlan).toBe('free');
-      expect(entitlements.maxAttendances).toBe(10);
+      expect(entitlements.maxAttendances).toBe(7);
       expect(entitlements.canExport).toBe(false);
       expect(entitlements.canMultiSeason).toBe(false);
+      expect(entitlements.canSeeMyPastPlans).toBe(false);
+      expect(entitlements.canSeeCommunityTrends).toBe(false);
     });
 
     it('should treat expired plus as free', () => {
@@ -289,8 +302,120 @@ describe('billing utilities', () => {
       past.setFullYear(past.getFullYear() - 1);
       const entitlements = getEntitlements('plus', past, 5);
       expect(entitlements.effectivePlan).toBe('free');
-      expect(entitlements.maxAttendances).toBe(10);
+      expect(entitlements.maxAttendances).toBe(7);
       expect(entitlements.canExport).toBe(false);
+      expect(entitlements.canSeeMyPastPlans).toBe(false);
+      expect(entitlements.canSeeCommunityTrends).toBe(false);
+    });
+  });
+
+  describe('getStatsDateLimit', () => {
+    it('should return 365 days limit for free plan', () => {
+      const limit = getStatsDateLimit('free', null);
+      expect(limit).not.toBeNull();
+
+      const now = new Date();
+      const expectedLimit = new Date();
+      expectedLimit.setDate(expectedLimit.getDate() - FREE_STATS_DAYS);
+
+      // Allow 1 second difference for test execution time
+      const diff = Math.abs((limit!.getTime() - expectedLimit.getTime()) / 1000);
+      expect(diff).toBeLessThan(1);
+    });
+
+    it('should return null for plus plan (unlimited)', () => {
+      const limit = getStatsDateLimit('plus', null);
+      expect(limit).toBeNull();
+    });
+
+    it('should return null for pro plan (unlimited)', () => {
+      const limit = getStatsDateLimit('pro', null);
+      expect(limit).toBeNull();
+    });
+
+    it('should return 365 days limit for expired pro plan', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const limit = getStatsDateLimit('pro', past);
+      expect(limit).not.toBeNull();
+    });
+
+    it('should return 365 days limit for expired plus plan', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const limit = getStatsDateLimit('plus', past);
+      expect(limit).not.toBeNull();
+    });
+  });
+
+  describe('getPlanLimitMessage', () => {
+    it('should return null for plus users', () => {
+      const message = getPlanLimitMessage('plus', null, 5);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for pro users', () => {
+      const message = getPlanLimitMessage('pro', null, 5);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for free users well under limit', () => {
+      const message = getPlanLimitMessage('free', null, 3);
+      expect(message).toBeNull();
+    });
+
+    it('should return warning for free users near limit', () => {
+      const message = getPlanLimitMessage('free', null, 5);
+      expect(message).toContain('あと2件で上限に達します');
+      expect(message).toContain('7件まで');
+    });
+
+    it('should return warning for free users at limit-1', () => {
+      const message = getPlanLimitMessage('free', null, 6);
+      expect(message).toContain('あと1件で上限に達します');
+    });
+
+    it('should return limit reached message for free users at limit', () => {
+      const message = getPlanLimitMessage('free', null, 7);
+      expect(message).toContain('上限（7件）に達しました');
+      expect(message).toContain('アップグレード');
+    });
+
+    it('should return limit reached message for free users over limit', () => {
+      const message = getPlanLimitMessage('free', null, 10);
+      expect(message).toContain('上限（7件）に達しました');
+    });
+  });
+
+  describe('getStatsLimitMessage', () => {
+    it('should return null for plus users', () => {
+      const message = getStatsLimitMessage('plus', null);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for pro users', () => {
+      const message = getStatsLimitMessage('pro', null);
+      expect(message).toBeNull();
+    });
+
+    it('should return message for free users', () => {
+      const message = getStatsLimitMessage('free', null);
+      expect(message).toContain('過去365日間の集計のみ表示');
+      expect(message).toContain('Plus/Proプラン');
+    });
+
+    it('should return message for expired pro users', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const message = getStatsLimitMessage('pro', past);
+      expect(message).toContain('過去365日間の集計のみ表示');
+    });
+
+    it('should return message for expired plus users', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const message = getStatsLimitMessage('plus', past);
+      expect(message).toContain('過去365日間の集計のみ表示');
     });
   });
 });
