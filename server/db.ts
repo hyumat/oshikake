@@ -29,7 +29,7 @@ let _db: DrizzleDB | null = null;
 export async function getDb(): Promise<DrizzleDB | null> {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL, { schema }) as DrizzleDB;
+      _db = drizzle(process.env.DATABASE_URL, { schema, mode: "default" }) as DrizzleDB;
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -42,7 +42,7 @@ export async function getDb(): Promise<DrizzleDB | null> {
 // Initialize eagerly if DATABASE_URL is available
 if (process.env.DATABASE_URL) {
   try {
-    _db = drizzle(process.env.DATABASE_URL, { schema }) as DrizzleDB;
+    _db = drizzle(process.env.DATABASE_URL, { schema, mode: "default" }) as DrizzleDB;
   } catch (error) {
     console.warn("[Database] Failed to initialize db:", error);
   }
@@ -127,6 +127,27 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function countUserAttendances(openId: string): Promise<number> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot count user attendances: database not available");
+    return 0;
+  }
+
+  try {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userMatchesTable)
+      .innerJoin(users, eq(userMatchesTable.userId, users.id))
+      .where(sql`${users.openId} = ${openId} AND ${userMatchesTable.status} = 'attended'`);
+
+    return result[0]?.count ?? 0;
+  } catch (error) {
+    console.error("[Database] Failed to count user attendances:", error);
+    return 0;
+  }
 }
 
 // ========== Match Operations ==========
