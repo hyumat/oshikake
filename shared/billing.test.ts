@@ -11,6 +11,8 @@ import {
   getPlanLimit,
   getEntitlements,
   getStatsDateLimit,
+  getPlanLimitMessage,
+  getStatsLimitMessage,
 } from './billing';
 
 describe('billing utilities', () => {
@@ -343,6 +345,77 @@ describe('billing utilities', () => {
       past.setFullYear(past.getFullYear() - 1);
       const limit = getStatsDateLimit('plus', past);
       expect(limit).not.toBeNull();
+    });
+  });
+
+  describe('getPlanLimitMessage', () => {
+    it('should return null for plus users', () => {
+      const message = getPlanLimitMessage('plus', null, 5);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for pro users', () => {
+      const message = getPlanLimitMessage('pro', null, 5);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for free users well under limit', () => {
+      const message = getPlanLimitMessage('free', null, 3);
+      expect(message).toBeNull();
+    });
+
+    it('should return warning for free users near limit', () => {
+      const message = getPlanLimitMessage('free', null, 5);
+      expect(message).toContain('あと2件で上限に達します');
+      expect(message).toContain('7件まで');
+    });
+
+    it('should return warning for free users at limit-1', () => {
+      const message = getPlanLimitMessage('free', null, 6);
+      expect(message).toContain('あと1件で上限に達します');
+    });
+
+    it('should return limit reached message for free users at limit', () => {
+      const message = getPlanLimitMessage('free', null, 7);
+      expect(message).toContain('上限（7件）に達しました');
+      expect(message).toContain('アップグレード');
+    });
+
+    it('should return limit reached message for free users over limit', () => {
+      const message = getPlanLimitMessage('free', null, 10);
+      expect(message).toContain('上限（7件）に達しました');
+    });
+  });
+
+  describe('getStatsLimitMessage', () => {
+    it('should return null for plus users', () => {
+      const message = getStatsLimitMessage('plus', null);
+      expect(message).toBeNull();
+    });
+
+    it('should return null for pro users', () => {
+      const message = getStatsLimitMessage('pro', null);
+      expect(message).toBeNull();
+    });
+
+    it('should return message for free users', () => {
+      const message = getStatsLimitMessage('free', null);
+      expect(message).toContain('過去365日間の集計のみ表示');
+      expect(message).toContain('Plus/Proプラン');
+    });
+
+    it('should return message for expired pro users', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const message = getStatsLimitMessage('pro', past);
+      expect(message).toContain('過去365日間の集計のみ表示');
+    });
+
+    it('should return message for expired plus users', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      const message = getStatsLimitMessage('plus', past);
+      expect(message).toContain('過去365日間の集計のみ表示');
     });
   });
 });

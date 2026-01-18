@@ -152,3 +152,48 @@ export function calculatePlanStatus(
     entitlements,
   };
 }
+
+/**
+ * Issue #106: プラン制限メッセージを取得
+ * @param plan ユーザーのプラン
+ * @param planExpiresAt プラン有効期限
+ * @param currentCount 現在の記録数
+ * @returns UIに表示するメッセージ
+ */
+export function getPlanLimitMessage(
+  plan: Plan,
+  planExpiresAt: Date | null,
+  currentCount: number
+): string | null {
+  const effective = getEffectivePlan(plan, planExpiresAt);
+  if (effective !== 'free') return null;
+
+  const limit = FREE_PLAN_LIMIT;
+  const remaining = Math.max(0, limit - currentCount);
+
+  if (remaining === 0) {
+    return `Freeプランの上限（${limit}件）に達しました。記録を削除するか、Plus/Proプランにアップグレードしてください。`;
+  }
+
+  if (remaining <= 2) {
+    return `あと${remaining}件で上限に達します（Freeプラン: ${limit}件まで）`;
+  }
+
+  return null;
+}
+
+/**
+ * Issue #106: Stats期間制限メッセージを取得
+ * @param plan ユーザーのプラン
+ * @param planExpiresAt プラン有効期限
+ * @returns UIに表示するメッセージ
+ */
+export function getStatsLimitMessage(
+  plan: Plan,
+  planExpiresAt: Date | null
+): string | null {
+  const effective = getEffectivePlan(plan, planExpiresAt);
+  if (effective !== 'free') return null;
+
+  return `Freeプランは過去${FREE_STATS_DAYS}日間の集計のみ表示されます。Plus/Proプランで全期間の集計を表示できます。`;
+}
