@@ -21,7 +21,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Calendar, Wallet, PiggyBank, Settings as SettingsIcon, Ticket } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Calendar, Wallet, PiggyBank, Settings as SettingsIcon, Ticket, HelpCircle } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -227,6 +227,13 @@ function DashboardLayoutContent({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => setLocation("/support")}
+                  className="cursor-pointer"
+                >
+                  <HelpCircle className="mr-2 h-4 w-4" />
+                  <span>サポート</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
