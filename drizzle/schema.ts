@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  /** Issue #107: User's favorite team slug for multi-team support */
+  myTeamSlug: varchar("myTeamSlug", { length: 64 }),
   /** User plan: free, plus, or pro */
   plan: mysqlEnum("plan", ["free", "plus", "pro"]).default("free").notNull(),
   /** Pro plan expiration date (null = no expiration / lifetime) */

@@ -361,6 +361,6 @@ export async function getRecentSyncLogs(limit: number = 10) {
   return await db.query.syncLogs.findMany({
     where: eq(syncLogs.source, 'sheets'),
     limit,
-    orderBy: (syncLogsTable: typeof syncLogs, { desc }: any) => [desc(syncLogsTable.syncedAt)],
+    orderBy: (fields, { desc }) => [desc(fields.syncedAt)],
   });
 }

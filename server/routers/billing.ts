@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getStripeClient, getPriceConfigs, getPriceId } from "../stripeClient";
-import { getUserById, updateUserStripeInfo, logEvent } from "../db";
+import { getUserById, updateUserStripeInfo, logEvent, getUserEntitlement, countUserAttendances } from "../db";
 import { Plan as BillingPlan } from "../../shared/billing";
 
 const planSchema = z.enum(["plus", "pro"]);
@@ -140,5 +140,35 @@ export const billingRouter = router({
       console.warn("[Billing] Failed to fetch subscription:", error);
       return { subscription: null };
     }
+  }),
+
+  // Issue #106: Get user's plan status for UI restrictions
+  getPlanStatus: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    const user = await getUserById(userId);
+
+    if (!user) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+    }
+
+    const attendanceCount = await countUserAttendances(user.openId);
+
+    // Try to get entitlement from entitlements table first
+    const entitlement = await getUserEntitlement(user.openId);
+
+    if (entitlement) {
+      return {
+        plan: entitlement.plan as BillingPlan,
+        planExpiresAt: entitlement.planExpiresAt ? entitlement.planExpiresAt.toISOString() : null,
+        attendanceCount,
+      };
+    }
+
+    // Fallback to users table
+    return {
+      plan: (user.plan || 'free') as BillingPlan,
+      planExpiresAt: user.planExpiresAt ? user.planExpiresAt.toISOString() : null,
+      attendanceCount,
+    };
   }),
 });

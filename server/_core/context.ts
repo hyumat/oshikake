@@ -23,6 +23,7 @@ function createMockDevUser(): User {
     email: "dev@example.com",
     loginMethod: "dev",
     role: "user",
+    myTeamSlug: "yokohama-f-marinos",
     plan: "free",
     planExpiresAt: null,
     stripeCustomerId: null,

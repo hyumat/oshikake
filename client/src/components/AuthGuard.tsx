@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { trpc } from "@/lib/trpc";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -9,7 +10,13 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, loading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  // Issue #107: Check if user has completed team selection
+  const { data: profile, isLoading: profileLoading } = trpc.users.getProfile.useQuery(
+    undefined,
+    { enabled: isAuthenticated && !loading }
+  );
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -17,7 +24,17 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [loading, isAuthenticated, navigate]);
 
-  if (loading) {
+  // Issue #107: Redirect to onboarding if team not selected
+  useEffect(() => {
+    if (!loading && !profileLoading && isAuthenticated && profile) {
+      const isOnOnboardingPage = location.startsWith("/onboarding/");
+      if (!profile.myTeamSlug && !isOnOnboardingPage) {
+        navigate("/onboarding/team");
+      }
+    }
+  }, [loading, profileLoading, isAuthenticated, profile, location, navigate]);
+
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
