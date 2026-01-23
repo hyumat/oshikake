@@ -1,6 +1,7 @@
 /**
  * Account Page
  * Issue #119: アカウントメニュー（ヘッダー）最小実装
+ * Issue #108: アカウント設定ページ（Stripe決済管理追加）
  *
  * ユーザーの基本情報とアカウント設定を表示
  */
@@ -10,13 +11,32 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, CreditCard, Calendar, Shield } from "lucide-react";
+import { User, Mail, CreditCard, Calendar, Shield, ExternalLink, Loader2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Account() {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
+
+  // Issue #108: Fetch subscription status
+  const { data: subscriptionData, isLoading: subscriptionLoading } =
+    trpc.billing.getSubscriptionStatus.useQuery();
+
+  // Issue #108: Portal session mutation
+  const portalMutation = trpc.billing.createPortalSession.useMutation({
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "カスタマーポータルの起動に失敗しました");
+    },
+  });
 
   if (loading) {
     return (
@@ -72,6 +92,45 @@ export default function Account() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  // Issue #108: Subscription status label
+  const getSubscriptionStatusLabel = (status: string) => {
+    switch (status) {
+      case "active":
+        return "有効";
+      case "trialing":
+        return "試用期間中";
+      case "past_due":
+        return "支払い期限切れ";
+      case "canceled":
+        return "キャンセル済み";
+      case "unpaid":
+        return "未払い";
+      default:
+        return status;
+    }
+  };
+
+  // Issue #108: Subscription status icon and color
+  const getSubscriptionStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "trialing":
+        return <AlertCircle className="h-4 w-4 text-blue-600" />;
+      case "past_due":
+      case "unpaid":
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case "canceled":
+        return <XCircle className="h-4 w-4 text-gray-600" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const handleOpenPortal = () => {
+    portalMutation.mutate();
   };
 
   return (
@@ -175,17 +234,106 @@ export default function Account() {
 
             <Separator />
 
-            {/* プラン変更ボタン */}
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                onClick={() => navigate("/pricing")}
-                className="w-full sm:w-auto"
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                プラン変更・お支払い
-              </Button>
+            {/* Issue #108: Subscription status */}
+            {subscriptionLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                サブスクリプション情報を読み込み中...
+              </div>
+            )}
+
+            {!subscriptionLoading && subscriptionData?.subscription && (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {getSubscriptionStatusIcon(subscriptionData.subscription.status)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">サブスクリプション状態</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {getSubscriptionStatusLabel(subscriptionData.subscription.status)}
+                    </p>
+                  </div>
+                </div>
+
+                {subscriptionData.subscription.cancelAtPeriodEnd && (
+                  <>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        このプランは{formatDate(subscriptionData.subscription.currentPeriodEnd)}に終了します。
+                        終了後はFreeプランに移行します。
+                      </AlertDescription>
+                    </Alert>
+                  </>
+                )}
+
+                {subscriptionData.subscription.currentPeriodEnd && !subscriptionData.subscription.cancelAtPeriodEnd && (
+                  <>
+                    <Separator />
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">次回更新日</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {formatDate(subscriptionData.subscription.currentPeriodEnd)}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <Separator />
+              </>
+            )}
+
+            {/* プラン変更・お支払い管理ボタン */}
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              {user.plan === "free" ? (
+                <Button
+                  variant="default"
+                  onClick={() => navigate("/pricing")}
+                  className="w-full sm:w-auto"
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  プランをアップグレード
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenPortal}
+                    disabled={portalMutation.isPending || !subscriptionData?.subscription}
+                    className="w-full sm:w-auto"
+                  >
+                    {portalMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        起動中...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        お支払い管理
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/pricing")}
+                    className="w-full sm:w-auto"
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    プラン変更
+                  </Button>
+                </>
+              )}
             </div>
+
+            {!subscriptionLoading && subscriptionData?.subscription && (
+              <p className="text-xs text-muted-foreground">
+                ※「お支払い管理」からサブスクリプションの解約、請求履歴の確認、支払い方法の変更ができます
+              </p>
+            )}
           </CardContent>
         </Card>
 
