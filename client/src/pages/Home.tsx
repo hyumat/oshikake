@@ -1,18 +1,30 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Calendar, TrendingUp, Users, Sparkles } from "lucide-react";
+import { BarChart3, Calendar, TrendingUp, Users, Sparkles, Trophy, Wallet, Calculator, PieChart } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { formatCurrency } from "@shared/formatters";
+import { Skeleton } from "@/components/ui/skeleton";
+import DashboardLayout from "@/components/DashboardLayout";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [showAIChat, setShowAIChat] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Issue #168: Get current year stats for KPIs and graphs
+  const currentYear = new Date().getFullYear();
+  const { data: statsData, isLoading: statsLoading } = trpc.stats.getSummary.useQuery(
+    { year: currentYear },
+    { enabled: isAuthenticated }
+  );
 
   const chatMutation = trpc.ai.chat.useMutation({
     onSuccess: (response) => {
@@ -123,17 +135,221 @@ export default function Home() {
     );
   }
 
+  // Issue #168: Prepare chart data
+  const hasData = statsData && statsData.watchCount > 0;
+  const chartData = hasData ? [
+    { name: '勝', value: statsData.record.win, fill: 'hsl(142, 71%, 45%)' },
+    { name: '引分', value: statsData.record.draw, fill: 'hsl(0, 0%, 50%)' },
+    { name: '敗', value: statsData.record.loss, fill: 'hsl(0, 84%, 60%)' },
+  ].filter(item => item.value > 0) : [];
+
+  const chartConfig = {
+    win: { label: "勝", color: "hsl(142, 71%, 45%)" },
+    draw: { label: "引分", color: "hsl(0, 0%, 50%)" },
+    loss: { label: "敗", color: "hsl(0, 84%, 60%)" },
+  };
+
   // Dashboard for logged-in users
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <DashboardLayout>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             おかえりなさい、{user?.name}さん
           </h1>
           <p className="text-muted-foreground">
-            マリノスの試合情報を管理しましょう
+            {currentYear}年の観戦記録サマリー
           </p>
+        </div>
+
+        {/* Issue #168: KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Watch Count */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                観戦試合数
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-20" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold">{statsData?.watchCount ?? 0}</div>
+                  <p className="text-sm text-muted-foreground">試合</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Total Cost */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                費用合計
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-32" />
+              ) : (
+                <div className="text-3xl font-bold">
+                  {formatCurrency(statsData?.cost?.total)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Average Per Match */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
+                1試合あたり平均
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-32" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold">
+                    {formatCurrency(Math.round(statsData?.cost?.averagePerMatch ?? 0))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">/試合</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Win Rate */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <PieChart className="h-4 w-4" />
+                勝率
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-20" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold">
+                    {(() => {
+                      if (!hasData) return "0.0%";
+                      const wins = statsData.record.win;
+                      const total = wins + statsData.record.draw + statsData.record.loss;
+                      return total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : "0.0%";
+                    })()}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {statsData?.record?.win ?? 0}勝 {statsData?.record?.draw ?? 0}分 {statsData?.record?.loss ?? 0}敗
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Issue #168: Charts and AI Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Win/Loss Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                戦績グラフ
+              </CardTitle>
+              <CardDescription>{currentYear}年の勝敗分布</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              {statsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-48 w-48 rounded-full" />
+                </div>
+              ) : !hasData ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Trophy className="h-12 w-12 mb-4 opacity-20" />
+                  <p>まだ観戦記録がありません</p>
+                  <p className="text-sm">試合を観戦して記録を追加しましょう</p>
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name}: ${value}`}
+                        outerRadius={80}
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* AI Insights */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                AIインサイト
+              </CardTitle>
+              <CardDescription>観戦記録から生成されたコメント</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px] flex flex-col">
+              {statsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              ) : !hasData ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Sparkles className="h-12 w-12 mb-4 opacity-20" />
+                  <p>データが蓄積されるとAIがインサイトを提供します</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm">
+                      {`${currentYear}年は${statsData.watchCount}試合観戦し、${statsData.record.win}勝${statsData.record.draw}分${statsData.record.loss}敗の成績でした。`}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm">
+                      {`1試合あたりの平均費用は${formatCurrency(Math.round(statsData.cost.averagePerMatch))}です。`}
+                      {statsData.cost.averagePerMatch > 15000 && " 予算オーバーに注意しましょう。"}
+                      {statsData.cost.averagePerMatch <= 10000 && " コストを抑えて観戦できていますね！"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate('/statistics')}
+                  >
+                    詳細な統計を見る
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* AI Assistant Section - Issue #112 */}
@@ -247,42 +463,49 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Information Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>最近の活動</CardTitle>
-              <CardDescription>直近の観戦記録</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                試合を観戦して記録を追加しましょう
-              </p>
+        {/* Quick Actions */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>クイックアクション</CardTitle>
+            <CardDescription>よく使う機能へのショートカット</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Button
                 onClick={() => navigate('/matches')}
-                variant="link"
-                className="px-0 mt-2"
+                className="w-full"
               >
-                マッチログを見る →
+                <Calendar className="mr-2 h-4 w-4" />
+                試合一覧
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>ヒント</CardTitle>
-              <CardDescription>便利な機能</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• 試合情報は自動で取り込まれます</li>
-                <li>• 費用を記録して予算管理</li>
-                <li>• AIに質問して統計を確認</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
+              <Button
+                onClick={() => navigate('/statistics')}
+                variant="outline"
+                className="w-full"
+              >
+                <BarChart3 className="mr-2 h-4 w-4" />
+                詳細統計
+              </Button>
+              <Button
+                onClick={() => navigate('/settings')}
+                variant="outline"
+                className="w-full"
+              >
+                <TrendingUp className="mr-2 h-4 w-4" />
+                設定
+              </Button>
+              <Button
+                onClick={() => setShowAIChat(!showAIChat)}
+                variant={showAIChat ? "secondary" : "outline"}
+                className="w-full"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {showAIChat ? "AIを閉じる" : "AIに質問"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
