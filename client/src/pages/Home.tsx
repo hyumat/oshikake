@@ -1,12 +1,48 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Calendar, TrendingUp, Users } from "lucide-react";
+import { BarChart3, Calendar, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState } from "react";
+import { AIChatBox, type Message } from "@/components/AIChatBox";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  const chatMutation = trpc.ai.chat.useMutation({
+    onSuccess: (response) => {
+      if (response.success && response.content) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: response.content },
+        ]);
+      } else {
+        toast.error(response.content || 'AI応答エラー');
+      }
+    },
+    onError: (error) => {
+      console.error("AI Chat error:", error);
+      toast.error("AI応答に失敗しました");
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "申し訳ございません。エラーが発生しました。" },
+      ]);
+    },
+  });
+
+  const handleSendMessage = (content: string) => {
+    const newMessages: Message[] = [
+      ...messages,
+      { role: "user", content },
+    ];
+    setMessages(newMessages);
+    chatMutation.mutate({ messages: newMessages });
+  };
 
   if (!isAuthenticated) {
     return (
@@ -90,7 +126,7 @@ export default function Home() {
   // Dashboard for logged-in users
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             おかえりなさい、{user?.name}さん
@@ -100,26 +136,68 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+        {/* AI Assistant Section - Issue #112 */}
+        {showAIChat && (
+          <Card className="mb-6">
             <CardHeader>
-              <CardTitle>マッチログ</CardTitle>
-              <CardDescription>試合情報を管理</CardDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-accent" />
+                  <CardTitle>AIアシスタント</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAIChat(false)}
+                >
+                  閉じる
+                </Button>
+              </div>
+              <CardDescription>
+                観戦記録について質問してください
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button
-                onClick={() => navigate('/matches')}
-                className="w-full"
-              >
-                マッチログを見る
+              <AIChatBox
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                isLoading={chatMutation.isPending}
+                height={400}
+                placeholder="例: 今月の観戦数は？"
+                emptyStateMessage="観戦記録について何でもお聞きください"
+                suggestedPrompts={[
+                  "今月の観戦試合数を教えて",
+                  "今年の勝率は？",
+                  "平均費用はいくら？",
+                  "ホームとアウェイどちらが多い？",
+                ]}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4" />
+                マッチログ
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => navigate('/matches')} className="w-full">
+                試合一覧
               </Button>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>観戦統計</CardTitle>
-              <CardDescription>統計情報を表示</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart3 className="h-4 w-4" />
+                観戦統計
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Button
@@ -133,9 +211,11 @@ export default function Home() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>プロフィール</CardTitle>
-              <CardDescription>ユーザー設定</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
+                プロフィール
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Button
@@ -143,8 +223,62 @@ export default function Home() {
                 variant="outline"
                 className="w-full"
               >
-                プロフィール
+                設定
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                AIアシスタント
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => setShowAIChat(!showAIChat)}
+                variant={showAIChat ? "secondary" : "default"}
+                className="w-full"
+              >
+                {showAIChat ? "閉じる" : "質問する"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Information Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>最近の活動</CardTitle>
+              <CardDescription>直近の観戦記録</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                試合を観戦して記録を追加しましょう
+              </p>
+              <Button
+                onClick={() => navigate('/matches')}
+                variant="link"
+                className="px-0 mt-2"
+              >
+                マッチログを見る →
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>ヒント</CardTitle>
+              <CardDescription>便利な機能</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>• 試合情報は自動で取り込まれます</li>
+                <li>• 費用を記録して予算管理</li>
+                <li>• AIに質問して統計を確認</li>
+              </ul>
             </CardContent>
           </Card>
         </div>
