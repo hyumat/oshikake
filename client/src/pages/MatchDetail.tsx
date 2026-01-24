@@ -8,6 +8,7 @@
 
 import { useParams, useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Wallet, Car, Hotel, UtensilsCrossed, StickyNote, Camera, PackageCheck, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Wallet, Car, Hotel, UtensilsCrossed, StickyNote, Camera, PackageCheck, Plus, Save, Trash2, TrendingUp } from 'lucide-react';
 import { MatchDetailView } from '@/components/MatchDetailView';
 import { QueryLoading, QueryError } from '@/components/QueryState';
 import { LimitReachedModal } from '@/components/LimitReachedModal';
@@ -35,6 +36,7 @@ interface ExpenseData {
 }
 
 export default function MatchDetail() {
+  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const params = useParams();
   const matchId = params.id || '';
@@ -64,11 +66,17 @@ export default function MatchDetail() {
   const { data: planStatus } = trpc.userMatches.getPlanStatus.useQuery();
   const match = data?.matches?.find((m: { id: number | string }) => String(m.id) === matchId) as MatchDTO | undefined;
 
-  const { data: attendanceData, isLoading: isLoadingAttendance, refetch: refetchAttendance } = 
+  const { data: attendanceData, isLoading: isLoadingAttendance, refetch: refetchAttendance } =
     trpc.userMatches.getByMatchId.useQuery(
       { matchId: matchIdNum },
       { enabled: !isNaN(matchIdNum) }
     );
+
+  // Issue #169: Get latest attendance for quick input
+  const { data: latestAttendance } = trpc.userMatches.getLatestAttendance.useQuery(
+    undefined,
+    { enabled: isAuthenticated }
+  );
 
   const saveAttendanceMutation = trpc.userMatches.saveAttendance.useMutation({
     onSuccess: () => {
@@ -159,6 +167,29 @@ export default function MatchDetail() {
     deleteAttendanceMutation.mutate({ matchId: matchIdNum });
   };
 
+  // Issue #169: Quick input using previous values
+  const handleUsePreviousValues = () => {
+    if (!latestAttendance?.expenses || latestAttendance.expenses.length === 0) {
+      toast.info('前回の観戦記録がありません');
+      return;
+    }
+
+    const expenseMap: Record<string, number> = {};
+    for (const exp of latestAttendance.expenses) {
+      expenseMap[exp.category] = exp.amount;
+    }
+
+    setFormData({
+      transportation: expenseMap.transport?.toString() || '',
+      ticket: expenseMap.ticket?.toString() || '',
+      food: expenseMap.food?.toString() || '',
+      other: expenseMap.other?.toString() || '',
+      note: formData.note, // Keep current note
+    });
+
+    toast.success(`前回（${latestAttendance.opponent} vs マリノス）の費用を入力しました`);
+  };
+
   const categoryConfig = [
     { id: 'wallet' as const, label: 'チケット', icon: Wallet },
     { id: 'transport' as const, label: '交通', icon: Car },
@@ -231,6 +262,17 @@ export default function MatchDetail() {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {latestAttendance?.expenses && latestAttendance.expenses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUsePreviousValues}
+                    className="w-full"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    前回の費用を使う（{latestAttendance.matchDate}）
+                  </Button>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="ticket">チケット代（円）</Label>
                   <Input
@@ -253,15 +295,28 @@ export default function MatchDetail() {
         return (
           <Card>
             <CardContent className="pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="transportation">交通費（円）</Label>
-                <Input
-                  id="transportation"
-                  type="number"
-                  placeholder="例: 2000"
-                  value={formData.transportation}
-                  onChange={(e) => setFormData({ ...formData, transportation: e.target.value })}
-                />
+              <div className="space-y-4">
+                {latestAttendance?.expenses && latestAttendance.expenses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUsePreviousValues}
+                    className="w-full"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    前回の費用を使う（{latestAttendance.matchDate}）
+                  </Button>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="transportation">交通費（円）</Label>
+                  <Input
+                    id="transportation"
+                    type="number"
+                    placeholder="例: 2000"
+                    value={formData.transportation}
+                    onChange={(e) => setFormData({ ...formData, transportation: e.target.value })}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -283,6 +338,17 @@ export default function MatchDetail() {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
+                {latestAttendance?.expenses && latestAttendance.expenses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUsePreviousValues}
+                    className="w-full"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    前回の費用を使う（{latestAttendance.matchDate}）
+                  </Button>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="food">飲食代（円）</Label>
                   <Input

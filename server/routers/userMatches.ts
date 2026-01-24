@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { protectedProcedure, router } from '../_core/trpc';
 import {
@@ -326,6 +326,47 @@ export const userMatchesRouter = router({
       } catch (error) {
         console.error('[User Matches Router] Error getting by matchId:', error);
         return { success: true, userMatch: null, expenses: [] };
+      }
+    }),
+
+  /**
+   * Get latest attendance record for quick input
+   * Issue #169: 爆速入力 - Returns the most recent attendance expenses
+   */
+  getLatestAttendance: protectedProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return { success: true, expenses: [] };
+        }
+
+        // Get the most recent attended match
+        const results = await db.select()
+          .from(userMatchesTable)
+          .where(and(
+            eq(userMatchesTable.userId, ctx.user.id),
+            eq(userMatchesTable.status, 'attended')
+          ))
+          .orderBy(desc(userMatchesTable.date))
+          .limit(1);
+
+        if (results.length === 0) {
+          return { success: true, expenses: [] };
+        }
+
+        const latestMatch = results[0];
+        const expenses = await getExpensesByUserMatch(latestMatch.id, ctx.user.id);
+
+        return {
+          success: true,
+          expenses,
+          matchDate: latestMatch.date,
+          opponent: latestMatch.opponent,
+        };
+      } catch (error) {
+        console.error('[User Matches Router] Error getting latest attendance:', error);
+        return { success: true, expenses: [] };
       }
     }),
 

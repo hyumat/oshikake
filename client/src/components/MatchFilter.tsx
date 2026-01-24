@@ -10,6 +10,8 @@ export interface FilterState {
   opponent: string;
   marinosSide: 'all' | 'home' | 'away';
   watchedOnly: boolean;
+  costMin: string; // Issue #169: 高度検索 - 最小金額フィルタ
+  costMax: string; // Issue #169: 高度検索 - 最大金額フィルタ
 }
 
 interface MatchFilterProps {
@@ -59,7 +61,15 @@ export function MatchFilter({ filters, onFiltersChange, onReset }: MatchFilterPr
     onFiltersChange({ ...filters, opponent: value });
   };
 
-  const hasDetailFilters = filters.dateFrom || filters.dateTo || filters.opponent;
+  const handleCostMinChange = (value: string) => {
+    onFiltersChange({ ...filters, costMin: value });
+  };
+
+  const handleCostMaxChange = (value: string) => {
+    onFiltersChange({ ...filters, costMax: value });
+  };
+
+  const hasDetailFilters = filters.dateFrom || filters.dateTo || filters.opponent || filters.costMin || filters.costMax;
   const activeQuickFilter = getActiveQuickFilter();
 
   const quickFilterButtons: { key: QuickFilter; label: string }[] = [
@@ -135,6 +145,28 @@ export function MatchFilter({ filters, onFiltersChange, onReset }: MatchFilterPr
                   value={filters.opponent}
                   onChange={(e) => handleOpponentChange(e.target.value)}
                   placeholder="チーム名..."
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1 text-muted-foreground">費用（最小）</label>
+                <Input
+                  type="number"
+                  value={filters.costMin}
+                  onChange={(e) => handleCostMinChange(e.target.value)}
+                  placeholder="例: 0"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-muted-foreground">費用（最大）</label>
+                <Input
+                  type="number"
+                  value={filters.costMax}
+                  onChange={(e) => handleCostMaxChange(e.target.value)}
+                  placeholder="例: 10000"
                   className="h-8 text-sm"
                 />
               </div>
