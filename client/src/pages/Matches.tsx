@@ -56,6 +56,8 @@ export default function Matches() {
     opponent: '',
     marinosSide: 'all',
     watchedOnly: false,
+    costMin: '', // Issue #169: 高度検索
+    costMax: '', // Issue #169: 高度検索
   });
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, AttendanceStatus>>({});
   const [showAddMatchDialog, setShowAddMatchDialog] = useState(false);
@@ -78,6 +80,14 @@ export default function Matches() {
   const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
   const fetchOfficialMutation = trpc.matches.fetchOfficial.useMutation();
   const { data: planStatus } = trpc.billing.getPlanStatus.useQuery();
+
+  // Issue #169: Get attended matches with expenses for cost filtering
+  // TODO: Implement cost calculation from userMatches and expenses data
+  const { data: userMatchesData } = trpc.userMatches.list.useQuery({ status: 'attended' });
+
+  // Build a map of matchId -> total cost
+  // TODO: Calculate total cost per match from expenses data
+  const [matchCosts, setMatchCosts] = useState<Record<string, number>>({});
 
   // Issue #106: Freeプラン7件制限メッセージ
   const planLimitMessage = planStatus
@@ -178,6 +188,19 @@ export default function Matches() {
       result = result.filter((m) => m.marinosSide === filterState.marinosSide);
     }
 
+    // Issue #169: Cost range filter (only for matches with attendance records)
+    if (filterState.costMin || filterState.costMax) {
+      const minCost = filterState.costMin ? parseInt(filterState.costMin, 10) : 0;
+      const maxCost = filterState.costMax ? parseInt(filterState.costMax, 10) : Infinity;
+
+      result = result.filter((m) => {
+        const cost = matchCosts[String(m.id)];
+        // If no cost data, exclude from filtered results
+        if (cost === undefined) return false;
+        return cost >= minCost && cost <= maxCost;
+      });
+    }
+
     setFilteredMatches(result);
   };
 
@@ -188,6 +211,8 @@ export default function Matches() {
       opponent: '',
       marinosSide: 'all',
       watchedOnly: false,
+      costMin: '',
+      costMax: '',
     });
   };
 
