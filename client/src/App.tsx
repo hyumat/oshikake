@@ -15,6 +15,7 @@ import OnboardingTeam from "./pages/OnboardingTeam";
 import Account from "./pages/Account";
 import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
+import MatchInsights from "./pages/MatchInsights";
 import Stats from "./pages/Stats";
 import Savings from "./pages/Savings";
 import Settings from "./pages/Settings";
@@ -58,6 +59,7 @@ function Router() {
       <Route path={"/app"}>{() => <ProtectedRoute component={Home} />}</Route>
       <Route path={"/account"}>{() => <ProtectedRoute component={Account} />}</Route>
       <Route path={"/matches"}>{() => <ProtectedRoute component={Matches} />}</Route>
+      <Route path={"/matches/:id/insights"}>{() => <ProtectedRoute component={MatchInsights} />}</Route>
       <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
       <Route path={"/expenses"}>{() => <ProtectedRoute component={Stats} />}</Route>
       {/* Issue #151: Redirect /stats to /expenses */}
