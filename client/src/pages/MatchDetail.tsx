@@ -298,6 +298,21 @@ export default function MatchDetail() {
                     value={formData.ticket}
                     onChange={(e) => setFormData({ ...formData, ticket: e.target.value })}
                   />
+                  {/* Issue #169: Quick input presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {[1000, 2000, 3000, 4000, 5000].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setFormData({ ...formData, ticket: amount.toString() })}
+                        className="text-xs"
+                      >
+                        ¥{amount.toLocaleString()}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   ※URL・画像アップロード機能は今後実装予定です
@@ -332,6 +347,21 @@ export default function MatchDetail() {
                     value={formData.transportation}
                     onChange={(e) => setFormData({ ...formData, transportation: e.target.value })}
                   />
+                  {/* Issue #169: Quick input presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {[500, 1000, 2000, 3000, 5000, 10000].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setFormData({ ...formData, transportation: amount.toString() })}
+                        className="text-xs"
+                      >
+                        ¥{amount.toLocaleString()}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -374,6 +404,21 @@ export default function MatchDetail() {
                     value={formData.food}
                     onChange={(e) => setFormData({ ...formData, food: e.target.value })}
                   />
+                  {/* Issue #169: Quick input presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {[500, 1000, 1500, 2000, 3000].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setFormData({ ...formData, food: amount.toString() })}
+                        className="text-xs"
+                      >
+                        ¥{amount.toLocaleString()}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="other">その他（円）</Label>
@@ -384,6 +429,21 @@ export default function MatchDetail() {
                     value={formData.other}
                     onChange={(e) => setFormData({ ...formData, other: e.target.value })}
                   />
+                  {/* Issue #169: Quick input presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {[300, 500, 1000, 2000, 3000].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setFormData({ ...formData, other: amount.toString() })}
+                        className="text-xs"
+                      >
+                        ¥{amount.toLocaleString()}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Issue #109 Part 2: Custom category inputs */}
