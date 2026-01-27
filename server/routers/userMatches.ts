@@ -389,6 +389,11 @@ export const userMatchesRouter = router({
         food: z.number().min(0).default(0),
         other: z.number().min(0).default(0),
       }),
+      // Issue #109 Part 2: Custom category expenses
+      customExpenses: z.array(z.object({
+        categoryId: z.number(),
+        amount: z.number().min(0),
+      })).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -400,8 +405,10 @@ export const userMatchesRouter = router({
           });
         }
 
-        const totalCost = input.expenses.transport + input.expenses.ticket + 
-                          input.expenses.food + input.expenses.other;
+        // Issue #109 Part 2: Include custom category expenses in total cost
+        const customTotal = input.customExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+        const totalCost = input.expenses.transport + input.expenses.ticket +
+                          input.expenses.food + input.expenses.other + customTotal;
         
         const seasonYear = input.date ? parseInt(input.date.substring(0, 4)) : new Date().getFullYear();
         
@@ -484,6 +491,20 @@ export const userMatchesRouter = router({
               category: exp.category,
               amount: exp.amount,
             });
+          }
+        }
+
+        // Issue #109 Part 2: Save custom category expenses
+        if (input.customExpenses && input.customExpenses.length > 0) {
+          for (const customExp of input.customExpenses) {
+            if (customExp.amount > 0) {
+              await createExpense(ctx.user.id, {
+                userMatchId,
+                category: 'other', // Use 'other' as base category for custom categories
+                amount: customExp.amount,
+                customCategoryId: customExp.categoryId,
+              });
+            }
           }
         }
 

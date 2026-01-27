@@ -242,12 +242,15 @@ export type InsertSyncLog = typeof syncLogs.$inferInsert;
 /**
  * Match expenses - detailed expense tracking per user match
  * Categories: transport, ticket, food, other
+ * Issue #109: Added customCategoryId for Pro users' custom categories
  */
 export const matchExpenses = mysqlTable("matchExpenses", {
   id: int("id").autoincrement().primaryKey(),
   userMatchId: int("userMatchId").notNull(),
   userId: int("userId").notNull(),
   category: mysqlEnum("category", ["transport", "ticket", "food", "other"]).notNull(),
+  /** Issue #109: カスタムカテゴリID（Pro限定、nullableで後方互換性を保つ） */
+  customCategoryId: int("customCategoryId"),
   amount: int("amount").notNull(),
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -350,3 +353,29 @@ export const entitlements = mysqlTable("entitlements", {
 
 export type Entitlement = typeof entitlements.$inferSelect;
 export type InsertEntitlement = typeof entitlements.$inferInsert;
+
+/**
+ * Issue #109: カスタムカテゴリ機能（Pro限定）
+ *
+ * Proユーザーが独自の支出カテゴリを定義できる
+ */
+export const customCategories = mysqlTable("custom_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  /** ユーザーID (users.id を参照) */
+  userId: int("userId").notNull(),
+  /** カテゴリ名 */
+  name: varchar("name", { length: 64 }).notNull(),
+  /** アイコン名（lucide-reactのアイコン名） */
+  icon: varchar("icon", { length: 64 }),
+  /** カラー（CSSカラー値） */
+  color: varchar("color", { length: 32 }),
+  /** 表示順（小さいほど上に表示） */
+  displayOrder: int("displayOrder").notNull().default(0),
+  /** 作成日時 */
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  /** 更新日時 */
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CustomCategory = typeof customCategories.$inferSelect;
+export type InsertCustomCategory = typeof customCategories.$inferInsert;
