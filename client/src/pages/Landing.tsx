@@ -61,7 +61,7 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           
           <div className="hidden md:block relative">
             <img
-              src="/lp/hero-illustration.png"
+              src="/lp/hero-pc.webp"
               alt="オシカケ アプリイメージ"
               className="w-full h-full object-cover"
               loading="eager"
@@ -69,10 +69,10 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             />
           </div>
         </div>
-        
+
         <div className="md:hidden p-4">
           <img
-            src="/lp/hero-illustration.png"
+            src="/lp/hero-sp.webp"
             alt="オシカケ アプリイメージ"
             className="w-full h-auto rounded-xl"
             loading="eager"
@@ -201,10 +201,10 @@ export default function LandingPage() {
       <section id="pain" className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">共感</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">こんな悩み、ありませんか？</h2>
-              <p className="mt-3 text-sm text-slate-500 max-w-xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">共感</div>
+              <h2 className="text-2xl font-bold md:text-3xl">こんな悩み、ありませんか？</h2>
+              <p className="mt-4 text-sm text-slate-600 max-w-xl mx-auto">
                 放っておくと、今季いくら使ったか分からない。あとから思い出そうとしても、記録がバラバラで探せない...
               </p>
             </div>
@@ -239,12 +239,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="solution" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
+      <section id="solution" className="bg-[rgba(255,255,255,0.4)] py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">解決</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">オシカケでできること</h2>
+            <div className="text-center mb-12">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">解決</div>
+              <h2 className="text-2xl font-bold md:text-3xl">オシカケでできること</h2>
             </div>
           </FadeInSection>
 
@@ -274,12 +274,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="howto" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
+      <section id="howto" className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">使い方</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">3ステップで完了</h2>
+            <div className="text-center mb-12">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">使い方</div>
+              <h2 className="text-2xl font-bold md:text-3xl">3ステップで完了</h2>
             </div>
           </FadeInSection>
 
@@ -305,13 +305,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="stats" className="py-16 md:py-24">
+      <section id="stats" className="bg-[rgba(255,255,255,0.4)] py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">集計</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">見返し（集計）</h2>
-              <p className="mt-3 text-sm text-slate-600 max-w-xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">集計</div>
+              <h2 className="text-2xl font-bold md:text-3xl">見返し（集計）</h2>
+              <p className="mt-4 text-sm text-slate-600 max-w-xl mx-auto">
                 観戦数、勝敗、費用の合計・平均などをシーズン単位で見返せます。年度の切り替えにも対応しています。
               </p>
             </div>
@@ -356,14 +356,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="roadmap" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
+      <section id="roadmap" className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <div className="grid gap-8 md:grid-cols-2 items-center max-w-4xl mx-auto">
             <div>
               <FadeInSection>
                 <div className="mb-8">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">期待</div>
-                  <h2 className="mt-2 text-2xl font-bold md:text-3xl">今後のロードマップ</h2>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">期待</div>
+                  <h2 className="text-2xl font-bold md:text-3xl">今後のロードマップ</h2>
                 </div>
               </FadeInSection>
 
@@ -394,12 +394,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="pricing" className="py-16 md:py-24">
+      <section id="pricing" className="bg-[rgba(255,255,255,0.4)] py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInSection>
             <div className="text-center mb-12">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">料金プラン</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">Freeで始められます</h2>
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">料金プラン</div>
+              <h2 className="text-2xl font-bold md:text-3xl">Freeで始められます</h2>
               <p className="mt-4 text-slate-600 max-w-2xl mx-auto">
                 まずはFreeでお試し。気に入ったらPlus/Proで制限を解除できます。
               </p>
@@ -526,12 +526,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="faq" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
+      <section id="faq" className="py-16 md:py-24">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">FAQ</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">よくある質問</h2>
+            <div className="text-center mb-12">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">FAQ</div>
+              <h2 className="text-2xl font-bold md:text-3xl">よくある質問</h2>
             </div>
           </FadeInSection>
 
@@ -543,7 +543,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setActiveFaq(open ? null : idx)}
-                    className="w-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-4 text-left transition-shadow" style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.05)" }}
+                    className="w-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 text-left transition-shadow hover:shadow-lg" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -722,7 +722,7 @@ function StatCard({ label, value, unit, hint }: { label: string; value: string; 
 
 function RoadmapItem({ label, text }: { label: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
+    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 transition-shadow hover:shadow-lg" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
       <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">{label}</div>
       <p className="text-sm text-slate-700">{text}</p>
     </div>
