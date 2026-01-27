@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Wallet, Car, Hotel, UtensilsCrossed, StickyNote, Camera, PackageCheck, Plus, Save, Trash2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Wallet, Car, Hotel, UtensilsCrossed, StickyNote, Camera, PackageCheck, Plus, Save, Trash2, TrendingUp, BarChart3, ExternalLink } from 'lucide-react';
 import { MatchDetailView } from '@/components/MatchDetailView';
 import { QueryLoading, QueryError } from '@/components/QueryState';
 import { LimitReachedModal } from '@/components/LimitReachedModal';
@@ -456,6 +456,32 @@ export default function MatchDetail() {
         <div className="mb-6">
           {renderCategoryContent()}
         </div>
+
+        {/* Issue #111: Trend Analysis Link */}
+        <Card className="mb-6 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-primary" />
+                <div>
+                  <h3 className="font-semibold">他の人の計画を見る</h3>
+                  <p className="text-sm text-muted-foreground">
+                    匿名集計されたトレンドデータを分析
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setLocation(`/matches/${matchId}/insights`)}
+                className="gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                分析を見る
+                <ExternalLink className="w-3 h-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
