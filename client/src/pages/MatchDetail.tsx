@@ -78,6 +78,13 @@ export default function MatchDetail() {
     { enabled: isAuthenticated }
   );
 
+  // Issue #109 Part 2: Get custom categories
+  const { data: categoriesData } = trpc.categories.list.useQuery();
+  const customCategories = categoriesData?.categories || [];
+
+  // Issue #109 Part 2: Custom category expenses state
+  const [customExpenses, setCustomExpenses] = useState<Record<number, string>>({});
+
   const saveAttendanceMutation = trpc.userMatches.saveAttendance.useMutation({
     onSuccess: () => {
       toast.success('保存しました');
@@ -145,6 +152,14 @@ export default function MatchDetail() {
     const food = parseInt(formData.food, 10) || 0;
     const other = parseInt(formData.other, 10) || 0;
 
+    // Issue #109 Part 2: Prepare custom category expenses
+    const customExpensesArray = Object.entries(customExpenses)
+      .filter(([_, amount]) => amount && parseInt(amount, 10) > 0)
+      .map(([categoryId, amount]) => ({
+        categoryId: parseInt(categoryId, 10),
+        amount: parseInt(amount, 10),
+      }));
+
     saveAttendanceMutation.mutate({
       matchId: matchIdNum,
       date: match.date,
@@ -160,6 +175,7 @@ export default function MatchDetail() {
         food,
         other,
       },
+      customExpenses: customExpensesArray.length > 0 ? customExpensesArray : undefined,
     });
   };
 
@@ -369,6 +385,30 @@ export default function MatchDetail() {
                     onChange={(e) => setFormData({ ...formData, other: e.target.value })}
                   />
                 </div>
+
+                {/* Issue #109 Part 2: Custom category inputs */}
+                {customCategories.length > 0 && (
+                  <>
+                    <div className="pt-2">
+                      <p className="text-sm font-medium text-muted-foreground mb-3">カスタムカテゴリ</p>
+                    </div>
+                    {customCategories.map((category) => (
+                      <div key={category.id} className="space-y-2">
+                        <Label htmlFor={`custom-${category.id}`}>{category.name}（円）</Label>
+                        <Input
+                          id={`custom-${category.id}`}
+                          type="number"
+                          placeholder="例: 1000"
+                          value={customExpenses[category.id] || ''}
+                          onChange={(e) => setCustomExpenses({
+                            ...customExpenses,
+                            [category.id]: e.target.value
+                          })}
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
