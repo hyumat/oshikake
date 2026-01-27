@@ -27,14 +27,13 @@ export default function MatchInsights() {
     { enabled: !isNaN(matchIdNum) }
   );
 
-  // Get trend analysis data
-  // Note: getTrendAnalysis is from Issue #80, might not be available yet
-  const trendAnalysisQuery = (trpc.userMatches as any).getTrendAnalysis?.useQuery(
+  // Get trend analysis data (Issue #80)
+  const trendAnalysisQuery = trpc.userMatches.getTrendAnalysis.useQuery(
     { matchId: matchIdNum },
     { enabled: isPro && !isNaN(matchIdNum) }
   );
-  const trendData = trendAnalysisQuery?.data;
-  const isTrendLoading = trendAnalysisQuery?.isLoading ?? false;
+  const trendData = trendAnalysisQuery.data;
+  const isTrendLoading = trendAnalysisQuery.isLoading;
 
   const match = matchData?.match;
 
