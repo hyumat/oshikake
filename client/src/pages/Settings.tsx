@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Settings as SettingsIcon, Bell, Download, Palette } from "lucide-react";
 import { useState } from "react";
 import { canUseFeature, type Plan } from "@shared/billing";
+import { ExportModal } from "@/components/ExportModal";
 
 export default function Settings() {
   const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   if (!user) {
     return null;
@@ -22,21 +24,15 @@ export default function Settings() {
   const planExpiresAt = user.planExpiresAt ? new Date(user.planExpiresAt) : null;
   const canExport = canUseFeature(plan, planExpiresAt, 'export');
 
-  const handleExport = () => {
-    alert('エクスポート機能は現在開発中です。');
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="mb-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <SettingsIcon className="h-6 w-6" />
           設定
         </h1>
         <p className="text-muted-foreground">アプリの設定を変更できます</p>
       </div>
-
-      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -113,7 +109,7 @@ export default function Settings() {
             </p>
             <Separator />
             {canExport ? (
-              <Button onClick={handleExport} className="w-full">
+              <Button onClick={() => setExportModalOpen(true)} className="w-full">
                 <Download className="mr-2 h-4 w-4" />
                 CSVでエクスポート
               </Button>
@@ -148,7 +144,8 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
-      </div>
+
+        <ExportModal open={exportModalOpen} onOpenChange={setExportModalOpen} />
     </div>
   );
 }

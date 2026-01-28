@@ -40,13 +40,11 @@ export default function Account() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="mb-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-bold">アカウント</h1>
         <p className="text-muted-foreground">アカウント情報の確認</p>
       </div>
-
-      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -136,7 +134,6 @@ export default function Account() {
             </Button>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

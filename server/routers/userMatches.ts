@@ -523,4 +523,64 @@ export const userMatchesRouter = router({
         });
       }
     }),
+
+  exportData: protectedProcedure
+    .input(z.object({
+      year: z.number().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      try {
+        const matches = await getUserMatches(ctx.user.id, { status: 'attended' });
+        
+        const exportRows = await Promise.all(
+          matches.map(async (um: typeof matches[number]) => {
+            const expenses = await getExpensesByUserMatch(um.id, ctx.user.id);
+            const expensesByCategory = {
+              transport: 0,
+              ticket: 0,
+              food: 0,
+              other: 0,
+            };
+            expenses.forEach(e => {
+              if (e.category in expensesByCategory) {
+                expensesByCategory[e.category as keyof typeof expensesByCategory] += e.amount;
+              }
+            });
+            const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+            return {
+              date: um.match?.date ?? '',
+              opponent: um.match?.opponent ?? '',
+              homeAway: um.match?.isHome ? 'HOME' : 'AWAY',
+              competition: um.match?.competition ?? '',
+              section: um.match?.section ?? '',
+              venue: um.match?.venue ?? '',
+              result: um.match?.resultText ?? '',
+              score: um.match?.score ?? '',
+              transport: expensesByCategory.transport,
+              ticket: expensesByCategory.ticket,
+              food: expensesByCategory.food,
+              other: expensesByCategory.other,
+              totalExpense,
+              note: um.note ?? '',
+            };
+          })
+        );
+
+        if (input?.year) {
+          return exportRows.filter(row => {
+            const rowYear = new Date(row.date).getFullYear();
+            return rowYear === input.year;
+          });
+        }
+
+        return exportRows;
+      } catch (error) {
+        console.error('[User Matches Router] Error exporting data:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to export data'
+        });
+      }
+    }),
 });
