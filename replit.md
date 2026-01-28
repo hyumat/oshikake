@@ -45,6 +45,7 @@
 - **Admin Operations Console**: Comprehensive admin dashboard at `/admin` with system status monitoring (DB connection, user/match counts, 24h errors), user plan management for billing recovery, announcements CRUD with type classification and date ranges, API performance monitoring (avg/p50/p95/p99, error rate, by-path stats), and event log viewer.
 - **API Performance Logging**: In-memory metrics collection for all tRPC calls with automatic slow call warnings (>1000ms threshold).
 - **Scraper Stabilization**: Retry logic with exponential backoff (up to 3 retries) for external data fetching, consistent timeout handling, and error collection.
+- **Database Optimization**: Comprehensive indexing on frequently queried columns (userMatches, matches, syncLogs, auditLogs, eventLogs, matchExpenses) and N+1 query fixes in savings module.
 - **Admin Monitoring**: SyncStatus and BillingStatus components on Home page for admins to monitor sync logs and billing events.
 
 ### Documentation
