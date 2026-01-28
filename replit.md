@@ -47,6 +47,9 @@
 - **Scraper Stabilization**: Retry logic with exponential backoff (up to 3 retries) for external data fetching, consistent timeout handling, and error collection.
 - **Database Optimization**: Comprehensive indexing on frequently queried columns (userMatches, matches, syncLogs, auditLogs, eventLogs, matchExpenses) and N+1 query fixes in savings module.
 - **Admin Monitoring**: SyncStatus and BillingStatus components on Home page for admins to monitor sync logs and billing events.
+- **Ad Control**: AdBanner component hidden for Plus/Pro subscribers; Free users see ad placeholders.
+- **Savings Auto-Trigger**: Automatic savings rule triggers when match results are confirmed; prevents duplicate entries per (userId, matchId, ruleId) tuple.
+- **Savings Notifications**: Recent triggers notification banner (24h) and one-time toast on Savings page load.
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
