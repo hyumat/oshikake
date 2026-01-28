@@ -23,7 +23,7 @@
 ### Technical Implementations
 - **Frontend**: Built with React 19, Vite 7, and TailwindCSS 4, featuring pages for Home, Matches, MatchDetail, Landing, Account, Settings, and reusable UI components with a tRPC client.
 - **Backend**: Uses Express and tRPC for server infrastructure (authentication, Vite middleware), API endpoints, and database operations.
-- **Database**: PostgreSQL with Drizzle ORM, including tables for `users`, `matches`, `userMatches`, `matchExpenses`, `savingsRules`, `savingsHistory`, `syncLogs`, `auditLogs`, `eventLogs`, and `announcements`.
+- **Database**: PostgreSQL with Drizzle ORM, including tables for `users`, `matches`, `userMatches`, `matchExpenses`, `savingsRules`, `savingsHistory`, `syncLogs`, `auditLogs`, `eventLogs`, `announcements`, and `shareTokens`.
 - **Shared Utilities**: A `shared/` directory for client and server types and utilities, including DTOs and formatters.
 - **Billing System**: Implements a 3-tier (Free/Plus/Pro) subscription model with Stripe integration for checkout, portal sessions, and webhooks, including entitlement and plan limit management.
 - **Match Data Management**: Stores attendance and expense data, retrieves official match data from external sources via `unified-scraper.ts`, normalizes `matchUrl`, generates `matchKey`, and tracks sync logs.
@@ -56,6 +56,7 @@
 - **Dependency Cleanup** (#142): Removed unused packages (mysql2, node-ical, sharp, @types/express-rate-limit, add). Optimized icon imports using individual imports from lucide-react.
 - **Stats API Optimization** (#134): Aggregation moved to PostgreSQL (CASE WHEN + COUNT/SUM), 60-second in-memory cache with automatic invalidation on data changes.
 - **Plan Logic Consolidation** (#136): canUseFeature/shouldShowAds/getPlanDisplayName unified in `shared/billing.ts` with Feature type. Removed redundant `server/lib/planHelpers.ts`.
+- **Share URL Feature** (#18): Users can create shareable links for their match statistics. Token-based public URLs at `/share/:token` display aggregated stats (watch count, W/D/L record, costs) without requiring login. Supports year filtering, enable/disable toggle, and expiration. ShareModal component on Stats page for link management.
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
