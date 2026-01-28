@@ -19,6 +19,7 @@ import Support from "./pages/Support";
 import Upgrade from "./pages/Upgrade";
 import Pricing from "./pages/Pricing";
 import AdminMatches from "./pages/AdminMatches";
+import AdminConsole from "./pages/AdminConsole";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
@@ -44,6 +45,7 @@ function Router() {
       <Route path={"/savings"}>{() => <ProtectedRoute component={Savings} />}</Route>
 
       {/* Admin Routes */}
+      <Route path={"/admin"}>{() => <ProtectedRoute component={AdminConsole} />}</Route>
       <Route path={"/admin/matches"}>{() => <ProtectedRoute component={AdminMatches} />}</Route>
 
       {/* Legal & Support (Public) */}

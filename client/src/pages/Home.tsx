@@ -165,7 +165,13 @@ export default function Home() {
               <CardDescription>管理者専用の機能</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Button
+                  onClick={() => navigate('/admin')}
+                  className="w-full"
+                >
+                  管理コンソール
+                </Button>
                 <Button
                   onClick={() => navigate('/admin/matches')}
                   variant="outline"

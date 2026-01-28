@@ -299,3 +299,23 @@ export const eventLogs = pgTable("eventLogs", {
 
 export type EventLog = typeof eventLogs.$inferSelect;
 export type InsertEventLog = typeof eventLogs.$inferInsert;
+
+/**
+ * Announcements - system announcements for users
+ * Issue #205: 管理運用コンソール
+ */
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 32 }).default("info").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  startsAt: timestamp("startsAt"),
+  endsAt: timestamp("endsAt"),
+  createdBy: integer("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = typeof announcements.$inferInsert;

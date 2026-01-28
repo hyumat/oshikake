@@ -1,9 +1,9 @@
-import { router, protectedProcedure } from '../_core/trpc';
+import { router, protectedProcedure, getApiPerformanceStats, getApiMetrics } from '../_core/trpc';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { getDb } from '../db';
-import { eventLogs, matches } from '../../drizzle/schema';
-import { desc, sql, eq, like, or } from 'drizzle-orm';
+import { eventLogs, matches, users, syncLogs, announcements, userMatches } from '../../drizzle/schema';
+import { desc, sql, eq, like, or, and, gte, lte, count } from 'drizzle-orm';
 
 export const adminRouter = router({
   getEventLogs: protectedProcedure
@@ -445,4 +445,446 @@ export const adminRouter = router({
         });
       }
     }),
+
+  // === System Status ===
+
+  getSystemStatus: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view system status',
+      });
+    }
+
+    const db = await getDb();
+    if (!db) {
+      return {
+        success: false,
+        status: {
+          database: 'disconnected',
+          userCount: 0,
+          matchCount: 0,
+          attendanceCount: 0,
+          lastSync: null,
+          lastSyncStatus: null,
+          recentErrors: 0,
+        },
+      };
+    }
+
+    try {
+      const [userCountResult] = await db.select({ count: count() }).from(users);
+      const [matchCountResult] = await db.select({ count: count() }).from(matches);
+      const [attendanceCountResult] = await db.select({ count: count() }).from(userMatches);
+      
+      const [lastSyncResult] = await db
+        .select()
+        .from(syncLogs)
+        .orderBy(desc(syncLogs.syncedAt))
+        .limit(1);
+
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const [recentErrorsResult] = await db
+        .select({ count: count() })
+        .from(eventLogs)
+        .where(
+          and(
+            like(eventLogs.eventName, '%failed%'),
+            gte(eventLogs.createdAt, oneDayAgo)
+          )
+        );
+
+      return {
+        success: true,
+        status: {
+          database: 'connected',
+          userCount: userCountResult?.count || 0,
+          matchCount: matchCountResult?.count || 0,
+          attendanceCount: attendanceCountResult?.count || 0,
+          lastSync: lastSyncResult?.syncedAt || null,
+          lastSyncStatus: lastSyncResult?.status || null,
+          recentErrors: recentErrorsResult?.count || 0,
+        },
+      };
+    } catch (error) {
+      console.error('[Admin Router] Error fetching system status:', error);
+      return {
+        success: false,
+        status: {
+          database: 'error',
+          userCount: 0,
+          matchCount: 0,
+          attendanceCount: 0,
+          lastSync: null,
+          lastSyncStatus: null,
+          recentErrors: 0,
+        },
+      };
+    }
+  }),
+
+  // === User Management ===
+
+  getUsers: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().default(50).optional(),
+        offset: z.number().default(0).optional(),
+        search: z.string().optional(),
+        plan: z.enum(['free', 'plus', 'pro']).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can view users',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        let query = db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+            plan: users.plan,
+            planExpiresAt: users.planExpiresAt,
+            stripeCustomerId: users.stripeCustomerId,
+            stripeSubscriptionId: users.stripeSubscriptionId,
+            createdAt: users.createdAt,
+            lastSignedIn: users.lastSignedIn,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt))
+          .limit(input.limit || 50)
+          .offset(input.offset || 0);
+
+        const conditions = [];
+        if (input.search) {
+          conditions.push(
+            or(
+              like(users.name, `%${input.search}%`),
+              like(users.email, `%${input.search}%`)
+            )
+          );
+        }
+        if (input.plan) {
+          conditions.push(eq(users.plan, input.plan));
+        }
+
+        if (conditions.length === 1) {
+          query = query.where(conditions[0]) as any;
+        } else if (conditions.length > 1) {
+          query = query.where(and(...conditions)) as any;
+        }
+
+        const userList = await query;
+
+        const [countResult] = await db.select({ count: count() }).from(users);
+        const total = countResult?.count || 0;
+
+        return {
+          success: true,
+          users: userList,
+          total,
+          hasMore: (input.offset || 0) + userList.length < total,
+        };
+      } catch (error) {
+        console.error('[Admin Router] Error fetching users:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch users',
+        });
+      }
+    }),
+
+  updateUserPlan: protectedProcedure
+    .input(
+      z.object({
+        userId: z.number(),
+        plan: z.enum(['free', 'plus', 'pro']),
+        planExpiresAt: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can update user plans',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            plan: input.plan,
+            planExpiresAt: input.planExpiresAt ? new Date(input.planExpiresAt) : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, input.userId))
+          .returning();
+
+        if (!updatedUser) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'User not found',
+          });
+        }
+
+        console.log(`[Admin] User ${input.userId} plan updated to ${input.plan} by admin ${ctx.user.id}`);
+
+        return { success: true, user: updatedUser };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error updating user plan:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update user plan',
+        });
+      }
+    }),
+
+  // === Announcements ===
+
+  getAnnouncements: protectedProcedure
+    .input(
+      z.object({
+        includeInactive: z.boolean().default(false).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can view all announcements',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        let query = db
+          .select()
+          .from(announcements)
+          .orderBy(desc(announcements.createdAt));
+
+        if (!input.includeInactive) {
+          query = query.where(eq(announcements.isActive, true)) as any;
+        }
+
+        const announcementList = await query;
+
+        return { success: true, announcements: announcementList };
+      } catch (error) {
+        console.error('[Admin Router] Error fetching announcements:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch announcements',
+        });
+      }
+    }),
+
+  createAnnouncement: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1),
+        content: z.string().min(1),
+        type: z.enum(['info', 'warning', 'success', 'error']).default('info'),
+        startsAt: z.string().optional(),
+        endsAt: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can create announcements',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [newAnnouncement] = await db
+          .insert(announcements)
+          .values({
+            title: input.title,
+            content: input.content,
+            type: input.type,
+            startsAt: input.startsAt ? new Date(input.startsAt) : null,
+            endsAt: input.endsAt ? new Date(input.endsAt) : null,
+            createdBy: ctx.user.id,
+          })
+          .returning();
+
+        console.log(`[Admin] Announcement created: ${input.title} by admin ${ctx.user.id}`);
+
+        return { success: true, announcement: newAnnouncement };
+      } catch (error) {
+        console.error('[Admin Router] Error creating announcement:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create announcement',
+        });
+      }
+    }),
+
+  updateAnnouncement: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        type: z.enum(['info', 'warning', 'success', 'error']).optional(),
+        isActive: z.boolean().optional(),
+        startsAt: z.string().nullable().optional(),
+        endsAt: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can update announcements',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const { id, ...updateData } = input;
+        const updates: any = { ...updateData, updatedAt: new Date() };
+        
+        if ('startsAt' in updateData) {
+          updates.startsAt = updateData.startsAt ? new Date(updateData.startsAt) : null;
+        }
+        if ('endsAt' in updateData) {
+          updates.endsAt = updateData.endsAt ? new Date(updateData.endsAt) : null;
+        }
+
+        const [updated] = await db
+          .update(announcements)
+          .set(updates)
+          .where(eq(announcements.id, id))
+          .returning();
+
+        if (!updated) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Announcement not found',
+          });
+        }
+
+        return { success: true, announcement: updated };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error updating announcement:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update announcement',
+        });
+      }
+    }),
+
+  deleteAnnouncement: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can delete announcements',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [deleted] = await db
+          .delete(announcements)
+          .where(eq(announcements.id, input.id))
+          .returning();
+
+        if (!deleted) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Announcement not found',
+          });
+        }
+
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error deleting announcement:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to delete announcement',
+        });
+      }
+    }),
+
+  // === API Performance ===
+
+  getApiPerformance: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view API performance',
+      });
+    }
+
+    const stats = getApiPerformanceStats();
+    const recentMetrics = getApiMetrics(50);
+
+    return {
+      success: true,
+      stats,
+      recentMetrics: recentMetrics.map(m => ({
+        ...m,
+        timestamp: m.timestamp.toISOString(),
+      })),
+    };
+  }),
 });

@@ -196,20 +196,49 @@ function simpleHash(str: string): string {
 }
 
 // ====== Fetch & Parse ======
-async function fetchJleagueHtml(url: string): Promise<string | null> {
-  try {
-    const res = await axios.get(url, {
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'MarinosAwayLog/2.0 axios',
-        'Accept-Language': 'ja,en;q=0.8',
-      },
-    });
-    return res.data;
-  } catch (e) {
-    console.error(`[Unified Scraper] Fetch failed: ${url}`, e instanceof Error ? e.message : String(e));
-    return null;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  url: string,
+  options: { timeout?: number; maxRetries?: number; encoding?: string } = {}
+): Promise<string | null> {
+  const { timeout = 15000, maxRetries = 3, encoding } = options;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        timeout,
+        responseType: encoding ? 'arraybuffer' : 'text',
+        headers: {
+          'User-Agent': 'MarinosAwayLog/2.0 axios',
+          'Accept-Language': 'ja,en;q=0.8',
+        },
+      });
+      
+      if (encoding) {
+        return iconv.decode(res.data as Buffer, encoding);
+      }
+      return res.data;
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.warn(`[Unified Scraper] Attempt ${attempt}/${maxRetries} failed for ${url}: ${errorMsg}`);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        await sleep(delay);
+      }
+    }
   }
+  
+  console.error(`[Unified Scraper] All ${maxRetries} attempts failed for ${url}`);
+  return null;
+}
+
+async function fetchJleagueHtml(url: string): Promise<string | null> {
+  return fetchWithRetry(url, { timeout: 15000, maxRetries: 3 });
 }
 
 async function scrapeMatchDetail(matchUrl: string | null | undefined): Promise<Partial<MatchFixture> | null> {
@@ -369,11 +398,9 @@ async function parseJleagueSearch(html: string): Promise<MatchFixture[]> {
 
 async function fetchPhewFixtures(url: string): Promise<MatchFixture[]> {
   try {
-    const res = await axios.get(url, {
-      timeout: 10000,
-      responseType: 'arraybuffer',
-    });
-    const html = iconv.decode(res.data as Buffer, 'euc-jp');
+    const html = await fetchWithRetry(url, { timeout: 10000, maxRetries: 3, encoding: 'euc-jp' });
+    if (!html) return [];
+    
     const $ = cheerio.load(html);
     const fixtures: MatchFixture[] = [];
 
@@ -453,15 +480,9 @@ async function fetchMarinosSchedule(): Promise<MatchFixture[]> {
   const SCHEDULE_URL = 'https://www.f-marinos.com/matches/schedule';
   
   try {
-    const res = await axios.get(SCHEDULE_URL, {
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'MarinosAwayLog/2.0 axios',
-        'Accept-Language': 'ja,en;q=0.8',
-      },
-    });
+    const html = await fetchWithRetry(SCHEDULE_URL, { timeout: 15000, maxRetries: 3 });
+    if (!html) return [];
     
-    const html = res.data;
     const $ = cheerio.load(html);
     const fixtures: MatchFixture[] = [];
     const currentYear = new Date().getFullYear();
@@ -566,6 +587,7 @@ export async function scrapeAllMatches(): Promise<{
   results: MatchFixture[];
   upcoming: MatchFixture[];
   counts: { total: number; results: number; upcoming: number };
+  errors: string[];
 }> {
   // Data sources specified by user
   const JLEAGUE_URL_2026 = 'https://www.jleague.jp/match/search/?category%5B%5D=100yj1&category%5B%5D=j2j3&category%5B%5D=j1&category%5B%5D=leaguecup&category%5B%5D=j2&category%5B%5D=j3&category%5B%5D=playoff&category%5B%5D=j2playoff&category%5B%5D=J3jflplayoff&category%5B%5D=emperor&category%5B%5D=acle&category%5B%5D=acl2&category%5B%5D=acl&category%5B%5D=fcwc&category%5B%5D=supercup&category%5B%5D=asiachallenge&category%5B%5D=jwc&club%5B%5D=yokohamafm&year=2026';
@@ -573,6 +595,9 @@ export async function scrapeAllMatches(): Promise<{
   const PHEW_URL_2026 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?start=0&sort=&team=%B2%A3%C9%CDFM&year=2026';
   const PHEW_URL_2025 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?team=%B2%A3%C9%CDFM&year=2025';
   const PHEW_URL_2024 = 'http://soccer.phew.homeip.net/schedule/match/yearly/?team=%B2%A3%C9%CDFM&year=2024';
+
+  const errors: string[] = [];
+  const startTime = Date.now();
 
   try {
     const [jleagueHtml2026, jleagueHtml2025, phewFixtures2026, phewFixtures2025, phewFixtures2024, marinosFixtures] = await Promise.all([
@@ -642,14 +667,27 @@ export async function scrapeAllMatches(): Promise<{
     const results = fixtures.filter((f) => f.isResult);
     const upcoming = fixtures.filter((f) => !f.isResult);
 
+    const elapsed = Date.now() - startTime;
+    console.log(`[Unified Scraper] Completed in ${elapsed}ms - ${fixtures.length} matches (${results.length} results, ${upcoming.length} upcoming)`);
+
     return {
       fixtures,
       results,
       upcoming,
       counts: { total: fixtures.length, results: results.length, upcoming: upcoming.length },
+      errors,
     };
   } catch (e) {
-    console.error('[Unified Scraper] Error:', e instanceof Error ? e.message : String(e));
-    throw e;
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    console.error('[Unified Scraper] Critical error:', errorMsg);
+    errors.push(`Critical: ${errorMsg}`);
+    
+    return {
+      fixtures: [],
+      results: [],
+      upcoming: [],
+      counts: { total: 0, results: 0, upcoming: 0 },
+      errors,
+    };
   }
 }
