@@ -3,13 +3,67 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { config } from "./config";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
 }
 
+const DEV_TEST_USERS: Record<string, { openId: string; name: string }> = {
+  admin: { openId: "test-admin-001", name: "管理者ユーザー" },
+  plus: { openId: "test-plus-001", name: "Plusユーザー" },
+  pro: { openId: "test-pro-001", name: "Proユーザー" },
+  free: { openId: "test-free-001", name: "Freeユーザー" },
+};
+
 export function registerOAuthRoutes(app: Express) {
+  if (config.env.isDevelopment) {
+    app.get("/api/dev/switch-user/:userType", async (req: Request, res: Response) => {
+      const userType = req.params.userType as keyof typeof DEV_TEST_USERS;
+      const testUser = DEV_TEST_USERS[userType];
+
+      if (!testUser) {
+        res.status(400).json({
+          error: "Invalid user type",
+          available: Object.keys(DEV_TEST_USERS),
+        });
+        return;
+      }
+
+      try {
+        const user = await db.getUserByOpenId(testUser.openId);
+        if (!user) {
+          res.status(404).json({ error: `Test user "${userType}" not found in database` });
+          return;
+        }
+
+        const sessionToken = await sdk.createSessionToken(testUser.openId, {
+          name: testUser.name,
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        const cookieOptions = getSessionCookieOptions(req);
+        res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        res.redirect(302, "/app");
+      } catch (error) {
+        console.error("[Dev] Switch user failed:", error);
+        res.status(500).json({ error: "Failed to switch user" });
+      }
+    });
+
+    app.get("/api/dev/users", (_req: Request, res: Response) => {
+      res.json({
+        message: "Development only - available test users",
+        users: Object.entries(DEV_TEST_USERS).map(([type, data]) => ({
+          type,
+          ...data,
+          switchUrl: `/api/dev/switch-user/${type}`,
+        })),
+      });
+    });
+  }
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
