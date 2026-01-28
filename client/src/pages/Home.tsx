@@ -5,6 +5,8 @@ import { BarChart3, Calendar, TrendingUp, Users } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 import { AdBanner } from "@/components/AdBanner";
+import { SyncStatus } from "@/components/SyncStatus";
+import { BillingStatus } from "@/components/BillingStatus";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -152,6 +154,11 @@ export default function Home() {
         </div>
 
         <AdBanner placement="home" className="mt-8" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <SyncStatus />
+          <BillingStatus />
+        </div>
       </div>
     </div>
   );
