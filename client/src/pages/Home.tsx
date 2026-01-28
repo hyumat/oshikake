@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Calendar, TrendingUp, Users } from "lucide-react";
+import { BarChart3, Calendar, TrendingUp, Users, Shield } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 import { AdBanner } from "@/components/AdBanner";
@@ -127,7 +127,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => navigate('/statistics')}
+                onClick={() => navigate('/stats')}
                 variant="outline"
                 className="w-full"
               >
@@ -138,16 +138,16 @@ export default function Home() {
 
           <Card>
             <CardHeader>
-              <CardTitle>プロフィール</CardTitle>
-              <CardDescription>ユーザー設定</CardDescription>
+              <CardTitle>プラン管理</CardTitle>
+              <CardDescription>料金プランを確認</CardDescription>
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/pricing')}
                 variant="outline"
                 className="w-full"
               >
-                プロフィール
+                プランを見る
               </Button>
             </CardContent>
           </Card>
@@ -155,10 +155,32 @@ export default function Home() {
 
         <AdBanner placement="home" className="mt-8" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <SyncStatus />
-          <BillingStatus />
-        </div>
+        {user?.role === 'admin' && (
+          <Card className="mt-6 border-blue-200 bg-blue-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                管理者メニュー
+              </CardTitle>
+              <CardDescription>管理者専用の機能</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Button
+                  onClick={() => navigate('/admin/matches')}
+                  variant="outline"
+                  className="w-full"
+                >
+                  試合データ管理
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <SyncStatus />
+                <BillingStatus />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
