@@ -9,6 +9,10 @@ import { getSampleMatches } from '../test-data';
 import { scrapeAllMatches, generateMatchKey, normalizeMatchUrl } from '../unified-scraper';
 import { syncFromGoogleSheets, getRecentSyncLogs as getSheetsSyncLogs } from '../sheets-sync';
 import { TRPCError } from '@trpc/server';
+import { triggerSavingsForMatch } from '../savings-trigger';
+import { getDb } from '../db';
+import { matches as matchesTable } from '../../drizzle/schema';
+import { inArray, eq } from 'drizzle-orm';
 
 // In-memory cache for scraped matches (when DB unavailable)
 let cachedMatches: any[] | null = null;
@@ -30,9 +34,26 @@ export const matchesRouter = router({
       const startTime = Date.now();
       let syncStatus: 'success' | 'partial' | 'failed' = 'success';
       let errorMessage: string | undefined;
+      let savingsTriggered = 0;
       
       try {
         console.log('[Matches Router] Starting official match fetch...');
+        
+        // Get current match results before sync (for auto-trigger comparison)
+        const db = await getDb();
+        const beforeResults = new Map<string, { id: number; isResult: number }>();
+        if (db) {
+          try {
+            const existingMatches = await db.select({
+              id: matchesTable.id,
+              sourceKey: matchesTable.sourceKey,
+              isResult: matchesTable.isResult,
+            }).from(matchesTable);
+            existingMatches.forEach(m => beforeResults.set(m.sourceKey, { id: m.id, isResult: m.isResult }));
+          } catch (e) {
+            console.log('[Matches Router] Could not get existing matches for auto-trigger');
+          }
+        }
         
         // Fetch from unified scraper (Jリーグ公式 + Phew)
         const { fixtures, results, upcoming, counts } = await scrapeAllMatches();
@@ -68,6 +89,42 @@ export const matchesRouter = router({
           try {
             await upsertMatches(dbMatches);
             console.log(`[Matches Router] Saved ${dbMatches.length} matches to database`);
+            
+            // Auto-trigger savings for newly confirmed results
+            if (db) {
+              try {
+                const updatedMatches = await db.select({
+                  id: matchesTable.id,
+                  sourceKey: matchesTable.sourceKey,
+                  isResult: matchesTable.isResult,
+                  homeScore: matchesTable.homeScore,
+                  awayScore: matchesTable.awayScore,
+                  marinosSide: matchesTable.marinosSide,
+                }).from(matchesTable);
+                
+                for (const match of updatedMatches) {
+                  const before = beforeResults.get(match.sourceKey);
+                  const wasResult = before?.isResult === 1;
+                  const isNowResult = match.isResult === 1;
+                  
+                  if (!wasResult && isNowResult) {
+                    console.log(`[Matches Router] New result confirmed for match ${match.id}, triggering savings...`);
+                    const triggerResults = await triggerSavingsForMatch(match.id, {
+                      homeScore: match.homeScore,
+                      awayScore: match.awayScore,
+                      marinosSide: match.marinosSide,
+                    });
+                    savingsTriggered += triggerResults.filter(r => r.triggered).length;
+                  }
+                }
+                
+                if (savingsTriggered > 0) {
+                  console.log(`[Matches Router] Triggered savings for ${savingsTriggered} users`);
+                }
+              } catch (triggerError) {
+                console.warn('[Matches Router] Error in auto-trigger savings:', triggerError);
+              }
+            }
           } catch (dbError) {
             console.log('[Matches Router] DB unavailable, data cached in memory only');
             syncStatus = 'partial';
@@ -92,6 +149,7 @@ export const matchesRouter = router({
           results: results.length,
           upcoming: upcoming.length,
           stats: counts,
+          savingsTriggered,
         };
         
       } catch (error) {

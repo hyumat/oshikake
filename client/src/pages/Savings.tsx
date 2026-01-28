@@ -4,13 +4,13 @@
  * 貯金ルールの管理と貯金履歴の表示
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Plus, Trash2, PiggyBank, TrendingUp } from 'lucide-react';
+import { Loader2, Plus, Trash2, PiggyBank, TrendingUp, Bell, Sparkles } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { formatCurrency } from '@shared/formatters';
@@ -95,6 +95,27 @@ export default function Savings() {
   const history = historyData?.history || [];
   const total = totalData?.total || 0;
 
+  const recentTriggers = useMemo(() => {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return history.filter(item => {
+      const triggeredAt = new Date(item.triggeredAt);
+      return triggeredAt >= oneDayAgo;
+    });
+  }, [history]);
+
+  const hasShownToast = useRef(false);
+  useEffect(() => {
+    if (recentTriggers.length > 0 && !historyLoading && !hasShownToast.current) {
+      hasShownToast.current = true;
+      const totalRecent = recentTriggers.reduce((sum, item) => sum + item.amount, 0);
+      toast.success(`新しい貯金が追加されました！ ${formatCurrency(totalRecent)}`, {
+        icon: <Sparkles className="h-4 w-4" />,
+        duration: 5000,
+      });
+    }
+  }, [recentTriggers.length, historyLoading]);
+
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-8">
@@ -108,6 +129,28 @@ export default function Savings() {
             試合結果に応じて自動で貯金ルールをトリガー
           </p>
         </div>
+
+        {/* 新着通知 */}
+        {recentTriggers.length > 0 && (
+          <Card className="mb-6 border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900">
+                  <Bell className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    新しい貯金が追加されました！
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    過去24時間で {recentTriggers.length} 件、
+                    合計 {formatCurrency(recentTriggers.reduce((sum, item) => sum + item.amount, 0))} の貯金
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 累計貯金額 */}
         <Card className="mb-6 border-l-4 border-l-blue-500">
