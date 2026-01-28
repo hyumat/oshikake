@@ -1,0 +1,21 @@
+CREATE INDEX "auditLogs_userId_idx" ON "auditLogs" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "auditLogs_createdAt_idx" ON "auditLogs" USING btree ("createdAt");--> statement-breakpoint
+CREATE INDEX "auditLogs_action_idx" ON "auditLogs" USING btree ("action");--> statement-breakpoint
+CREATE INDEX "eventLogs_userId_idx" ON "eventLogs" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "eventLogs_eventName_idx" ON "eventLogs" USING btree ("eventName");--> statement-breakpoint
+CREATE INDEX "eventLogs_createdAt_idx" ON "eventLogs" USING btree ("createdAt");--> statement-breakpoint
+CREATE INDEX "matchExpenses_userMatchId_idx" ON "matchExpenses" USING btree ("userMatchId");--> statement-breakpoint
+CREATE INDEX "matchExpenses_userId_idx" ON "matchExpenses" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "matches_date_idx" ON "matches" USING btree ("date");--> statement-breakpoint
+CREATE INDEX "matches_marinosSide_idx" ON "matches" USING btree ("marinosSide");--> statement-breakpoint
+CREATE INDEX "matches_competition_idx" ON "matches" USING btree ("competition");--> statement-breakpoint
+CREATE INDEX "matches_isResult_idx" ON "matches" USING btree ("isResult");--> statement-breakpoint
+CREATE INDEX "matches_date_marinosSide_idx" ON "matches" USING btree ("date","marinosSide");--> statement-breakpoint
+CREATE INDEX "syncLogs_source_idx" ON "syncLogs" USING btree ("source");--> statement-breakpoint
+CREATE INDEX "syncLogs_syncedAt_idx" ON "syncLogs" USING btree ("syncedAt");--> statement-breakpoint
+CREATE INDEX "syncLogs_status_idx" ON "syncLogs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "userMatches_userId_idx" ON "userMatches" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "userMatches_matchId_idx" ON "userMatches" USING btree ("matchId");--> statement-breakpoint
+CREATE INDEX "userMatches_seasonYear_idx" ON "userMatches" USING btree ("seasonYear");--> statement-breakpoint
+CREATE INDEX "userMatches_date_idx" ON "userMatches" USING btree ("date");--> statement-breakpoint
+CREATE INDEX "userMatches_userId_seasonYear_idx" ON "userMatches" USING btree ("userId","seasonYear");

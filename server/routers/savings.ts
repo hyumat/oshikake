@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { getDb } from '../db';
 import { savingsRules, savingsHistory, matches } from '../../drizzle/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray, sum } from 'drizzle-orm';
 
 export const savingsRouter = router({
   /**
@@ -136,20 +136,24 @@ export const savingsRouter = router({
         .orderBy(desc(savingsHistory.triggeredAt))
         .limit(input.limit);
       
-      // 試合情報を取得
-      const historyWithMatches = await Promise.all(
-        history.map(async (item) => {
-          if (!item.matchId) return { ...item, match: null };
-          
-          const matchResults = await db
-            .select()
-            .from(matches)
-            .where(eq(matches.id, item.matchId))
-            .limit(1);
-          
-          return { ...item, match: matchResults[0] || null };
-        })
-      );
+      // 試合IDを収集して一括取得（N+1クエリ対策）
+      const matchIds = history
+        .map(item => item.matchId)
+        .filter((id): id is number => id !== null);
+      
+      let matchMap: Map<number, typeof matches.$inferSelect> = new Map();
+      if (matchIds.length > 0) {
+        const matchResults = await db
+          .select()
+          .from(matches)
+          .where(inArray(matches.id, matchIds));
+        matchMap = new Map(matchResults.map(m => [m.id, m]));
+      }
+      
+      const historyWithMatches = history.map(item => ({
+        ...item,
+        match: item.matchId ? matchMap.get(item.matchId) || null : null,
+      }));
       
       return { history: historyWithMatches };
     }),
@@ -163,12 +167,12 @@ export const savingsRouter = router({
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
     }
 
-    const history = await db
-      .select()
+    const result = await db
+      .select({ total: sum(savingsHistory.amount) })
       .from(savingsHistory)
       .where(eq(savingsHistory.userId, ctx.user.openId));
     
-    const total = history.reduce((sum, item) => sum + item.amount, 0);
+    const total = Number(result[0]?.total) || 0;
     
     return { total };
   }),

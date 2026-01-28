@@ -1,4 +1,4 @@
-import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["user", "admin"]);
 export const planEnum = pgEnum("plan", ["free", "plus", "pro"]);
@@ -167,7 +167,13 @@ export const matches = pgTable("matches", {
   // === タイムスタンプ ===
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("matches_date_idx").on(table.date),
+  index("matches_marinosSide_idx").on(table.marinosSide),
+  index("matches_competition_idx").on(table.competition),
+  index("matches_isResult_idx").on(table.isResult),
+  index("matches_date_marinosSide_idx").on(table.date, table.marinosSide),
+]);
 
 export type Match = typeof matches.$inferSelect;
 export type InsertMatch = typeof matches.$inferInsert;
@@ -212,7 +218,13 @@ export const userMatches = pgTable("userMatches", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   /** Updated timestamp */
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("userMatches_userId_idx").on(table.userId),
+  index("userMatches_matchId_idx").on(table.matchId),
+  index("userMatches_seasonYear_idx").on(table.seasonYear),
+  index("userMatches_date_idx").on(table.date),
+  index("userMatches_userId_seasonYear_idx").on(table.userId, table.seasonYear),
+]);
 
 export type UserMatch = typeof userMatches.$inferSelect;
 export type InsertUserMatch = typeof userMatches.$inferInsert;
@@ -244,7 +256,11 @@ export const syncLogs = pgTable("syncLogs", {
   durationMs: integer("durationMs"),
   /** Sync timestamp */
   syncedAt: timestamp("syncedAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("syncLogs_source_idx").on(table.source),
+  index("syncLogs_syncedAt_idx").on(table.syncedAt),
+  index("syncLogs_status_idx").on(table.status),
+]);
 
 export type SyncLog = typeof syncLogs.$inferSelect;
 export type InsertSyncLog = typeof syncLogs.$inferInsert;
@@ -262,7 +278,10 @@ export const matchExpenses = pgTable("matchExpenses", {
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("matchExpenses_userMatchId_idx").on(table.userMatchId),
+  index("matchExpenses_userId_idx").on(table.userId),
+]);
 
 export type MatchExpense = typeof matchExpenses.$inferSelect;
 export type InsertMatchExpense = typeof matchExpenses.$inferInsert;
@@ -280,7 +299,11 @@ export const auditLogs = pgTable("auditLogs", {
   ipAddress: varchar("ipAddress", { length: 45 }),
   userAgent: text("userAgent"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("auditLogs_userId_idx").on(table.userId),
+  index("auditLogs_createdAt_idx").on(table.createdAt),
+  index("auditLogs_action_idx").on(table.action),
+]);
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
@@ -295,7 +318,11 @@ export const eventLogs = pgTable("eventLogs", {
   eventData: text("eventData"),
   seasonYear: integer("seasonYear"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("eventLogs_userId_idx").on(table.userId),
+  index("eventLogs_eventName_idx").on(table.eventName),
+  index("eventLogs_createdAt_idx").on(table.createdAt),
+]);
 
 export type EventLog = typeof eventLogs.$inferSelect;
 export type InsertEventLog = typeof eventLogs.$inferInsert;
