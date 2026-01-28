@@ -8,6 +8,7 @@
  */
 
 import { useAuth } from '@/_core/hooks/useAuth';
+import { shouldShowAds, type Plan } from '@shared/billing';
 
 export type AdPlacement = 'matchLog' | 'stats' | 'home';
 
@@ -26,25 +27,13 @@ interface AdBannerProps {
   className?: string;
 }
 
-/**
- * ユーザーのプランを判定（簡易版）
- * 
- * TODO: server/lib/planHelpers.tsと統合
- */
-function canShowAds(user: any): boolean {
-  if (!user) return true; // 未ログインはFreeとして扱う
-  
-  // 現状はすべてのユーザーをFreeとして扱う
-  // 将来的にはentitlements/planから判定
-  const plan = user.plan || 'free';
-  return plan === 'free';
-}
-
 export function AdBanner({ placement, className = '' }: AdBannerProps) {
   const { user } = useAuth();
   
-  // Plus/Proでは何も表示しない
-  if (!canShowAds(user)) {
+  const plan: Plan = (user?.plan as Plan) || 'free';
+  const planExpiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt) : null;
+  
+  if (!shouldShowAds(plan, planExpiresAt)) {
     return null;
   }
   

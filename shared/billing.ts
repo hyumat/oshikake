@@ -126,3 +126,42 @@ export function calculatePlanStatus(
     entitlements,
   };
 }
+
+export type Feature = 
+  | 'savings'
+  | 'export'
+  | 'advancedStats'
+  | 'multiSeason'
+  | 'prioritySupport'
+  | 'noAds';
+
+const FEATURE_ACCESS: Record<Feature, Plan[]> = {
+  savings: ['free', 'plus', 'pro'],
+  export: ['plus', 'pro'],
+  advancedStats: ['pro'],
+  multiSeason: ['pro'],
+  prioritySupport: ['pro'],
+  noAds: ['plus', 'pro'],
+};
+
+export function canUseFeature(
+  plan: Plan,
+  planExpiresAt: Date | null,
+  feature: Feature
+): boolean {
+  const effective = getEffectivePlan(plan, planExpiresAt);
+  return FEATURE_ACCESS[feature].includes(effective);
+}
+
+export function shouldShowAds(plan: Plan, planExpiresAt: Date | null): boolean {
+  return !canUseFeature(plan, planExpiresAt, 'noAds');
+}
+
+export function getPlanDisplayName(plan: Plan): string {
+  const names: Record<Plan, string> = {
+    free: 'Free',
+    plus: 'Plus',
+    pro: 'Pro',
+  };
+  return names[plan];
+}

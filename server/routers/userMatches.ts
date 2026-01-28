@@ -19,6 +19,7 @@ import {
 } from '../db';
 import { userMatches as userMatchesTable } from '../../drizzle/schema';
 import { FREE_PLAN_LIMIT, getCurrentSeasonYear, canCreateAttendance, calculatePlanStatus, getPlanLimit } from '../../shared/billing';
+import { invalidateStatsCache } from './stats';
 
 export const userMatchesRouter = router({
   /**
@@ -164,6 +165,8 @@ export const userMatchesRouter = router({
           note: input.note,
         });
 
+        invalidateStatsCache(ctx.user.id);
+
         return {
           success: true,
           message: 'Match added successfully',
@@ -218,6 +221,8 @@ export const userMatchesRouter = router({
         const { id, ...updateData } = input;
         const result = await updateUserMatch(id, ctx.user.id, updateData);
 
+        invalidateStatsCache(ctx.user.id);
+
         return {
           success: true,
           message: 'Match updated successfully',
@@ -241,6 +246,8 @@ export const userMatchesRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const result = await deleteUserMatch(input.id, ctx.user.id);
+
+        invalidateStatsCache(ctx.user.id);
 
         return {
           success: true,
@@ -451,6 +458,8 @@ export const userMatchesRouter = router({
           totalCost,
         }, seasonYear);
 
+        invalidateStatsCache(ctx.user.id);
+
         return {
           success: true,
           userMatchId,
@@ -501,6 +510,8 @@ export const userMatchesRouter = router({
         await logEvent('attendance_delete', ctx.user.id, {
           matchId: input.matchId,
         });
+
+        invalidateStatsCache(ctx.user.id);
 
         return { success: true, message: 'Deleted successfully' };
       } catch (error) {

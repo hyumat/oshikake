@@ -9,6 +9,9 @@ import {
   getCurrentSeasonYear,
   getPlanLimit,
   getEntitlements,
+  canUseFeature,
+  shouldShowAds,
+  getPlanDisplayName,
 } from './billing';
 
 describe('billing utilities', () => {
@@ -291,6 +294,62 @@ describe('billing utilities', () => {
       expect(entitlements.effectivePlan).toBe('free');
       expect(entitlements.maxAttendances).toBe(7);
       expect(entitlements.canExport).toBe(false);
+    });
+  });
+
+  describe('canUseFeature', () => {
+    it('should allow savings for all plans', () => {
+      expect(canUseFeature('free', null, 'savings')).toBe(true);
+      expect(canUseFeature('plus', null, 'savings')).toBe(true);
+      expect(canUseFeature('pro', null, 'savings')).toBe(true);
+    });
+
+    it('should allow export only for plus and pro', () => {
+      expect(canUseFeature('free', null, 'export')).toBe(false);
+      expect(canUseFeature('plus', null, 'export')).toBe(true);
+      expect(canUseFeature('pro', null, 'export')).toBe(true);
+    });
+
+    it('should allow advancedStats only for pro', () => {
+      expect(canUseFeature('free', null, 'advancedStats')).toBe(false);
+      expect(canUseFeature('plus', null, 'advancedStats')).toBe(false);
+      expect(canUseFeature('pro', null, 'advancedStats')).toBe(true);
+    });
+
+    it('should treat expired pro as free', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      expect(canUseFeature('pro', past, 'export')).toBe(false);
+      expect(canUseFeature('pro', past, 'advancedStats')).toBe(false);
+    });
+  });
+
+  describe('shouldShowAds', () => {
+    it('should show ads for free plan', () => {
+      expect(shouldShowAds('free', null)).toBe(true);
+    });
+
+    it('should not show ads for plus plan', () => {
+      expect(shouldShowAds('plus', null)).toBe(false);
+    });
+
+    it('should not show ads for pro plan', () => {
+      expect(shouldShowAds('pro', null)).toBe(false);
+    });
+
+    it('should show ads for expired paid plans', () => {
+      const past = new Date();
+      past.setFullYear(past.getFullYear() - 1);
+      expect(shouldShowAds('plus', past)).toBe(true);
+      expect(shouldShowAds('pro', past)).toBe(true);
+    });
+  });
+
+  describe('getPlanDisplayName', () => {
+    it('should return correct display names', () => {
+      expect(getPlanDisplayName('free')).toBe('Free');
+      expect(getPlanDisplayName('plus')).toBe('Plus');
+      expect(getPlanDisplayName('pro')).toBe('Pro');
     });
   });
 });

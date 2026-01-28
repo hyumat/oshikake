@@ -54,6 +54,8 @@
 - **v0.1.1 Stabilize Milestone** (Complete): Phase 1-5 completed including error handling standardization (QueryState), 192 passing tests, security hardening (Helmet, rate limiting), and production deployment configuration (autoscale).
 - **Configuration Centralization** (#141): All server-side environment variables consolidated in `server/_core/config.ts` with typed access (env, server, auth, database, forge, GAS, Replit, logging, scheduler).
 - **Dependency Cleanup** (#142): Removed unused packages (mysql2, node-ical, sharp, @types/express-rate-limit, add). Optimized icon imports using individual imports from lucide-react.
+- **Stats API Optimization** (#134): Aggregation moved to PostgreSQL (CASE WHEN + COUNT/SUM), 60-second in-memory cache with automatic invalidation on data changes.
+- **Plan Logic Consolidation** (#136): canUseFeature/shouldShowAds/getPlanDisplayName unified in `shared/billing.ts` with Feature type. Removed redundant `server/lib/planHelpers.ts`.
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.

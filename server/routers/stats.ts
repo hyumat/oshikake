@@ -23,6 +23,34 @@ function calculateResult(
   return 'draw';
 }
 
+interface StatsSummary {
+  period: { year?: number; from?: string; to?: string };
+  watchCount: number;
+  record: { win: number; draw: number; loss: number; unknown: number };
+  cost: { total: number; averagePerMatch: number };
+}
+
+interface CacheEntry {
+  data: StatsSummary;
+  expiresAt: number;
+}
+
+const statsCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 1000;
+
+function getCacheKey(userId: number, input: { year?: number; from?: string; to?: string }): string {
+  return `stats:${userId}:${input.year ?? ''}:${input.from ?? ''}:${input.to ?? ''}`;
+}
+
+export function invalidateStatsCache(userId: number): void {
+  const keys = Array.from(statsCache.keys());
+  for (const key of keys) {
+    if (key.startsWith(`stats:${userId}:`)) {
+      statsCache.delete(key);
+    }
+  }
+}
+
 export const statsRouter = router({
   getSummary: protectedProcedure
     .input(
@@ -33,7 +61,7 @@ export const statsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const emptyResult = {
+      const emptyResult: StatsSummary = {
         period: {
           year: input.year,
           from: input.from,
@@ -51,6 +79,13 @@ export const statsRouter = router({
         }
 
         const userId = ctx.user.id;
+        
+        const cacheKey = getCacheKey(userId, input);
+        const cached = statsCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+          return cached.data;
+        }
+
         const conditions: SQL[] = [
           eq(userMatches.userId, userId),
           eq(userMatches.status, 'attended'),
@@ -58,7 +93,7 @@ export const statsRouter = router({
 
         if (input.year) {
           conditions.push(
-            sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${input.year}`
+            sql`EXTRACT(YEAR FROM ${userMatches.date}::date) = ${input.year}`
           );
         } else if (input.from && input.to) {
           conditions.push(
@@ -69,55 +104,41 @@ export const statsRouter = router({
 
         const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-        const results = await db
+        const [aggregateResult] = await db
           .select({
-            userMatchId: userMatches.id,
-            costYen: userMatches.costYen,
-            matchId: userMatches.matchId,
-            homeScore: matches.homeScore,
-            awayScore: matches.awayScore,
-            marinosSide: matches.marinosSide,
+            watchCount: sql<number>`COUNT(*)::int`,
+            totalCost: sql<number>`COALESCE(SUM(${userMatches.costYen}), 0)::int`,
+            wins: sql<number>`COUNT(CASE 
+              WHEN ${matches.marinosSide} = 'home' AND ${matches.homeScore} > ${matches.awayScore} THEN 1
+              WHEN ${matches.marinosSide} = 'away' AND ${matches.awayScore} > ${matches.homeScore} THEN 1
+            END)::int`,
+            draws: sql<number>`COUNT(CASE 
+              WHEN ${matches.homeScore} = ${matches.awayScore} AND ${matches.homeScore} IS NOT NULL THEN 1
+            END)::int`,
+            losses: sql<number>`COUNT(CASE 
+              WHEN ${matches.marinosSide} = 'home' AND ${matches.homeScore} < ${matches.awayScore} THEN 1
+              WHEN ${matches.marinosSide} = 'away' AND ${matches.awayScore} < ${matches.homeScore} THEN 1
+            END)::int`,
+            unknowns: sql<number>`COUNT(CASE 
+              WHEN ${matches.homeScore} IS NULL OR ${matches.awayScore} IS NULL OR ${matches.marinosSide} IS NULL THEN 1
+            END)::int`,
           })
           .from(userMatches)
           .leftJoin(matches, eq(userMatches.matchId, matches.id))
           .where(whereClause);
 
-        const watchCount = results.length;
-        let win = 0;
-        let draw = 0;
-        let loss = 0;
-        let unknown = 0;
-        let total = 0;
-
-        for (const row of results) {
-          const result = calculateResult(
-            row.homeScore,
-            row.awayScore,
-            row.marinosSide
-          );
-          
-          switch (result) {
-            case 'win':
-              win++;
-              break;
-            case 'draw':
-              draw++;
-              break;
-            case 'loss':
-              loss++;
-              break;
-            default:
-              unknown++;
-          }
-          
-          total += row.costYen ?? 0;
-        }
+        const watchCount = aggregateResult?.watchCount ?? 0;
+        const total = aggregateResult?.totalCost ?? 0;
+        const win = aggregateResult?.wins ?? 0;
+        const draw = aggregateResult?.draws ?? 0;
+        const loss = aggregateResult?.losses ?? 0;
+        const unknown = aggregateResult?.unknowns ?? 0;
 
         const averagePerMatch = watchCount > 0 
           ? Math.round((total / watchCount) * 100) / 100 
           : 0;
 
-        return {
+        const result: StatsSummary = {
           period: {
             year: input.year,
             from: input.from,
@@ -127,6 +148,13 @@ export const statsRouter = router({
           record: { win, draw, loss, unknown },
           cost: { total, averagePerMatch },
         };
+
+        statsCache.set(cacheKey, {
+          data: result,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
+
+        return result;
       } catch (error) {
         console.error('[Stats Router] Error getting summary:', error);
         const isDbConnectionError = 
@@ -155,7 +183,7 @@ export const statsRouter = router({
       const userId = ctx.user.id;
       const results = await db
         .selectDistinct({
-          year: sql<number>`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d'))`,
+          year: sql<number>`EXTRACT(YEAR FROM ${userMatches.date}::date)::int`,
         })
         .from(userMatches)
         .where(
@@ -164,7 +192,7 @@ export const statsRouter = router({
             eq(userMatches.status, 'attended')
           )
         )
-        .orderBy(sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) DESC`);
+        .orderBy(sql`EXTRACT(YEAR FROM ${userMatches.date}::date) DESC`);
 
       const years = results.map((r) => r.year).filter((y): y is number => y !== null);
 
