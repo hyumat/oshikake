@@ -17,6 +17,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getPlanLabel, getPlanBadgeVariant, getSubscriptionStatusLabel, getSubscriptionStatusStyle } from "@shared/billing";
 
 export default function Account() {
   const { user, loading } = useAuth();
@@ -56,34 +57,6 @@ export default function Account() {
     return null;
   }
 
-  // プラン名を日本語に変換
-  const getPlanLabel = (plan: string) => {
-    switch (plan) {
-      case "free":
-        return "無料プラン";
-      case "plus":
-        return "Plusプラン";
-      case "pro":
-        return "Proプラン";
-      default:
-        return plan;
-    }
-  };
-
-  // プランのバッジカラー
-  const getPlanBadgeVariant = (plan: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (plan) {
-      case "free":
-        return "secondary";
-      case "plus":
-        return "default";
-      case "pro":
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
-
   // 日付フォーマット
   const formatDate = (date: Date | null) => {
     if (!date) return "未設定";
@@ -94,38 +67,19 @@ export default function Account() {
     });
   };
 
-  // Issue #108: Subscription status label
-  const getSubscriptionStatusLabel = (status: string) => {
-    switch (status) {
-      case "active":
-        return "有効";
-      case "trialing":
-        return "試用期間中";
-      case "past_due":
-        return "支払い期限切れ";
-      case "canceled":
-        return "キャンセル済み";
-      case "unpaid":
-        return "未払い";
-      default:
-        return status;
-    }
-  };
-
-  // Issue #108: Subscription status icon and color
+  // Issue #108: Subscription status icon based on shared style
   const getSubscriptionStatusIcon = (status: string) => {
-    switch (status) {
-      case "active":
+    const style = getSubscriptionStatusStyle(status);
+    switch (style) {
+      case "success":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "trialing":
+      case "info":
         return <AlertCircle className="h-4 w-4 text-blue-600" />;
-      case "past_due":
-      case "unpaid":
+      case "error":
         return <XCircle className="h-4 w-4 text-red-600" />;
-      case "canceled":
-        return <XCircle className="h-4 w-4 text-gray-600" />;
+      case "neutral":
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-600" />;
+        return <XCircle className="h-4 w-4 text-gray-600" />;
     }
   };
 

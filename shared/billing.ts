@@ -250,3 +250,87 @@ export function getStatsLimitMessage(
 
   return `Freeプランは過去${FREE_STATS_DAYS}日間の集計のみ表示されます。Plus/Proプランで全期間の集計を表示できます。`;
 }
+
+// ======================
+// UI Display Helpers
+// ======================
+
+/**
+ * プラン名を日本語ラベルに変換
+ */
+export function getPlanLabel(plan: string): string {
+  switch (plan) {
+    case 'free':
+      return '無料プラン';
+    case 'plus':
+      return 'Plusプラン';
+    case 'pro':
+      return 'Proプラン';
+    default:
+      return plan;
+  }
+}
+
+/**
+ * プランのバッジバリアント
+ */
+export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+
+export function getPlanBadgeVariant(plan: string): BadgeVariant {
+  switch (plan) {
+    case 'free':
+      return 'secondary';
+    case 'plus':
+      return 'default';
+    case 'pro':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+}
+
+/**
+ * サブスクリプションステータス
+ */
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
+
+/**
+ * サブスクリプションステータスを日本語ラベルに変換
+ */
+export function getSubscriptionStatusLabel(status: string): string {
+  switch (status) {
+    case 'active':
+      return '有効';
+    case 'trialing':
+      return '試用期間中';
+    case 'past_due':
+      return '支払い期限切れ';
+    case 'canceled':
+      return 'キャンセル済み';
+    case 'unpaid':
+      return '未払い';
+    default:
+      return status;
+  }
+}
+
+/**
+ * サブスクリプションステータスの表示スタイル
+ */
+export type StatusStyle = 'success' | 'info' | 'warning' | 'error' | 'neutral';
+
+export function getSubscriptionStatusStyle(status: string): StatusStyle {
+  switch (status) {
+    case 'active':
+      return 'success';
+    case 'trialing':
+      return 'info';
+    case 'past_due':
+    case 'unpaid':
+      return 'error';
+    case 'canceled':
+      return 'neutral';
+    default:
+      return 'neutral';
+  }
+}
