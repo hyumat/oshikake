@@ -50,6 +50,7 @@
 - **Ad Control**: AdBanner component hidden for Plus/Pro subscribers; Free users see ad placeholders.
 - **Savings Auto-Trigger**: Automatic savings rule triggers when match results are confirmed; prevents duplicate entries per (userId, matchId, ruleId) tuple.
 - **Savings Notifications**: Recent triggers notification banner (24h) and one-time toast on Savings page load.
+- **Frontend Performance Optimization** (v0.1.1): QueryClient caching (staleTime: 5min, gcTime: 30min, no refetch on window focus), memoized MatchCard component with React.memo, WebP images with lazy loading on Landing page.
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
