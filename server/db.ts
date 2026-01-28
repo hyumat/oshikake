@@ -13,7 +13,7 @@ import {
   InsertMatchExpense, MatchExpense,
   InsertAuditLog, InsertEventLog
 } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import { ENV, config } from './_core/env';
 import { Plan } from '../shared/billing';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -21,9 +21,9 @@ let _client: ReturnType<typeof postgres> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db && config.database.url) {
     try {
-      _client = postgres(process.env.DATABASE_URL);
+      _client = postgres(config.database.url);
       _db = drizzle(_client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);

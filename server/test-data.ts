@@ -5,6 +5,8 @@
  * - J-League Official Site (https://www.jleague.jp/match/search/)
  */
 
+import { config } from './_core/config';
+
 export interface TestMatch {
   id: number;
   sourceKey: string;
@@ -161,6 +163,5 @@ export function getSampleMatches(): TestMatch[] {
  * Returns true if environment is development or test
  */
 export function shouldUseTestData(): boolean {
-  const env = process.env.NODE_ENV;
-  return env === 'development' || env === 'test' || !process.env.NODE_ENV;
+  return config.env.isDevelopment || config.env.isTest;
 }

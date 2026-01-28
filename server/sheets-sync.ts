@@ -7,6 +7,7 @@ import axios from 'axios';
 import { getDb } from './db';
 import { matches, syncLogs, type InsertMatch, type InsertSyncLog } from '../drizzle/schema';
 import { eq, desc } from 'drizzle-orm';
+import { config } from './_core/config';
 
 /**
  * Google Sheets の行データ構造
@@ -37,8 +38,8 @@ export interface SyncResult {
   error?: string;
 }
 
-const GAS_API_URL = process.env.GAS_API_URL || '';
-const GAS_API_TOKEN = process.env.GAS_API_TOKEN || '';
+const GAS_API_URL = config.gas.apiUrl;
+const GAS_API_TOKEN = config.gas.apiToken;
 
 /**
  * Google Sheets から試合データを取得

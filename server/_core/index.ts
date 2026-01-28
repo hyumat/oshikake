@@ -11,28 +11,27 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleStripeWebhook } from "../webhookHandler";
 import { startScheduledJobs } from "../scheduler";
-
-const isProduction = process.env.NODE_ENV === "production";
+import { config } from "./config";
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: config.logging.rateLimiting.api.windowMs,
+  max: config.logging.rateLimiting.api.max,
   message: { error: "リクエスト回数が制限を超えました。しばらく待ってから再試行してください。" },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: config.logging.rateLimiting.auth.windowMs,
+  max: config.logging.rateLimiting.auth.max,
   message: { error: "認証試行回数が制限を超えました。しばらく待ってから再試行してください。" },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const webhookLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
+  windowMs: config.logging.rateLimiting.webhook.windowMs,
+  max: config.logging.rateLimiting.webhook.max,
   message: { error: "Webhook rate limit exceeded" },
   standardHeaders: true,
   legacyHeaders: false,
@@ -66,7 +65,7 @@ async function startServer() {
 
   // Security headers (Helmet)
   app.use(helmet({
-    contentSecurityPolicy: isProduction ? undefined : false,
+    contentSecurityPolicy: config.env.isProduction ? undefined : false,
     crossOriginEmbedderPolicy: false,
   }));
 
@@ -113,13 +112,13 @@ async function startServer() {
     })
   );
   // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
+  if (config.env.isDevelopment) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "5000");
+  const preferredPort = config.server.port;
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {

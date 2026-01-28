@@ -4,6 +4,7 @@ import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getStripeClient, getPriceConfigs, getPriceId } from "../stripeClient";
 import { getUserById, updateUserStripeInfo, logEvent } from "../db";
 import { Plan as BillingPlan } from "../../shared/billing";
+import { config } from "../_core/config";
 
 const planSchema = z.enum(["plus", "pro"]);
 const cycleSchema = z.enum(["monthly", "yearly"]);
@@ -47,9 +48,7 @@ export const billingRouter = router({
         await updateUserStripeInfo(userId, { stripeCustomerId: customerId });
       }
 
-      const baseUrl = process.env.REPLIT_DOMAINS?.split(",")[0] 
-        ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-        : "http://localhost:5000";
+      const baseUrl = config.replit.baseUrl;
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
@@ -87,9 +86,7 @@ export const billingRouter = router({
     }
 
     const stripe = await getStripeClient();
-    const baseUrl = process.env.REPLIT_DOMAINS?.split(",")[0]
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : "http://localhost:5000";
+    const baseUrl = config.replit.baseUrl;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,

@@ -1,18 +1,16 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { syncFromGoogleSheets } from './sheets-sync';
+import { config } from './_core/config';
 
 let syncJob: ScheduledTask | null = null;
 
 export function startScheduledJobs() {
-  const gasApiUrl = process.env.GAS_API_URL;
-  const gasApiToken = process.env.GAS_API_TOKEN;
-
-  if (!gasApiUrl || !gasApiToken) {
+  if (!config.gas.isConfigured) {
     console.log('[Scheduler] GAS API credentials not configured. Scheduled sync disabled.');
     return;
   }
 
-  syncJob = cron.schedule('0 0 * * *', async () => {
+  syncJob = cron.schedule(config.scheduler.syncCron, async () => {
     console.log('[Scheduler] Starting scheduled sync at', new Date().toISOString());
     try {
       const result = await syncFromGoogleSheets();
@@ -25,7 +23,7 @@ export function startScheduledJobs() {
       console.error('[Scheduler] Sync error:', error);
     }
   }, {
-    timezone: 'Asia/Tokyo',
+    timezone: config.scheduler.timezone,
   });
 
   console.log('[Scheduler] Daily sync job scheduled at 00:00 JST');

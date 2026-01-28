@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { config } from './_core/config';
 
 let connectionSettings: {
   publishable?: string;
@@ -6,20 +7,15 @@ let connectionSettings: {
 } | null = null;
 
 async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-      ? 'depl ' + process.env.WEB_REPL_RENEWAL
-      : null;
+  const hostname = config.replit.connectorsHostname;
+  const xReplitToken = config.replit.xReplitToken;
 
   if (!xReplitToken || !hostname) {
     throw new Error('Stripe connection not available - missing Replit environment variables');
   }
 
   const connectorName = 'stripe';
-  const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-  const targetEnvironment = isProduction ? 'production' : 'development';
+  const targetEnvironment = config.replit.isDeployment ? 'production' : 'development';
 
   const url = new URL(`https://${hostname}/api/v2/connection`);
   url.searchParams.set('include_secrets', 'true');
@@ -70,20 +66,15 @@ export async function getStripeSecretKey(): Promise<string> {
 }
 
 export async function getWebhookSecret(): Promise<string | null> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-      ? 'depl ' + process.env.WEB_REPL_RENEWAL
-      : null;
+  const hostname = config.replit.connectorsHostname;
+  const xReplitToken = config.replit.xReplitToken;
 
   if (!xReplitToken || !hostname) {
     return null;
   }
 
   const connectorName = 'stripe';
-  const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-  const targetEnvironment = isProduction ? 'production' : 'development';
+  const targetEnvironment = config.replit.isDeployment ? 'production' : 'development';
 
   const url = new URL(`https://${hostname}/api/v2/connection`);
   url.searchParams.set('include_secrets', 'true');

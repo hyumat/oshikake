@@ -52,6 +52,8 @@
 - **Savings Notifications**: Recent triggers notification banner (24h) and one-time toast on Savings page load.
 - **Frontend Performance Optimization** (v0.1.1): QueryClient caching (staleTime: 5min, gcTime: 30min, no refetch on window focus), memoized MatchCard component with React.memo, WebP images with lazy loading on Landing page.
 - **v0.1.1 Stabilize Milestone** (Complete): Phase 1-5 completed including error handling standardization (QueryState), 192 passing tests, security hardening (Helmet, rate limiting), and production deployment configuration (autoscale).
+- **Configuration Centralization** (#141): All server-side environment variables consolidated in `server/_core/config.ts` with typed access (env, server, auth, database, forge, GAS, Replit, logging, scheduler).
+- **Dependency Cleanup** (#142): Removed unused packages (mysql2, node-ical, sharp, @types/express-rate-limit, add). Optimized icon imports using individual imports from lucide-react.
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
