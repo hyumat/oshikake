@@ -7,7 +7,7 @@
 import { router, protectedProcedure } from '../_core/trpc';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { db } from '../db';
+import { getDb } from '../db';
 import { savingsRules, savingsHistory, matches } from '../../drizzle/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
@@ -16,10 +16,16 @@ export const savingsRouter = router({
    * 貯金ルール一覧取得
    */
   listRules: protectedProcedure.query(async ({ ctx }) => {
-    const rules = await db.query.savingsRules.findMany({
-      where: eq(savingsRules.userId, ctx.user.openId),
-      orderBy: [desc(savingsRules.createdAt)],
-    });
+    const db = await getDb();
+    if (!db) {
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+    }
+
+    const rules = await db
+      .select()
+      .from(savingsRules)
+      .where(eq(savingsRules.userId, ctx.user.openId))
+      .orderBy(desc(savingsRules.createdAt));
     
     return { rules };
   }),
@@ -33,14 +39,19 @@ export const savingsRouter = router({
       amount: z.number().int().positive(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const [rule] = await db.insert(savingsRules).values({
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
+      await db.insert(savingsRules).values({
         userId: ctx.user.openId,
         condition: input.condition,
         amount: input.amount,
         enabled: true,
       });
       
-      return { success: true, rule };
+      return { success: true };
     }),
 
   /**
@@ -49,15 +60,21 @@ export const savingsRouter = router({
   deleteRule: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      // ルールの所有者確認
-      const rule = await db.query.savingsRules.findFirst({
-        where: and(
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
+      const rules = await db
+        .select()
+        .from(savingsRules)
+        .where(and(
           eq(savingsRules.id, input.id),
           eq(savingsRules.userId, ctx.user.openId)
-        ),
-      });
+        ))
+        .limit(1);
       
-      if (!rule) {
+      if (rules.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'ルールが見つかりません' });
       }
       
@@ -72,17 +89,25 @@ export const savingsRouter = router({
   toggleRule: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      // ルールの所有者確認
-      const rule = await db.query.savingsRules.findFirst({
-        where: and(
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
+      const rules = await db
+        .select()
+        .from(savingsRules)
+        .where(and(
           eq(savingsRules.id, input.id),
           eq(savingsRules.userId, ctx.user.openId)
-        ),
-      });
+        ))
+        .limit(1);
       
-      if (!rule) {
+      if (rules.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'ルールが見つかりません' });
       }
+
+      const rule = rules[0];
       
       await db.update(savingsRules)
         .set({ enabled: !rule.enabled })
@@ -99,22 +124,30 @@ export const savingsRouter = router({
       limit: z.number().optional().default(50),
     }))
     .query(async ({ ctx, input }) => {
-      const history = await db.query.savingsHistory.findMany({
-        where: eq(savingsHistory.userId, ctx.user.openId),
-        orderBy: [desc(savingsHistory.triggeredAt)],
-        limit: input.limit,
-      });
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
+      const history = await db
+        .select()
+        .from(savingsHistory)
+        .where(eq(savingsHistory.userId, ctx.user.openId))
+        .orderBy(desc(savingsHistory.triggeredAt))
+        .limit(input.limit);
       
       // 試合情報を取得
       const historyWithMatches = await Promise.all(
         history.map(async (item) => {
           if (!item.matchId) return { ...item, match: null };
           
-          const match = await db.query.matches.findFirst({
-            where: eq(matches.id, item.matchId),
-          });
+          const matchResults = await db
+            .select()
+            .from(matches)
+            .where(eq(matches.id, item.matchId))
+            .limit(1);
           
-          return { ...item, match };
+          return { ...item, match: matchResults[0] || null };
         })
       );
       
@@ -125,9 +158,15 @@ export const savingsRouter = router({
    * 累計貯金額取得
    */
   getTotalSavings: protectedProcedure.query(async ({ ctx }) => {
-    const history = await db.query.savingsHistory.findMany({
-      where: eq(savingsHistory.userId, ctx.user.openId),
-    });
+    const db = await getDb();
+    if (!db) {
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+    }
+
+    const history = await db
+      .select()
+      .from(savingsHistory)
+      .where(eq(savingsHistory.userId, ctx.user.openId));
     
     const total = history.reduce((sum, item) => sum + item.amount, 0);
     
@@ -148,13 +187,19 @@ export const savingsRouter = router({
       scorers: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
       // 有効なルールを取得
-      const rules = await db.query.savingsRules.findMany({
-        where: and(
+      const rules = await db
+        .select()
+        .from(savingsRules)
+        .where(and(
           eq(savingsRules.userId, ctx.user.openId),
           eq(savingsRules.enabled, true)
-        ),
-      });
+        ));
       
       const triggeredRules = [];
       
@@ -216,13 +261,19 @@ export const savingsRouter = router({
       scorers: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'データベースに接続できません' });
+      }
+
       // 有効なルールを取得
-      const rules = await db.query.savingsRules.findMany({
-        where: and(
+      const rules = await db
+        .select()
+        .from(savingsRules)
+        .where(and(
           eq(savingsRules.userId, ctx.user.openId),
           eq(savingsRules.enabled, true)
-        ),
-      });
+        ));
       
       const triggeredRules = [];
       

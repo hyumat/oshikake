@@ -4,9 +4,9 @@
  */
 
 import axios from 'axios';
-import { db } from './db';
-import { matches, syncLogs, type InsertMatch, type InsertSyncLog } from '@/drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { getDb } from './db';
+import { matches, syncLogs, type InsertMatch, type InsertSyncLog } from '../drizzle/schema';
+import { eq, desc } from 'drizzle-orm';
 
 /**
  * Google Sheets の行データ構造
@@ -72,10 +72,10 @@ export async function fetchFromGoogleSheets(): Promise<SheetMatchRow[]> {
       throw new Error(response.data.error || 'GAS API returned error');
     }
 
-    const matches = response.data.data as SheetMatchRow[];
-    console.log(`[sheets-sync] Fetched ${matches.length} matches from Sheets`);
+    const matchesData = response.data.data as SheetMatchRow[];
+    console.log(`[sheets-sync] Fetched ${matchesData.length} matches from Sheets`);
 
-    return matches;
+    return matchesData;
   } catch (error) {
     console.error('[sheets-sync] Failed to fetch from Google Sheets:', error);
     
@@ -91,9 +91,6 @@ export async function fetchFromGoogleSheets(): Promise<SheetMatchRow[]> {
   }
 }
 
-/**
- * Sheets データを DB スキーマにマッピング
- */
 /**
  * Sheets データを DB スキーマにマッピング
  * Issue #146: 新しいスキーマに対応
@@ -152,6 +149,11 @@ export async function syncFromGoogleSheets(options?: {
   try {
     console.log('[sheets-sync] Starting sync from Google Sheets...');
 
+    const db = await getDb();
+    if (!db) {
+      throw new Error('Database not available');
+    }
+
     // 1. Sheets からデータ取得
     const sheetMatches = await fetchFromGoogleSheets();
 
@@ -177,15 +179,14 @@ export async function syncFromGoogleSheets(options?: {
 
     for (const match of dbMatches) {
       // Issue #146: matchId ベースで検索
-      const existing = await db.query.matches.findFirst({
-        where: eq(matches.matchId, match.matchId),
-      });
+      const existing = await db.select().from(matches).where(eq(matches.matchId, match.matchId)).limit(1);
 
-      if (existing) {
+      if (existing.length > 0) {
+        const existingMatch = existing[0];
         // 既存レコード
         
         // Issue #147: 過去試合（isResult=1）は上書きしない
-        if (existing.isResult === 1 && !overwriteArchived) {
+        if (existingMatch.isResult === 1 && !overwriteArchived) {
           console.log(`[sheets-sync] Skipping archived match: ${match.matchId}`);
           skippedCount++;
           continue;
@@ -272,6 +273,12 @@ async function recordSyncLog(data: {
   durationMs: number;
 }): Promise<void> {
   try {
+    const db = await getDb();
+    if (!db) {
+      console.warn('[sheets-sync] Cannot record sync log: database not available');
+      return;
+    }
+
     const logEntry: InsertSyncLog = {
       source: data.source,
       status: data.status,
@@ -296,9 +303,15 @@ async function recordSyncLog(data: {
  * 最新の同期ログを取得
  */
 export async function getRecentSyncLogs(limit: number = 10) {
-  return await db.query.syncLogs.findMany({
-    where: eq(syncLogs.source, 'sheets'),
-    limit,
-    orderBy: (syncLogs, { desc }) => [desc(syncLogs.syncedAt)],
-  });
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+  
+  return await db
+    .select()
+    .from(syncLogs)
+    .where(eq(syncLogs.source, 'sheets'))
+    .orderBy(desc(syncLogs.syncedAt))
+    .limit(limit);
 }

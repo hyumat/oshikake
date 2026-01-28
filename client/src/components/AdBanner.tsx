@@ -7,7 +7,7 @@
  * MVPではプレースホルダを表示し、後から広告プロバイダを差し替え可能
  */
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 export type AdPlacement = 'matchLog' | 'stats' | 'home';
 

@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { syncFromGoogleSheets, fetchFromGoogleSheets, type SheetMatchRow } from './sheets-sync';
-import { db } from './db';
-import { matches } from '@/drizzle/schema';
+import { getDb } from './db';
+import { matches } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
 // モックデータ
