@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Calendar, TrendingUp, Users, Sparkles, Trophy, Wallet, Calculator, PieChart, Filter, Receipt } from "lucide-react";
+import { BarChart3, Calendar, TrendingUp, Users, Sparkles, Trophy, Wallet, Calculator, PieChart, Filter, Receipt, FileText } from "lucide-react";
+import { MonthlyReport } from "@/components/MonthlyReport";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
@@ -813,6 +814,11 @@ export default function Home() {
             )}
           </CardContent>
         </Card>
+
+        {/* Issue #173: Monthly Report Section */}
+        <div className="mb-8">
+          <MonthlyReport />
+        </div>
 
         {/* Quick Actions */}
         <Card className="mb-8">
