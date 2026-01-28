@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { getDb, getUserPlan } from '../db';
 import { userMatches, matches, matchExpenses } from '../../drizzle/schema';
-import { eq, and, sql, type SQL } from 'drizzle-orm';
+import { eq, and, sql, type SQL, desc, gte, lte } from 'drizzle-orm';
 import { getStatsDateLimit } from '../../shared/billing';
 
 type MatchResult = 'win' | 'draw' | 'loss' | 'unknown';
@@ -297,6 +297,75 @@ export const statsRouter = router({
       } catch (error) {
         console.error('[Stats Router] Error getting category breakdown:', error);
         return { success: false, data: [] };
+      }
+    }),
+
+  // Issue #169: Get expense history with filters
+  getExpenseHistory: protectedProcedure
+    .input(
+      z.object({
+        category: z.enum(['transport', 'ticket', 'food', 'other']).optional(),
+        minAmount: z.number().optional(),
+        maxAmount: z.number().optional(),
+        limit: z.number().optional().default(50),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return {
+            success: false,
+            expenses: [],
+          };
+        }
+
+        const userId = ctx.user.id;
+        const conditions: SQL[] = [eq(matchExpenses.userId, userId)];
+
+        // Category filter
+        if (input.category) {
+          conditions.push(eq(matchExpenses.category, input.category));
+        }
+
+        // Amount range filters
+        if (input.minAmount !== undefined) {
+          conditions.push(gte(matchExpenses.amount, input.minAmount));
+        }
+        if (input.maxAmount !== undefined) {
+          conditions.push(lte(matchExpenses.amount, input.maxAmount));
+        }
+
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+        const results = await db
+          .select({
+            id: matchExpenses.id,
+            category: matchExpenses.category,
+            amount: matchExpenses.amount,
+            note: matchExpenses.note,
+            createdAt: matchExpenses.createdAt,
+            matchId: userMatches.matchId,
+            matchDate: userMatches.date,
+            opponent: matches.opponent,
+          })
+          .from(matchExpenses)
+          .leftJoin(userMatches, eq(matchExpenses.userMatchId, userMatches.id))
+          .leftJoin(matches, eq(userMatches.matchId, matches.id))
+          .where(whereClause)
+          .orderBy(desc(matchExpenses.createdAt))
+          .limit(input.limit);
+
+        return {
+          success: true,
+          expenses: results,
+        };
+      } catch (error) {
+        console.error('[Stats Router] Error getting expense history:', error);
+        return {
+          success: false,
+          expenses: [],
+        };
       }
     }),
 });

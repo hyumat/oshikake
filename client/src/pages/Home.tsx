@@ -1,7 +1,10 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Calendar, TrendingUp, Users, Sparkles, Trophy, Wallet, Calculator, PieChart } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BarChart3, Calendar, TrendingUp, Users, Sparkles, Trophy, Wallet, Calculator, PieChart, Filter, Receipt } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
@@ -19,6 +22,11 @@ export default function Home() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
 
+  // Issue #169: Expense history filter state
+  const [expenseCategory, setExpenseCategory] = useState<'all' | 'transport' | 'ticket' | 'food' | 'other'>('all');
+  const [minAmount, setMinAmount] = useState<string>('');
+  const [maxAmount, setMaxAmount] = useState<string>('');
+
   // Issue #168: Get current year stats for KPIs and graphs
   const currentYear = new Date().getFullYear();
   const { data: statsData, isLoading: statsLoading } = trpc.stats.getSummary.useQuery(
@@ -35,6 +43,17 @@ export default function Home() {
   // Issue #168: Get category breakdown for pie chart
   const { data: categoryData, isLoading: categoryLoading } = trpc.stats.getCategoryBreakdown.useQuery(
     { year: currentYear },
+    { enabled: isAuthenticated }
+  );
+
+  // Issue #169: Get expense history with filters
+  const { data: expenseHistory, isLoading: expenseHistoryLoading } = trpc.stats.getExpenseHistory.useQuery(
+    {
+      category: expenseCategory === 'all' ? undefined : expenseCategory,
+      minAmount: minAmount ? parseInt(minAmount) : undefined,
+      maxAmount: maxAmount ? parseInt(maxAmount) : undefined,
+      limit: 20,
+    },
     { enabled: isAuthenticated }
   );
 
@@ -648,6 +667,152 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Issue #169: Expense History with Filters */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  費用履歴
+                </CardTitle>
+                <CardDescription>カテゴリと金額でフィルタリング</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Filter Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="category-filter">カテゴリ</Label>
+                <Select value={expenseCategory} onValueChange={(value: any) => setExpenseCategory(value)}>
+                  <SelectTrigger id="category-filter">
+                    <SelectValue placeholder="すべて" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    <SelectItem value="transport">交通費</SelectItem>
+                    <SelectItem value="ticket">チケット</SelectItem>
+                    <SelectItem value="food">飲食</SelectItem>
+                    <SelectItem value="other">その他</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Min Amount Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="min-amount">最小金額（円）</Label>
+                <Input
+                  id="min-amount"
+                  type="number"
+                  placeholder="0"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                />
+              </div>
+
+              {/* Max Amount Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="max-amount">最大金額（円）</Label>
+                <Input
+                  id="max-amount"
+                  type="number"
+                  placeholder="上限なし"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                />
+              </div>
+
+              {/* Clear Filter Button */}
+              <div className="space-y-2 flex items-end">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setExpenseCategory('all');
+                    setMinAmount('');
+                    setMaxAmount('');
+                  }}
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  クリア
+                </Button>
+              </div>
+            </div>
+
+            {/* Expense List */}
+            <div className="border rounded-lg">
+              {expenseHistoryLoading ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : !expenseHistory?.success || expenseHistory.expenses.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Receipt className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>費用履歴がありません</p>
+                  <p className="text-sm">試合詳細ページから費用を記録しましょう</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {expenseHistory.expenses.map((expense) => {
+                    const categoryLabels: Record<string, string> = {
+                      transport: '交通費',
+                      ticket: 'チケット',
+                      food: '飲食',
+                      other: 'その他',
+                    };
+                    const categoryColors: Record<string, string> = {
+                      transport: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                      ticket: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                      food: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                      other: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                    };
+
+                    return (
+                      <div key={expense.id} className="p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-2 py-1 text-xs font-medium rounded ${categoryColors[expense.category]}`}>
+                                {categoryLabels[expense.category]}
+                              </span>
+                              <span className="text-lg font-semibold">
+                                {formatCurrency(expense.amount)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              <p>
+                                {expense.matchDate && `${expense.matchDate} `}
+                                {expense.opponent && `vs ${expense.opponent}`}
+                              </p>
+                              {expense.note && (
+                                <p className="mt-1 text-xs italic">{expense.note}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(expense.createdAt).toLocaleDateString('ja-JP')}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Show count */}
+            {expenseHistory?.success && expenseHistory.expenses.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-4 text-center">
+                {expenseHistory.expenses.length}件の費用を表示中（最新20件）
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <Card className="mb-8">
