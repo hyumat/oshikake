@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../_core/trpc';
-import { getDb, getUserMatches, getExpensesByUserMatch } from '../db';
-import { shareTokens, users } from '../../drizzle/schema';
+import { getDb, getUserMatches } from '../db';
+import { shareTokens, users, matchExpenses } from '../../drizzle/schema';
 import { randomBytes } from 'crypto';
 
 function generateToken(): string {
@@ -159,16 +159,25 @@ export const shareRouter = router({
       }
 
       const record = { win: 0, draw: 0, loss: 0 };
+
+      const userMatchIds = filteredMatches.map((m: { id: number }) => m.id);
+      
       let totalCost = 0;
+      if (userMatchIds.length > 0) {
+        const allExpenses = await db.select()
+          .from(matchExpenses)
+          .where(and(
+            inArray(matchExpenses.userMatchId, userMatchIds),
+            eq(matchExpenses.userId, user.id)
+          ));
+        totalCost = allExpenses.reduce((sum, e) => sum + e.amount, 0);
+      }
 
       for (const m of filteredMatches) {
         const match = m as { id: number; match?: { resultWdl?: string } };
         if (match.match?.resultWdl === 'W') record.win++;
         else if (match.match?.resultWdl === 'D') record.draw++;
         else if (match.match?.resultWdl === 'L') record.loss++;
-        
-        const expenses = await getExpensesByUserMatch(match.id, user.id);
-        totalCost += expenses.reduce((sum: number, e: { amount: number }) => sum + e.amount, 0);
       }
 
       const watchCount = filteredMatches.length;
