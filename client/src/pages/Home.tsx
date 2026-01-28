@@ -14,7 +14,7 @@ import { formatCurrency } from "@shared/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 import DashboardLayout from "@/components/DashboardLayout";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -30,6 +30,18 @@ export default function Home() {
   // Issue #168: Get current year stats for KPIs and graphs
   const currentYear = new Date().getFullYear();
   const { data: statsData, isLoading: statsLoading } = trpc.stats.getSummary.useQuery(
+    { year: currentYear },
+    { enabled: isAuthenticated }
+  );
+
+  // Issue #168: Get monthly trend data for graph
+  const { data: monthlyTrendData, isLoading: monthlyTrendLoading } = trpc.stats.getMonthlyTrend.useQuery(
+    { year: currentYear },
+    { enabled: isAuthenticated }
+  );
+
+  // Issue #168: Get category breakdown for pie chart
+  const { data: categoryData, isLoading: categoryLoading } = trpc.stats.getCategoryBreakdown.useQuery(
     { year: currentYear },
     { enabled: isAuthenticated }
   );
@@ -167,6 +179,38 @@ export default function Home() {
     draw: { label: "引分", color: "hsl(0, 0%, 50%)" },
     loss: { label: "敗", color: "hsl(0, 84%, 60%)" },
   };
+
+  // Issue #168: Prepare monthly trend data for bar chart
+  const monthlyChartData = monthlyTrendData?.success && monthlyTrendData.data
+    ? monthlyTrendData.data.map((item) => ({
+        month: `${item.month}月`,
+        観戦数: item.watchCount,
+        費用: item.totalCost,
+      }))
+    : [];
+
+  // Issue #168: Prepare category breakdown data
+  const categoryChartData = categoryData?.success && categoryData.data
+    ? categoryData.data.map((item) => {
+        const labels: Record<string, string> = {
+          transport: '交通費',
+          ticket: 'チケット',
+          food: '飲食',
+          other: 'その他',
+        };
+        const colors: Record<string, string> = {
+          transport: 'hsl(200, 70%, 50%)',
+          ticket: 'hsl(280, 70%, 50%)',
+          food: 'hsl(30, 70%, 50%)',
+          other: 'hsl(150, 70%, 50%)',
+        };
+        return {
+          name: labels[item.category] || item.category,
+          value: item.amount,
+          fill: colors[item.category] || 'hsl(0, 0%, 50%)',
+        };
+      }).filter(item => item.value > 0)
+    : [];
 
   // Dashboard for logged-in users
   return (
@@ -345,19 +389,78 @@ export default function Home() {
                   <p>データが蓄積されるとAIがインサイトを提供します</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="p-4 bg-muted rounded-lg">
+                <div className="space-y-3 overflow-y-auto max-h-[260px]">
+                  {/* Basic Stats */}
+                  <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm">
                       {`${currentYear}年は${statsData.watchCount}試合観戦し、${statsData.record.win}勝${statsData.record.draw}分${statsData.record.loss}敗の成績でした。`}
                     </p>
                   </div>
-                  <div className="p-4 bg-muted rounded-lg">
+
+                  {/* Cost Insight */}
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium mb-1">💰 費用分析</p>
                     <p className="text-sm">
                       {`1試合あたりの平均費用は${formatCurrency(Math.round(statsData.cost.averagePerMatch))}です。`}
-                      {statsData.cost.averagePerMatch > 15000 && " 予算オーバーに注意しましょう。"}
-                      {statsData.cost.averagePerMatch <= 10000 && " コストを抑えて観戦できていますね！"}
+                      {statsData.cost.averagePerMatch > 15000 && " 予算を見直してみましょう。"}
+                      {statsData.cost.averagePerMatch <= 10000 && " 効率的に観戦できています！"}
+                      {statsData.cost.averagePerMatch > 10000 && statsData.cost.averagePerMatch <= 15000 && " 適度な費用で楽しめていますね。"}
                     </p>
                   </div>
+
+                  {/* Win Rate Insight */}
+                  {(() => {
+                    const totalGames = statsData.record.win + statsData.record.draw + statsData.record.loss;
+                    const winRate = totalGames > 0 ? (statsData.record.win / totalGames) * 100 : 0;
+                    return totalGames > 0 && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">📊 勝率分析</p>
+                        <p className="text-sm">
+                          {`勝率は${winRate.toFixed(1)}%です。`}
+                          {winRate >= 60 && " 素晴らしい勝率ですね！"}
+                          {winRate >= 40 && winRate < 60 && " バランスの取れた観戦記録です。"}
+                          {winRate < 40 && " 次の試合に期待しましょう！"}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Monthly Trend Insight */}
+                  {monthlyTrendData?.success && monthlyTrendData.data.length > 0 && (() => {
+                    const mostActiveMonth = monthlyTrendData.data.reduce((max, current) =>
+                      current.watchCount > max.watchCount ? current : max
+                    );
+                    return mostActiveMonth.watchCount > 0 && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">📅 活動パターン</p>
+                        <p className="text-sm">
+                          {`最も観戦が多かったのは${mostActiveMonth.month}月（${mostActiveMonth.watchCount}試合）でした。`}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Category Insight */}
+                  {categoryData?.success && categoryData.data.length > 0 && (() => {
+                    const topCategory = categoryData.data.reduce((max, current) =>
+                      current.amount > max.amount ? current : max
+                    );
+                    const labels: Record<string, string> = {
+                      transport: '交通費',
+                      ticket: 'チケット代',
+                      food: '飲食費',
+                      other: 'その他',
+                    };
+                    return (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">🎯 費用傾向</p>
+                        <p className="text-sm">
+                          {`最も費用がかかっているのは${labels[topCategory.category] || topCategory.category}（${formatCurrency(topCategory.amount)}）です。`}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   <Button
                     variant="outline"
                     className="w-full"
@@ -366,6 +469,89 @@ export default function Home() {
                     詳細な統計を見る
                   </Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Issue #168: Additional Charts - Monthly Trend and Category Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Monthly Trend Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                月別推移
+              </CardTitle>
+              <CardDescription>{currentYear}年の観戦数と費用の推移</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              {monthlyTrendLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : !hasData || monthlyChartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mb-4 opacity-20" />
+                  <p>まだ観戦記録がありません</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--primary))" />
+                    <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--accent))" />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar yAxisId="left" dataKey="観戦数" fill="hsl(var(--primary))" />
+                    <Bar yAxisId="right" dataKey="費用" fill="hsl(var(--accent))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Category Breakdown Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                費用内訳
+              </CardTitle>
+              <CardDescription>{currentYear}年のカテゴリ別費用分布</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              {categoryLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-48 w-48 rounded-full" />
+                </div>
+              ) : !hasData || categoryChartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Wallet className="h-12 w-12 mb-4 opacity-20" />
+                  <p>まだ費用記録がありません</p>
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={categoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name}: ¥${value.toLocaleString()}`}
+                        outerRadius={80}
+                        dataKey="value"
+                      >
+                        {categoryChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </ChartContainer>
               )}
             </CardContent>
           </Card>

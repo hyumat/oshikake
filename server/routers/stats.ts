@@ -185,12 +185,12 @@ export const statsRouter = router({
       };
     } catch (error) {
       console.error('[Stats Router] Error getting available years:', error);
-      const isDbConnectionError = 
-        error instanceof Error && 
-        (error.message.includes('ECONNREFUSED') || 
+      const isDbConnectionError =
+        error instanceof Error &&
+        (error.message.includes('ECONNREFUSED') ||
          error.message.includes('connect') ||
          (error as any).cause?.code === 'ECONNREFUSED');
-      
+
       if (isDbConnectionError) {
         return {
           success: true,
@@ -200,6 +200,105 @@ export const statsRouter = router({
       throw error;
     }
   }),
+
+  /**
+   * Issue #168: Get monthly trend data (watch count and cost per month)
+   */
+  getMonthlyTrend: protectedProcedure
+    .input(z.object({ year: z.number() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return { success: true, data: [] };
+        }
+
+        const userId = ctx.user.id;
+        const results = await db
+          .select({
+            month: sql<number>`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d'))`,
+            watchCount: sql<number>`COUNT(*)`,
+            totalCost: sql<number>`SUM(${userMatches.costYen})`,
+          })
+          .from(userMatches)
+          .where(
+            and(
+              eq(userMatches.userId, userId),
+              eq(userMatches.status, 'attended'),
+              sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${input.year}`
+            )
+          )
+          .groupBy(sql`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d'))`)
+          .orderBy(sql`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d'))`);
+
+        // Fill in missing months with zero values
+        const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          watchCount: 0,
+          totalCost: 0,
+        }));
+
+        results.forEach((row) => {
+          if (row.month && row.month >= 1 && row.month <= 12) {
+            monthlyData[row.month - 1] = {
+              month: row.month,
+              watchCount: row.watchCount || 0,
+              totalCost: row.totalCost || 0,
+            };
+          }
+        });
+
+        return { success: true, data: monthlyData };
+      } catch (error) {
+        console.error('[Stats Router] Error getting monthly trend:', error);
+        return { success: false, data: [] };
+      }
+    }),
+
+  /**
+   * Issue #168: Get category breakdown (expenses by category)
+   */
+  getCategoryBreakdown: protectedProcedure
+    .input(z.object({ year: z.number() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return { success: true, data: [] };
+        }
+
+        const userId = ctx.user.id;
+
+        // Get expenses for attended matches in the specified year
+        const results = await db
+          .select({
+            category: matchExpenses.category,
+            totalAmount: sql<number>`SUM(${matchExpenses.amount})`,
+            count: sql<number>`COUNT(*)`,
+          })
+          .from(matchExpenses)
+          .innerJoin(userMatches, eq(matchExpenses.userMatchId, userMatches.id))
+          .where(
+            and(
+              eq(matchExpenses.userId, userId),
+              eq(userMatches.status, 'attended'),
+              sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${input.year}`
+            )
+          )
+          .groupBy(matchExpenses.category);
+
+        const categoryData = results.map((row) => ({
+          category: row.category,
+          amount: row.totalAmount || 0,
+          count: row.count || 0,
+        }));
+
+        return { success: true, data: categoryData };
+      } catch (error) {
+        console.error('[Stats Router] Error getting category breakdown:', error);
+        return { success: false, data: [] };
+      }
+    }),
 
   // Issue #169: Get expense history with filters
   getExpenseHistory: protectedProcedure
