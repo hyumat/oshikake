@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart3, Calendar, TrendingUp, Users } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
+import { AdBanner } from "@/components/AdBanner";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -149,6 +150,8 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+
+        <AdBanner placement="home" className="mt-8" />
       </div>
     </div>
   );
