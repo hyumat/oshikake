@@ -1,24 +1,42 @@
-import { boolean, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+
+export const roleEnum = pgEnum("role", ["user", "admin"]);
+export const planEnum = pgEnum("plan", ["free", "plus", "pro"]);
+export const marinosSideEnum = pgEnum("marinosSide", ["home", "away"]);
+export const userMatchStatusEnum = pgEnum("userMatchStatus", ["planned", "attended"]);
+export const resultWdlEnum = pgEnum("resultWdl", ["W", "D", "L"]);
+export const syncStatusEnum = pgEnum("syncStatus", ["success", "partial", "failed"]);
+export const expenseCategoryEnum = pgEnum("expenseCategory", ["transport", "ticket", "food", "other"]);
+export const auditActionEnum = pgEnum("auditAction", [
+  "attendance_create",
+  "attendance_update",
+  "attendance_delete",
+  "expense_add",
+  "expense_update",
+  "expense_delete",
+  "auth_login",
+  "auth_logout",
+]);
 
 /**
  * Core user table backing auth flow.
  * Extend this file with additional tables as your product grows.
  * Columns use camelCase to match both database fields and generated types.
  */
-export const users = mysqlTable("users", {
+export const users = pgTable("users", {
   /**
    * Surrogate primary key. Auto-incremented numeric value managed by the database.
    * Use this for relations between tables.
    */
-  id: int("id").autoincrement().primaryKey(),
+  id: serial("id").primaryKey(),
   /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: roleEnum("role").default("user").notNull(),
   /** User plan: free, plus, or pro */
-  plan: mysqlEnum("plan", ["free", "plus", "pro"]).default("free").notNull(),
+  plan: planEnum("plan").default("free").notNull(),
   /** Pro plan expiration date (null = no expiration / lifetime) */
   planExpiresAt: timestamp("planExpiresAt"),
   /** Stripe customer ID */
@@ -26,7 +44,7 @@ export const users = mysqlTable("users", {
   /** Stripe subscription ID */
   stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -39,18 +57,18 @@ export type InsertUser = typeof users.$inferInsert;
  * ユーザーが設定した貯金ルールを保存
  * 例: 「勝利したら500円」「エジガルが得点したら300円」
  */
-export const savingsRules = mysqlTable("savings_rules", {
-  id: int("id").autoincrement().primaryKey(),
+export const savingsRules = pgTable("savings_rules", {
+  id: serial("id").primaryKey(),
   /** ユーザーID (users.openIdを参照) */
   userId: varchar("userId", { length: 64 }).notNull().references(() => users.openId),
   /** 条件 (例: "勝利", "エジガル得点", "引き分け") */
   condition: varchar("condition", { length: 256 }).notNull(),
   /** 貯金額 (円) */
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   /** 有効/無効 */
   enabled: boolean("enabled").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type SavingsRule = typeof savingsRules.$inferSelect;
@@ -61,18 +79,18 @@ export type InsertSavingsRule = typeof savingsRules.$inferInsert;
  * 
  * 試合結果に基づいてトリガーされた貯金履歴を記録
  */
-export const savingsHistory = mysqlTable("savings_history", {
-  id: int("id").autoincrement().primaryKey(),
+export const savingsHistory = pgTable("savings_history", {
+  id: serial("id").primaryKey(),
   /** ユーザーID (users.openIdを参照) */
   userId: varchar("userId", { length: 64 }).notNull().references(() => users.openId),
   /** ルーID (savingsRules.idを参照) */
-  ruleId: int("ruleId").references(() => savingsRules.id),
+  ruleId: integer("ruleId").references(() => savingsRules.id),
   /** 試合ID (matches.idを参照) */
-  matchId: int("matchId").references(() => matches.id),
+  matchId: integer("matchId").references(() => matches.id),
   /** 条件 (ルールからコピー) */
   condition: varchar("condition", { length: 256 }).notNull(),
   /** 貯金額 (円) */
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   /** トリガーされた日時 */
   triggeredAt: timestamp("triggeredAt").defaultNow().notNull(),
 });
@@ -99,8 +117,8 @@ export type InsertSavingsHistory = typeof savingsHistory.$inferInsert;
  * - ticket_sales_start: チケット販売開始日
  * - notes: 備考
  */
-export const matches = mysqlTable("matches", {
-  id: int("id").autoincrement().primaryKey(),
+export const matches = pgTable("matches", {
+  id: serial("id").primaryKey(),
   
   // === Sheets列に対応 ===
   /** match_id: 固定ID (Sheetsのmatch_id列) */
@@ -110,9 +128,9 @@ export const matches = mysqlTable("matches", {
   /** opponent: 対戦相手 */
   opponent: varchar("opponent", { length: 128 }).notNull(),
   /** home_score: ホームスコア */
-  homeScore: int("homeScore"),
+  homeScore: integer("homeScore"),
   /** away_score: アウェイスコア */
-  awayScore: int("awayScore"),
+  awayScore: integer("awayScore"),
   /** stadium: スタジアム */
   stadium: varchar("stadium", { length: 256 }),
   /** kickoff: キックオフ時刻 (HH:MM) */
@@ -132,9 +150,9 @@ export const matches = mysqlTable("matches", {
   /** 試合ステータス ("Finished", "Scheduled") */
   status: varchar("status", { length: 64 }),
   /** 試合結果があるか (0=未実施, 1=実施済み) */
-  isResult: int("isResult").default(0).notNull(),
+  isResult: integer("isResult").default(0).notNull(),
   /** マリノスのホーム/アウェイ */
-  marinosSide: mysqlEnum("marinosSide", ["home", "away"]),
+  marinosSide: marinosSideEnum("marinosSide"),
   /** ホームチーム名 (内部管理用) */
   homeTeam: varchar("homeTeam", { length: 128 }).notNull(),
   /** アウェイチーム名 (内部管理用) */
@@ -142,12 +160,12 @@ export const matches = mysqlTable("matches", {
   /** 節ラベル (以前の互換性維持) */
   roundLabel: varchar("roundLabel", { length: 64 }),
   /** 節番号 (以前の互換性維持) */
-  roundNumber: int("roundNumber"),
+  roundNumber: integer("roundNumber"),
   /** 試合詳細URL (以前の互換性維持) */
   matchUrl: text("matchUrl"),
   
   // === タイムスタンプ ===
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -158,14 +176,14 @@ export type InsertMatch = typeof matches.$inferInsert;
  * User's match attendance log
  * Tracks which matches the user has attended or plans to attend
  */
-export const userMatches = mysqlTable("userMatches", {
-  id: int("id").autoincrement().primaryKey(),
+export const userMatches = pgTable("userMatches", {
+  id: serial("id").primaryKey(),
   /** Reference to user */
-  userId: int("userId").notNull(),
+  userId: integer("userId").notNull(),
   /** Reference to official match (nullable for manual entries) */
-  matchId: int("matchId"),
+  matchId: integer("matchId"),
   /** Season year for easy filtering (e.g., 2024, 2025) */
-  seasonYear: int("seasonYear"),
+  seasonYear: integer("seasonYear"),
   /** Match date (ISO format) */
   date: varchar("date", { length: 10 }).notNull(),
   /** Kickoff time */
@@ -177,23 +195,23 @@ export const userMatches = mysqlTable("userMatches", {
   /** Stadium name */
   stadium: varchar("stadium", { length: 256 }),
   /** Home or Away */
-  marinosSide: mysqlEnum("marinosSide", ["home", "away"]),
+  marinosSide: marinosSideEnum("marinosSide"),
   /** Status: "planned" or "attended" */
-  status: mysqlEnum("status", ["planned", "attended"]).default("planned").notNull(),
+  status: userMatchStatusEnum("status").default("planned").notNull(),
   /** Match result: W/D/L */
-  resultWdl: mysqlEnum("resultWdl", ["W", "D", "L"]),
+  resultWdl: resultWdlEnum("resultWdl"),
   /** Marinos goals */
-  marinosGoals: int("marinosGoals"),
+  marinosGoals: integer("marinosGoals"),
   /** Opponent goals */
-  opponentGoals: int("opponentGoals"),
+  opponentGoals: integer("opponentGoals"),
   /** Cost in JPY */
-  costYen: int("costYen").default(0).notNull(),
+  costYen: integer("costYen").default(0).notNull(),
   /** Personal notes */
   note: text("note"),
   /** Created timestamp */
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   /** Updated timestamp */
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type UserMatch = typeof userMatches.$inferSelect;
@@ -202,28 +220,28 @@ export type InsertUserMatch = typeof userMatches.$inferInsert;
 /**
  * Sync log for tracking scraping operations
  */
-export const syncLogs = mysqlTable("syncLogs", {
-  id: int("id").autoincrement().primaryKey(),
+export const syncLogs = pgTable("syncLogs", {
+  id: serial("id").primaryKey(),
   /** Source (e.g., "jleague", "phew", "f-marinos") */
   source: varchar("source", { length: 32 }).notNull(),
   /** Status: "success", "partial", or "failed" */
-  status: mysqlEnum("status", ["success", "partial", "failed"]).notNull(),
+  status: syncStatusEnum("status").notNull(),
   /** Number of matches fetched */
-  matchesCount: int("matchesCount").default(0).notNull(),
+  matchesCount: integer("matchesCount").default(0).notNull(),
   /** Number of matches with results (scores) */
-  resultsCount: int("resultsCount").default(0),
+  resultsCount: integer("resultsCount").default(0),
   /** Number of upcoming matches */
-  upcomingCount: int("upcomingCount").default(0),
+  upcomingCount: integer("upcomingCount").default(0),
   /** Number of detail fetches attempted */
-  detailFetched: int("detailFetched").default(0),
+  detailFetched: integer("detailFetched").default(0),
   /** Number of detail fetches failed */
-  detailFailed: int("detailFailed").default(0),
+  detailFailed: integer("detailFailed").default(0),
   /** Error message if failed */
   errorMessage: text("errorMessage"),
   /** URLs that failed (JSON array) */
   failedUrls: text("failedUrls"),
   /** Duration in milliseconds */
-  durationMs: int("durationMs"),
+  durationMs: integer("durationMs"),
   /** Sync timestamp */
   syncedAt: timestamp("syncedAt").defaultNow().notNull(),
 });
@@ -235,15 +253,15 @@ export type InsertSyncLog = typeof syncLogs.$inferInsert;
  * Match expenses - detailed expense tracking per user match
  * Categories: transport, ticket, food, other
  */
-export const matchExpenses = mysqlTable("matchExpenses", {
-  id: int("id").autoincrement().primaryKey(),
-  userMatchId: int("userMatchId").notNull(),
-  userId: int("userId").notNull(),
-  category: mysqlEnum("category", ["transport", "ticket", "food", "other"]).notNull(),
-  amount: int("amount").notNull(),
+export const matchExpenses = pgTable("matchExpenses", {
+  id: serial("id").primaryKey(),
+  userMatchId: integer("userMatchId").notNull(),
+  userId: integer("userId").notNull(),
+  category: expenseCategoryEnum("category").notNull(),
+  amount: integer("amount").notNull(),
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type MatchExpense = typeof matchExpenses.$inferSelect;
@@ -252,20 +270,11 @@ export type InsertMatchExpense = typeof matchExpenses.$inferInsert;
 /**
  * Audit log - tracks important user actions for security and compliance
  */
-export const auditLogs = mysqlTable("auditLogs", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  action: mysqlEnum("action", [
-    "attendance_create",
-    "attendance_update",
-    "attendance_delete",
-    "expense_add",
-    "expense_update",
-    "expense_delete",
-    "auth_login",
-    "auth_logout",
-  ]).notNull(),
-  targetId: int("targetId"),
+export const auditLogs = pgTable("auditLogs", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  action: auditActionEnum("action").notNull(),
+  targetId: integer("targetId"),
   targetType: varchar("targetType", { length: 32 }),
   metadata: text("metadata"),
   ipAddress: varchar("ipAddress", { length: 45 }),
@@ -279,12 +288,12 @@ export type InsertAuditLog = typeof auditLogs.$inferInsert;
 /**
  * Event log - product analytics events for feature usage tracking
  */
-export const eventLogs = mysqlTable("eventLogs", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId"),
+export const eventLogs = pgTable("eventLogs", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId"),
   eventName: varchar("eventName", { length: 64 }).notNull(),
   eventData: text("eventData"),
-  seasonYear: int("seasonYear"),
+  seasonYear: integer("seasonYear"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
