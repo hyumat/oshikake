@@ -21,7 +21,7 @@
 - **Icons**: Comprehensive set of favicons and PWA icons.
 
 ### Technical Implementations
-- **Frontend**: Built with React 19, Vite 7, and TailwindCSS 4, featuring pages for Home, Matches, MatchDetail, Landing, and reusable UI components with a tRPC client.
+- **Frontend**: Built with React 19, Vite 7, and TailwindCSS 4, featuring pages for Home, Matches, MatchDetail, Landing, Account, Settings, and reusable UI components with a tRPC client.
 - **Backend**: Uses Express and tRPC for server infrastructure (authentication, Vite middleware), API endpoints, and database operations.
 - **Database**: PostgreSQL with Drizzle ORM, including tables for `users`, `matches`, `userMatches`, `matchExpenses`, `savingsRules`, `savingsHistory`, `syncLogs`, `auditLogs`, `eventLogs`, and `announcements`.
 - **Shared Utilities**: A `shared/` directory for client and server types and utilities, including DTOs and formatters.
