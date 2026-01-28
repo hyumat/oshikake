@@ -1,16 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Plus, RefreshCw, MapPin, Calendar, Clock, Check, X } from 'lucide-react';
+import { Loader2, Plus, RefreshCw } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 import { toast } from 'sonner';
-import { formatDateTime, formatScore } from '@shared/formatters';
-import { shouldShowTicketInfo, getTicketSalesStatus, getMatchCountdown } from '@/lib/matchHelpers';
 import { AdBanner } from '@/components/AdBanner';
+import { MatchCard } from '@/components/MatchCard';
 
 type AttendanceStatus = 'undecided' | 'attending' | 'not-attending';
 
@@ -59,7 +57,7 @@ export default function Matches() {
     return attendanceStatus[String(matchId)] || 'undecided';
   };
 
-  const handleAttendanceChange = (matchId: number | string, status: AttendanceStatus, navigate: boolean = false) => {
+  const handleAttendanceChange = useCallback((matchId: number | string, status: AttendanceStatus, navigate: boolean = false) => {
     setAttendanceStatus(prev => ({
       ...prev,
       [String(matchId)]: status,
@@ -67,7 +65,11 @@ export default function Matches() {
     if (navigate && status === 'attending') {
       setLocation(`/matches/${matchId}`);
     }
-  };
+  }, [setLocation]);
+
+  const handleNavigate = useCallback((matchId: number) => {
+    setLocation(`/matches/${matchId}`);
+  }, [setLocation]);
 
   // tRPC クエリ・ミューテーション
   const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
@@ -319,198 +321,16 @@ export default function Matches() {
                   </span>
                 </h2>
                 <div className="space-y-2">
-                  {displayedUpcoming.map((match) => {
-                    const venueInfo = getVenueInfo(match.marinosSide);
-                    const mapsUrl = getGoogleMapsUrl(match.stadium);
-                    
-                    return (
-                      <Card 
-                        key={match.id || match.sourceKey} 
-                        className="hover:shadow-md transition-shadow border-l-4 border-l-green-500"
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                <span className={`px-1.5 py-0.5 text-xs font-bold rounded ${venueInfo.color}`}>
-                                  {venueInfo.label}
-                                </span>
-                                {match.competition && (
-                                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 text-xs rounded dark:bg-slate-800 dark:text-slate-300">
-                                    {match.competition}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="font-medium text-sm">
-                                vs {match.opponent}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-0.5">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDateTime(match.date, 'short')}
-                                </span>
-                                {match.kickoff && (
-                                  <span className="flex items-center gap-0.5">
-                                    <Clock className="h-3 w-3" />
-                                    {match.kickoff}
-                                  </span>
-                                )}
-                                {match.stadium && mapsUrl && (
-                                  <a 
-                                    href={mapsUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-0.5 text-blue-600 hover:underline dark:text-blue-400"
-                                  >
-                                    <MapPin className="h-3 w-3" />
-                                    {match.stadium}
-                                  </a>
-                                )}
-                              </div>
-                              {/* Issue #148: チケット販売情報表示制御 */}
-                              {(() => {
-                                const ticketStatus = getTicketSalesStatus(match.date, match.ticketSalesStart);
-                                if (ticketStatus.show) {
-                                  return (
-                                    <div className={`text-xs px-2 py-1 rounded border ${ticketStatus.bgColor} ${ticketStatus.color} mt-1`}>
-                                      {ticketStatus.label}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                              {/* 試合までのカウントダウン */}
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {getMatchCountdown(match.date)}
-                              </div>
-                            </div>
-                            {(() => {
-                              const status = getAttendanceStatus(match.id);
-                              if (status === 'undecided') {
-                                return (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="shrink-0 h-7 px-2 text-xs bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
-                                      >
-                                        観戦未定
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-1" align="end">
-                                      <div className="flex flex-col gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
-                                          onClick={() => handleAttendanceChange(match.id, 'attending', false)}
-                                        >
-                                          <Check className="w-3 h-3 mr-2" />
-                                          参加
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="justify-start h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                          onClick={() => handleAttendanceChange(match.id, 'not-attending', false)}
-                                        >
-                                          <X className="w-3 h-3 mr-2" />
-                                          不参加
-                                        </Button>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                );
-                              } else if (status === 'attending') {
-                                return (
-                                  <div className="flex items-center gap-2">
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="shrink-0 h-7 px-2 text-xs bg-green-100 border-green-400 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:border-green-600 dark:text-green-400"
-                                        >
-                                          <Check className="w-3 h-3 mr-1" />
-                                          参加
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-1" align="end">
-                                        <div className="flex flex-col gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-gray-600 hover:text-gray-700"
-                                            onClick={() => handleAttendanceChange(match.id, 'undecided', false)}
-                                          >
-                                            未定に戻す
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            onClick={() => handleAttendanceChange(match.id, 'not-attending', false)}
-                                          >
-                                            <X className="w-3 h-3 mr-2" />
-                                            不参加
-                                          </Button>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => setLocation(`/matches/${match.id}`)}
-                                    >
-                                      詳細
-                                    </Button>
-                                  </div>
-                                );
-                              } else {
-                                return (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="shrink-0 h-7 px-2 text-xs bg-red-50 border-red-300 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400"
-                                      >
-                                        <X className="w-3 h-3 mr-1" />
-                                        不参加
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-1" align="end">
-                                      <div className="flex flex-col gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
-                                          onClick={() => handleAttendanceChange(match.id, 'attending', false)}
-                                        >
-                                          <Check className="w-3 h-3 mr-2" />
-                                          参加
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="justify-start h-8 text-xs text-gray-600 hover:text-gray-700"
-                                          onClick={() => handleAttendanceChange(match.id, 'undecided', false)}
-                                        >
-                                          未定に戻す
-                                        </Button>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                );
-                              }
-                            })()}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {displayedUpcoming.map((match) => (
+                    <MatchCard
+                      key={match.id || match.sourceKey}
+                      match={match}
+                      type="upcoming"
+                      attendanceStatus={getAttendanceStatus(match.id)}
+                      onAttendanceChange={handleAttendanceChange}
+                      onNavigate={handleNavigate}
+                    />
+                  ))}
                   {displayedUpcoming.length === 0 && (
                     <p className="text-sm text-muted-foreground py-4 text-center">予定試合がありません</p>
                   )}
@@ -539,151 +359,16 @@ export default function Matches() {
                   </span>
                 </h2>
                 <div className="space-y-2">
-                  {displayedPast.map((match) => {
-                    const venueInfo = getVenueInfo(match.marinosSide);
-                    const mapsUrl = getGoogleMapsUrl(match.stadium);
-                    const matchResult = getMatchResult(match);
-                    
-                    return (
-                      <Card 
-                        key={match.id || match.sourceKey} 
-                        className={`hover:shadow-md transition-shadow border-l-4 ${matchResult.borderColor}`}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                <span className={`px-1.5 py-0.5 text-xs font-bold rounded ${venueInfo.color}`}>
-                                  {venueInfo.label}
-                                </span>
-                                {match.competition && (
-                                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 text-xs rounded dark:bg-slate-800 dark:text-slate-300">
-                                    {match.competition}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="font-medium text-sm">
-                                vs {match.opponent}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-0.5">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDateTime(match.date, 'short')}
-                                </span>
-                                {match.stadium && mapsUrl && (
-                                  <a 
-                                    href={mapsUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-0.5 text-blue-600 hover:underline dark:text-blue-400"
-                                  >
-                                    <MapPin className="h-3 w-3" />
-                                    {match.stadium}
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {matchResult.result && (
-                                <span className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${matchResult.bgColor} ${matchResult.textColor}`}>
-                                  {matchResult.label}
-                                </span>
-                              )}
-                              <div className="text-lg font-bold w-12 text-center">
-                                {formatScore(match.homeScore, match.awayScore)}
-                              </div>
-                              {(() => {
-                                const status = getAttendanceStatus(match.id);
-                                if (status === 'attending') {
-                                  return (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => setLocation(`/matches/${match.id}`)}
-                                    >
-                                      詳細
-                                    </Button>
-                                  );
-                                } else if (status === 'not-attending') {
-                                  return (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 px-2 text-xs text-red-500"
-                                        >
-                                          不参加
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-1" align="end">
-                                        <div className="flex flex-col gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
-                                            onClick={() => handleAttendanceChange(match.id, 'attending', false)}
-                                          >
-                                            <Check className="w-3 h-3 mr-2" />
-                                            参加に変更
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-gray-600"
-                                            onClick={() => handleAttendanceChange(match.id, 'undecided', false)}
-                                          >
-                                            不明に変更
-                                          </Button>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  );
-                                } else {
-                                  return (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 px-2 text-xs text-gray-400"
-                                        >
-                                          不明
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-1" align="end">
-                                        <div className="flex flex-col gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
-                                            onClick={() => handleAttendanceChange(match.id, 'attending', false)}
-                                          >
-                                            <Check className="w-3 h-3 mr-2" />
-                                            参加
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="justify-start h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            onClick={() => handleAttendanceChange(match.id, 'not-attending', false)}
-                                          >
-                                            <X className="w-3 h-3 mr-2" />
-                                            不参加
-                                          </Button>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  );
-                                }
-                              })()}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {displayedPast.map((match) => (
+                    <MatchCard
+                      key={match.id || match.sourceKey}
+                      match={match}
+                      type="past"
+                      attendanceStatus={getAttendanceStatus(match.id)}
+                      onAttendanceChange={handleAttendanceChange}
+                      onNavigate={handleNavigate}
+                    />
+                  ))}
                   {displayedPast.length === 0 && (
                     <p className="text-sm text-muted-foreground py-4 text-center">過去の試合がありません</p>
                   )}

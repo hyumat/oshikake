@@ -238,14 +238,18 @@ export default function LandingPage() {
               </FadeInSection>
             </div>
             <FadeInSection delay={400}>
-              <img
-                src="/lp/lp-pain.png"
-                alt="記録が散らばりやすい状況のイメージ"
-                className="rounded-2xl shadow-lg w-full max-w-md mx-auto"
-                width={400}
-                height={300}
-                loading="lazy"
-              />
+              <picture>
+                <source srcSet="/lp/lp-pain.webp" type="image/webp" />
+                <img
+                  src="/lp/lp-pain.png"
+                  alt="記録が散らばりやすい状況のイメージ"
+                  className="rounded-2xl shadow-lg w-full max-w-md mx-auto"
+                  width={400}
+                  height={300}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </FadeInSection>
           </div>
         </div>
@@ -297,13 +301,13 @@ export default function LandingPage() {
 
           <div className="grid gap-6 md:grid-cols-3">
             <FadeInSection delay={0}>
-              <StepCardWithImage step="1" title="試合を選ぶ" image="/lp/lp-step-1.png" />
+              <StepCardWithImage step="1" title="試合を選ぶ" image="/lp/lp-step-1.webp" />
             </FadeInSection>
             <FadeInSection delay={100}>
-              <StepCardWithImage step="2" title="記録を残す" image="/lp/lp-step-2.png" />
+              <StepCardWithImage step="2" title="記録を残す" image="/lp/lp-step-2.webp" />
             </FadeInSection>
             <FadeInSection delay={200}>
-              <StepCardWithImage step="3" title="費用を保存" image="/lp/lp-step-3.png" />
+              <StepCardWithImage step="3" title="費用を保存" image="/lp/lp-step-3.webp" />
             </FadeInSection>
           </div>
 
@@ -331,14 +335,18 @@ export default function LandingPage() {
 
           <div className="grid gap-8 md:grid-cols-2 items-center max-w-4xl mx-auto">
             <FadeInSection>
-              <img
-                src="/lp/lp-stats.png"
-                alt="今季の振り返りイメージ"
-                className="rounded-2xl shadow-lg w-full"
-                width={400}
-                height={300}
-                loading="lazy"
-              />
+              <picture>
+                <source srcSet="/lp/lp-stats.webp" type="image/webp" />
+                <img
+                  src="/lp/lp-stats.png"
+                  alt="今季の振り返りイメージ"
+                  className="rounded-2xl shadow-lg w-full"
+                  width={400}
+                  height={300}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </FadeInSection>
 
             <FadeInSection delay={100}>
@@ -393,14 +401,18 @@ export default function LandingPage() {
             </div>
 
             <FadeInSection delay={300}>
-              <img
-                src="/lp/lp-future.png"
-                alt="見返しが楽しくなるイメージ"
-                className="rounded-2xl shadow-lg w-full"
-                width={400}
-                height={300}
-                loading="lazy"
-              />
+              <picture>
+                <source srcSet="/lp/lp-future.webp" type="image/webp" />
+                <img
+                  src="/lp/lp-future.png"
+                  alt="見返しが楽しくなるイメージ"
+                  className="rounded-2xl shadow-lg w-full"
+                  width={400}
+                  height={300}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </FadeInSection>
           </div>
         </div>
