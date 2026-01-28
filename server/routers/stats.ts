@@ -300,6 +300,207 @@ export const statsRouter = router({
       }
     }),
 
+  /**
+   * Issue #173: Get monthly report data for a specific month
+   * Returns detailed report including: watch count, cost breakdown, HOME/AWAY split,
+   * top 3 categories, and rule-based commentary
+   */
+  getMonthlyReport: protectedProcedure
+    .input(z.object({ year: z.number(), month: z.number().min(1).max(12) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return {
+            success: false,
+            data: null,
+          };
+        }
+
+        const userId = ctx.user.id;
+        const { year, month } = input;
+
+        // Get matches for the specified month
+        const attendedMatches = await db
+          .select({
+            userMatchId: userMatches.id,
+            costYen: userMatches.costYen,
+            matchId: userMatches.matchId,
+            date: userMatches.date,
+            homeScore: matches.homeScore,
+            awayScore: matches.awayScore,
+            marinosSide: matches.marinosSide,
+            opponent: matches.opponent,
+            stadium: matches.stadium,
+          })
+          .from(userMatches)
+          .leftJoin(matches, eq(userMatches.matchId, matches.id))
+          .where(
+            and(
+              eq(userMatches.userId, userId),
+              eq(userMatches.status, 'attended'),
+              sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${year}`,
+              sql`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${month}`
+            )
+          );
+
+        // Calculate basic stats
+        const watchCount = attendedMatches.length;
+        let totalCost = 0;
+        let homeCount = 0;
+        let awayCount = 0;
+        let win = 0;
+        let draw = 0;
+        let loss = 0;
+
+        for (const match of attendedMatches) {
+          totalCost += match.costYen ?? 0;
+          if (match.marinosSide === 'home') homeCount++;
+          if (match.marinosSide === 'away') awayCount++;
+
+          const result = calculateResult(match.homeScore, match.awayScore, match.marinosSide);
+          if (result === 'win') win++;
+          else if (result === 'draw') draw++;
+          else if (result === 'loss') loss++;
+        }
+
+        const averagePerMatch = watchCount > 0 ? Math.round(totalCost / watchCount) : 0;
+
+        // Get category breakdown for the month
+        const categoryResults = await db
+          .select({
+            category: matchExpenses.category,
+            totalAmount: sql<number>`SUM(${matchExpenses.amount})`,
+            count: sql<number>`COUNT(*)`,
+          })
+          .from(matchExpenses)
+          .innerJoin(userMatches, eq(matchExpenses.userMatchId, userMatches.id))
+          .where(
+            and(
+              eq(matchExpenses.userId, userId),
+              eq(userMatches.status, 'attended'),
+              sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${year}`,
+              sql`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${month}`
+            )
+          )
+          .groupBy(matchExpenses.category)
+          .orderBy(sql`SUM(${matchExpenses.amount}) DESC`);
+
+        // Get top 3 categories
+        const topCategories = categoryResults.slice(0, 3).map((cat) => ({
+          category: cat.category,
+          amount: cat.totalAmount || 0,
+          count: cat.count || 0,
+          percentage: totalCost > 0 ? Math.round(((cat.totalAmount || 0) / totalCost) * 100) : 0,
+        }));
+
+        // Generate rule-based commentary
+        const commentary: string[] = [];
+        const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        const monthName = monthNames[month - 1];
+
+        if (watchCount === 0) {
+          commentary.push(`${year}年${monthName}は観戦記録がありませんでした。`);
+        } else {
+          // Basic summary
+          commentary.push(`${year}年${monthName}は${watchCount}試合を観戦し、${win}勝${draw}分${loss}敗でした。`);
+
+          // Cost comment
+          if (totalCost > 0) {
+            commentary.push(`総費用は¥${totalCost.toLocaleString()}、1試合あたり平均¥${averagePerMatch.toLocaleString()}でした。`);
+          }
+
+          // HOME/AWAY comment
+          if (homeCount > 0 || awayCount > 0) {
+            const homeAwayText = homeCount > awayCount
+              ? `ホーム観戦が中心（ホーム${homeCount}試合、アウェイ${awayCount}試合）でした。`
+              : awayCount > homeCount
+                ? `アウェイ遠征が多め（ホーム${homeCount}試合、アウェイ${awayCount}試合）でした。`
+                : `ホーム・アウェイ均等（各${homeCount}試合）でした。`;
+            commentary.push(homeAwayText);
+          }
+
+          // Top category comment
+          if (topCategories.length > 0) {
+            const labels: Record<string, string> = {
+              transport: '交通費',
+              ticket: 'チケット代',
+              food: '飲食費',
+              other: 'その他',
+            };
+            const topCat = topCategories[0];
+            commentary.push(`最も費用がかかったのは${labels[topCat.category] || topCat.category}（¥${topCat.amount.toLocaleString()}、${topCat.percentage}%）でした。`);
+          }
+        }
+
+        return {
+          success: true,
+          data: {
+            year,
+            month,
+            monthName: monthNames[month - 1],
+            watchCount,
+            record: { win, draw, loss },
+            cost: {
+              total: totalCost,
+              averagePerMatch,
+            },
+            homeAwayBreakdown: {
+              home: homeCount,
+              away: awayCount,
+            },
+            topCategories,
+            commentary,
+            matches: attendedMatches.map((m) => ({
+              date: m.date,
+              opponent: m.opponent,
+              stadium: m.stadium,
+              cost: m.costYen,
+              result: calculateResult(m.homeScore, m.awayScore, m.marinosSide),
+            })),
+          },
+        };
+      } catch (error) {
+        console.error('[Stats Router] Error getting monthly report:', error);
+        return { success: false, data: null };
+      }
+    }),
+
+  /**
+   * Issue #173: Get available months with data for a given year
+   */
+  getAvailableMonths: protectedProcedure
+    .input(z.object({ year: z.number() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) {
+          return { success: true, months: [] };
+        }
+
+        const userId = ctx.user.id;
+        const results = await db
+          .selectDistinct({
+            month: sql<number>`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d'))`,
+          })
+          .from(userMatches)
+          .where(
+            and(
+              eq(userMatches.userId, userId),
+              eq(userMatches.status, 'attended'),
+              sql`YEAR(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) = ${input.year}`
+            )
+          )
+          .orderBy(sql`MONTH(STR_TO_DATE(${userMatches.date}, '%Y-%m-%d')) DESC`);
+
+        const months = results.map((r) => r.month).filter((m): m is number => m !== null);
+        return { success: true, months };
+      } catch (error) {
+        console.error('[Stats Router] Error getting available months:', error);
+        return { success: false, months: [] };
+      }
+    }),
+
   // Issue #169: Get expense history with filters
   getExpenseHistory: protectedProcedure
     .input(
