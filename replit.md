@@ -51,6 +51,7 @@
 - **Savings Auto-Trigger**: Automatic savings rule triggers when match results are confirmed; prevents duplicate entries per (userId, matchId, ruleId) tuple.
 - **Savings Notifications**: Recent triggers notification banner (24h) and one-time toast on Savings page load.
 - **Frontend Performance Optimization** (v0.1.1): QueryClient caching (staleTime: 5min, gcTime: 30min, no refetch on window focus), memoized MatchCard component with React.memo, WebP images with lazy loading on Landing page.
+- **v0.1.1 Stabilize Milestone** (Complete): Phase 1-5 completed including error handling standardization (QueryState), 192 passing tests, security hardening (Helmet, rate limiting), and production deployment configuration (autoscale).
 
 ### Documentation
 - **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
