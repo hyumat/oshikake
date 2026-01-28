@@ -13,6 +13,7 @@ import { Trophy, Minus, X, HelpCircle, Wallet, Calculator } from "lucide-react";
 import { formatCurrency } from "@shared/formatters";
 import { QueryState } from "@/components/QueryState";
 import { AdBanner } from "@/components/AdBanner";
+import { ShareModal } from "@/components/ShareModal";
 
 function StatsPage() {
   const currentYear = new Date().getFullYear();
@@ -48,13 +49,13 @@ function StatsPage() {
               観戦した試合の戦績と費用をまとめて確認
             </p>
           </div>
-          <div className="w-full md:w-auto">
+          <div className="flex items-center gap-2">
             <Select
               value={String(selectedYear)}
               onValueChange={(value) => setSelectedYear(Number(value))}
               disabled={isLoading}
             >
-              <SelectTrigger className="w-full md:w-[180px]">
+              <SelectTrigger className="w-[120px] md:w-[180px]">
                 <SelectValue placeholder="年を選択" />
               </SelectTrigger>
               <SelectContent>
@@ -65,6 +66,7 @@ function StatsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <ShareModal years={allYears} currentYear={selectedYear} />
           </div>
         </div>
 

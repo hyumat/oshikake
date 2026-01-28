@@ -24,6 +24,7 @@ import AdminMatches from "./pages/AdminMatches";
 import AdminConsole from "./pages/AdminConsole";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
+import Share from "./pages/Share";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
@@ -56,6 +57,9 @@ function Router() {
       {/* Admin Routes */}
       <Route path={"/admin"}>{() => <ProtectedRoute component={AdminConsole} />}</Route>
       <Route path={"/admin/matches"}>{() => <ProtectedRoute component={AdminMatches} />}</Route>
+
+      {/* Public Share Page */}
+      <Route path={"/share/:token"} component={Share} />
 
       {/* Legal & Support (Public) */}
       <Route path={"/privacy"} component={Privacy} />
