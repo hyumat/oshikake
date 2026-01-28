@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleStripeWebhook } from "../webhookHandler";
+import { startScheduledJobs } from "../scheduler";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -127,6 +128,7 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
+    startScheduledJobs();
   });
 }
 
