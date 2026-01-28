@@ -9,7 +9,7 @@
  * Issue #78: Freeプラン制限を7件に変更
  */
 
-export const FREE_PLAN_LIMIT = 7;
+export const FREE_PLAN_LIMIT = 10; // Issue #172: 7件→10件に変更
 export const FREE_STATS_DAYS = 365; // Issue #78: Freeプランは過去365日分のみ集計
 
 export type Plan = 'free' | 'plus' | 'pro';
