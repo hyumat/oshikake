@@ -28,8 +28,10 @@
 - **Billing System**: Implements a 3-tier (Free/Plus/Pro) subscription model with Stripe integration for checkout, portal sessions, and webhooks, including entitlement and plan limit management.
 - **Match Data Management**: Stores attendance and expense data, retrieves official match data from external sources via `unified-scraper.ts`, normalizes `matchUrl`, generates `matchKey`, and tracks sync logs.
 - **Statistics Module**: Provides APIs for calculating and displaying attendance counts, win/draw/loss records, total expenses, and average expenses per match, with year-based filtering.
-- **User Authentication**: OAuth-only (Google/Apple) via Passport.js, with JWT session management stored in HttpOnly cookies. Supports `returnTo` for post-login redirects.
+- **User Authentication**: OAuth-only via Passport.js (Google only for launch, Apple coming soon), with JWT session management stored in HttpOnly cookies. Supports `returnTo` for post-login redirects.
 - **Error Handling**: Standardized error display using `TRPCError` (e.g., `LIMIT_REACHED` for plan restrictions) and unified presentation via `QueryState` components.
+- **Security**: Helmet for security headers, rate limiting on /api/trpc (100/15min), /api/auth/* (10/15min), /api/stripe/webhook (50/15min), trust proxy configuration for Replit environment.
+- **Webhook Handling**: Stripe webhook signature verification, idempotency with event cache (max 1000 events), detailed error logging with event_id and timestamp.
 - **Deployment**: Configured for Replit environment.
 
 ### Feature Specifications

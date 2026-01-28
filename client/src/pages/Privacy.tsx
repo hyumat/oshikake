@@ -26,7 +26,7 @@ export default function Privacy() {
             <ul className="list-disc list-inside space-y-1">
               <li>メールアドレス</li>
               <li>氏名（表示名）</li>
-              <li>ログイン方法（Google、Apple等）に応じた識別ID</li>
+              <li>ログイン方法（現在はGoogleのみ対応）に応じた識別ID</li>
             </ul>
 
             <h3 className="text-lg font-medium mt-4 mb-2">1-2. お客様が入力した記録情報</h3>

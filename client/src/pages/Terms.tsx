@@ -59,7 +59,7 @@ export default function Terms() {
 
             <h3 className="text-lg font-medium mt-4 mb-2">5-1. プラン構成</h3>
             <ul className="list-disc list-inside space-y-1">
-              <li><strong>Free</strong>：記録可能試合10件まで、基本機能</li>
+              <li><strong>Free</strong>：記録可能試合7件まで、基本機能</li>
               <li><strong>Plus</strong>：記録可能試合無制限、CSVエクスポート</li>
               <li><strong>Pro</strong>：複数シーズン対応、高度な集計、優先サポート</li>
             </ul>

@@ -8,7 +8,7 @@
 
 | 軸 | Free | Plus | Pro |
 |---|---|---|---|
-| 記録可能試合 | 10件まで | 無制限 | 無制限 |
+| 記録可能試合 | 7件まで | 無制限 | 無制限 |
 | 価値の中心 | 体験お試し | 継続価値（制限解除） | 体験の深さ（振り返りの価値最大化） |
 | 主要機能 | 基本記録＋基本集計 | 基本記録＋基本集計＋エクスポート | 複数シーズン＋エクスポート＋高度集計 |
 
@@ -20,7 +20,7 @@
 
 | 項目 | 制限 |
 |------|------|
-| 記録可能試合 | 10件まで（累計、リセットなし） |
+| 記録可能試合 | 7件まで（累計、リセットなし） |
 | 既存記録の閲覧 | 無制限 |
 | 既存記録の編集 | 可能 |
 | 試合予定/結果閲覧 | 無制限 |
@@ -77,8 +77,8 @@ function getEffectivePlan(plan: Plan, planExpiresAt: Date | null): Plan {
 function getPlanLimit(plan: Plan, planExpiresAt: Date | null): number {
   const effective = getEffectivePlan(plan, planExpiresAt);
   if (effective === 'pro') return Infinity;
-  if (effective === 'plus') return 30;
-  return 10;
+  if (effective === 'plus') return Infinity;
+  return 7;
 }
 
 function canCreateAttendance(plan: Plan, planExpiresAt: Date | null, currentCount: number): boolean {
@@ -128,7 +128,7 @@ function canCreateAttendance(plan: Plan, planExpiresAt: Date | null, currentCoun
 ┌─────────────────────────────────────┐
 │ 記録上限に達しました                   │
 │                                     │
-│ Freeプランでは、記録可能試合は10件まで  │
+│ Freeプランでは、記録可能試合は7件まで   │
 │ です。Plus/Proプランにアップグレード   │
 │ すると、より多くの試合を記録できます。  │
 │                                     │
@@ -139,7 +139,7 @@ function canCreateAttendance(plan: Plan, planExpiresAt: Date | null, currentCoun
 ### 残り件数の表示
 
 - ヘッダーまたは観戦記録一覧に表示
-- 例: `5/10 件`
+- 例: `5/7 件`
 
 ## API設計
 

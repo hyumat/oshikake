@@ -14,7 +14,7 @@ interface PlanFeature {
 }
 
 const comparisonFeatures: PlanFeature[] = [
-  { text: "記録可能試合", free: "10件まで", plus: "無制限", pro: "無制限" },
+  { text: "記録可能試合", free: "7件まで", plus: "無制限", pro: "無制限" },
   { text: "対象シーズン", free: "今シーズン", plus: "今シーズン", pro: "複数シーズン" },
   { text: "観戦メモ・費用の記録", free: true, plus: true, pro: true },
   { text: "基本の集計（観戦数・勝敗・費用合計）", free: true, plus: true, pro: true },
@@ -77,7 +77,7 @@ export default function Pricing() {
               <ul className="space-y-2 text-sm">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
-                  <span className="font-medium">記録可能試合：10件まで</span>
+                  <span className="font-medium">記録可能試合：7件まで</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
@@ -227,7 +227,7 @@ export default function Pricing() {
               観戦した試合を「観戦済み」として保存できる件数のことです。
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>・Freeプランでは累計10件まで記録できます</li>
+              <li>・Freeプランでは累計7件まで記録できます</li>
               <li>・観戦予定（まだ行っていない試合）は上限に含みません</li>
               <li>・上限に達した場合、新しい試合を記録するにはプランのアップグレードが必要です</li>
               <li>・Plus/Proプランは無制限で記録できます</li>
@@ -241,7 +241,7 @@ export default function Pricing() {
             <div>
               <h3 className="font-medium mb-2">どこまで無料で使えますか？</h3>
               <p className="text-muted-foreground text-sm">
-                Freeプランでは、観戦記録（観戦済み）を<strong>10件まで</strong>保存できます。メモや費用の記録、基本の集計もお試しいただけます。
+                Freeプランでは、観戦記録（観戦済み）を<strong>7件まで</strong>保存できます。メモや費用の記録、基本の集計もお試しいただけます。
               </p>
             </div>
             <div>

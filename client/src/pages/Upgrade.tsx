@@ -38,7 +38,7 @@ export default function Upgrade() {
   };
 
   const freeFeatures = [
-    '記録可能試合: 10件',
+    '記録可能試合: 7件',
     '試合予定・結果の閲覧',
     '基本的な集計機能',
   ];

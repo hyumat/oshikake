@@ -1,14 +1,15 @@
 /**
  * Billing utilities for plan management
- * Issue #44: 無料プラン制限（10件まで）
+ * Issue #44: 無料プラン制限
  * Issue #50: 実効プラン値をAPIで統一（期限切れでもPro表示されない）
  * Issue #55: 3プラン対応（Free/Plus/Pro）
  * Issue #59: シーズン跨ぎでリセットされない
  * Issue #69: Plus/Pro両方を無制限に統一
  * Issue #67: Feature Gate / Entitlements一元管理
+ * Issue #198: Free上限を7件に統一
  */
 
-export const FREE_PLAN_LIMIT = 10;
+export const FREE_PLAN_LIMIT = 7;
 
 export type Plan = 'free' | 'plus' | 'pro';
 

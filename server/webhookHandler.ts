@@ -3,6 +3,8 @@ import { getStripeClient, getWebhookSecret } from './stripeClient';
 import { getUserByStripeCustomerId, updateUserStripeInfo, logEvent } from './db';
 import { Plan } from '../shared/billing';
 
+const processedEvents = new Set<string>();
+
 export async function handleStripeWebhook(rawBody: Buffer, signature: string): Promise<{ received: boolean }> {
   const stripe = await getStripeClient();
   const webhookSecret = await getWebhookSecret();
@@ -12,8 +14,12 @@ export async function handleStripeWebhook(rawBody: Buffer, signature: string): P
   if (webhookSecret) {
     try {
       event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch (err) {
-      console.error('[Webhook] Signature verification failed:', err);
+    } catch (err: any) {
+      console.error('[Webhook] Signature verification failed:', {
+        error: err.message,
+        type: err.type,
+        time: new Date().toISOString(),
+      });
       throw new Error('Webhook signature verification failed');
     }
   } else {
@@ -21,7 +27,19 @@ export async function handleStripeWebhook(rawBody: Buffer, signature: string): P
     event = JSON.parse(rawBody.toString()) as Stripe.Event;
   }
 
-  console.log(`[Webhook] Received event: ${event.type}`);
+  if (processedEvents.has(event.id)) {
+    console.log(`[Webhook] Duplicate event ignored: ${event.id} (${event.type})`);
+    return { received: true };
+  }
+  
+  processedEvents.add(event.id);
+  
+  if (processedEvents.size > 1000) {
+    const eventsArray = Array.from(processedEvents);
+    eventsArray.slice(0, 500).forEach(id => processedEvents.delete(id));
+  }
+
+  console.log(`[Webhook] Processing event: ${event.id} (${event.type}) at ${new Date().toISOString()}`);
 
   switch (event.type) {
     case 'checkout.session.completed': {

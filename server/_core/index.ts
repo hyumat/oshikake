@@ -2,12 +2,40 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleStripeWebhook } from "../webhookHandler";
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "リクエスト回数が制限を超えました。しばらく待ってから再試行してください。" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "認証試行回数が制限を超えました。しばらく待ってから再試行してください。" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: { error: "Webhook rate limit exceeded" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,9 +60,20 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Trust proxy for rate limiting behind reverse proxy (Replit)
+  app.set('trust proxy', 1);
+
+  // Security headers (Helmet)
+  app.use(helmet({
+    contentSecurityPolicy: isProduction ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+  }));
+
   // Stripe webhook route - MUST be registered BEFORE express.json()
+  // Rate limited separately
   app.post(
     '/api/stripe/webhook',
+    webhookLimiter,
     express.raw({ type: 'application/json' }),
     async (req, res) => {
       const signature = req.headers['stripe-signature'];
@@ -55,11 +94,18 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  
+  // Rate limit for auth routes
+  app.use("/api/auth", authLimiter);
+  app.use("/api/oauth", authLimiter);
+  
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
-  // tRPC API
+  
+  // Rate limit and tRPC API
   app.use(
     "/api/trpc",
+    apiLimiter,
     createExpressMiddleware({
       router: appRouter,
       createContext,

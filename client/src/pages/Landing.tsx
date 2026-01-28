@@ -133,7 +133,7 @@ export default function LandingPage() {
   const faq = [
     {
       q: "どこまで無料で使えますか？",
-      a: "Freeプランでは、観戦記録（観戦済み）を10件まで保存できます。メモや費用の記録、基本の集計もお試しいただけます。",
+      a: "Freeプランでは、観戦記録（観戦済み）を7件まで保存できます。メモや費用の記録、基本の集計もお試しいただけます。",
     },
     {
       q: "記録したデータは消えませんか？",
@@ -310,7 +310,7 @@ export default function LandingPage() {
           <FadeInSection delay={300}>
             <div className="mt-8 text-center">
               <p className="text-sm text-slate-500">
-                無料で10試合まで試せます。記録はいつでも編集できます。
+                無料で7試合まで試せます。記録はいつでも編集できます。
               </p>
             </div>
           </FadeInSection>
@@ -431,7 +431,7 @@ export default function LandingPage() {
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <span className="text-green-600">✓</span>
-                    <span className="font-medium">記録可能試合：10件まで</span>
+                    <span className="font-medium">記録可能試合：7件まで</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="text-green-600">✓</span>
