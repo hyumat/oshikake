@@ -41,6 +41,14 @@
 - **Subscription Plans**: Free, Plus, and Pro plans with varying limits and access to advanced features (e.g., export, multi-season stats, priority support).
 - **Landing Page**: Explains service, includes FAQs, and a pricing comparison table.
 - **UX Improvements**: Enhanced attendance form with validation, improved error display, responsive mobile design, and asynchronous data synchronization with loading/toast notifications.
+- **Admin Management**: Admin users can manage match data directly via `/admin/matches` without Spreadsheet dependency. CRUD operations for matches with search and pagination.
+- **Admin Monitoring**: SyncStatus and BillingStatus components on Home page for admins to monitor sync logs and billing events.
+
+### Documentation
+- **MVP User Flow** (`docs/mvp-user-flow.md`): Defines the MVP user journey, screen list, and plan features.
+- **MVP Checklist** (`docs/mvp-checklist.md`): Release readiness checklist (DoD) for MVP launch.
+- **Privacy Policy** (`docs/legal-privacy.md`): Includes security design, authentication, and k-anonymity for future aggregation features.
+- **Terms of Service** (`docs/legal-terms.md`): Includes data security provisions.
 
 ## External Dependencies
 - **Database**: PostgreSQL (Replit built-in)
