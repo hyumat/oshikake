@@ -12,6 +12,30 @@
 export const FREE_PLAN_LIMIT = 10; // Issue #172: 7件→10件に変更
 export const FREE_STATS_DAYS = 365; // Issue #78: Freeプランは過去365日分のみ集計
 
+/**
+ * Issue #185: キャンペーン期間中の一時Pro権限
+ * Phase 0: ローンチ後1-2ヶ月は全ユーザーにPro権限を付与
+ * 環境変数 GLOBAL_PRO_UNTIL で制御（ISO 8601形式: 2026-03-31T23:59:59Z）
+ */
+export function getGlobalProUntil(): Date | null {
+  const envValue = typeof process !== 'undefined' && process.env?.GLOBAL_PRO_UNTIL;
+  if (!envValue) return null;
+  const date = new Date(envValue);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+export function isInCampaignPeriod(): boolean {
+  const globalProUntil = getGlobalProUntil();
+  if (!globalProUntil) return false;
+  return new Date() < globalProUntil;
+}
+
+export interface CampaignStatus {
+  isActive: boolean;
+  endsAt: Date | null;
+  daysRemaining: number | null;
+}
+
 export type Plan = 'free' | 'plus' | 'pro';
 
 export interface Entitlements {
@@ -62,9 +86,38 @@ export function isPlus(plan: Plan, planExpiresAt: Date | null): boolean {
   return true;
 }
 
+/**
+ * Issue #185: 実効プランを決定
+ * 優先度: 有料サブスク > キャンペーンPro > Free
+ */
 export function getEffectivePlan(plan: Plan, planExpiresAt: Date | null): Plan {
-  if (!isPaidPlan(plan, planExpiresAt)) return 'free';
-  return plan;
+  // 有料サブスクが有効な場合はそのプランを返す
+  if (isPaidPlan(plan, planExpiresAt)) return plan;
+
+  // キャンペーン期間中は全ユーザーにPro権限を付与
+  if (isInCampaignPeriod()) return 'pro';
+
+  return 'free';
+}
+
+/**
+ * Issue #185: キャンペーン状態を取得
+ */
+export function getCampaignStatus(): CampaignStatus {
+  const globalProUntil = getGlobalProUntil();
+  const isActive = isInCampaignPeriod();
+
+  let daysRemaining: number | null = null;
+  if (isActive && globalProUntil) {
+    const diff = globalProUntil.getTime() - Date.now();
+    daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+
+  return {
+    isActive,
+    endsAt: globalProUntil,
+    daysRemaining,
+  };
 }
 
 export function getPlanLimit(plan: Plan, planExpiresAt: Date | null): number {

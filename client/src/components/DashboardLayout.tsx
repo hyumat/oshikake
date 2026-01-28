@@ -26,6 +26,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { CampaignBanner } from "./CampaignBanner";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "ホーム", path: "/app", adminOnly: false },
@@ -256,6 +257,8 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
+        {/* Issue #185: Campaign banner for launch promotion */}
+        <CampaignBanner />
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
