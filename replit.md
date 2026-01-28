@@ -23,7 +23,7 @@
 ### Technical Implementations
 - **Frontend**: Built with React 19, Vite 7, and TailwindCSS 4, featuring pages for Home, Matches, MatchDetail, Landing, and reusable UI components with a tRPC client.
 - **Backend**: Uses Express and tRPC for server infrastructure (authentication, Vite middleware), API endpoints, and database operations.
-- **Database**: PostgreSQL with Drizzle ORM, including tables for `users`, `matches`, `userMatches`, `matchExpenses`, `savingsRules`, `savingsHistory`, `syncLogs`, `auditLogs`, and `eventLogs`.
+- **Database**: PostgreSQL with Drizzle ORM, including tables for `users`, `matches`, `userMatches`, `matchExpenses`, `savingsRules`, `savingsHistory`, `syncLogs`, `auditLogs`, `eventLogs`, and `announcements`.
 - **Shared Utilities**: A `shared/` directory for client and server types and utilities, including DTOs and formatters.
 - **Billing System**: Implements a 3-tier (Free/Plus/Pro) subscription model with Stripe integration for checkout, portal sessions, and webhooks, including entitlement and plan limit management.
 - **Match Data Management**: Stores attendance and expense data, retrieves official match data from external sources via `unified-scraper.ts`, normalizes `matchUrl`, generates `matchKey`, and tracks sync logs.
@@ -42,6 +42,9 @@
 - **Landing Page**: Explains service, includes FAQs, and a pricing comparison table.
 - **UX Improvements**: Enhanced attendance form with validation, improved error display, responsive mobile design, and asynchronous data synchronization with loading/toast notifications.
 - **Admin Management**: Admin users can manage match data directly via `/admin/matches` without Spreadsheet dependency. CRUD operations for matches with search and pagination.
+- **Admin Operations Console**: Comprehensive admin dashboard at `/admin` with system status monitoring (DB connection, user/match counts, 24h errors), user plan management for billing recovery, announcements CRUD with type classification and date ranges, API performance monitoring (avg/p50/p95/p99, error rate, by-path stats), and event log viewer.
+- **API Performance Logging**: In-memory metrics collection for all tRPC calls with automatic slow call warnings (>1000ms threshold).
+- **Scraper Stabilization**: Retry logic with exponential backoff (up to 3 retries) for external data fetching, consistent timeout handling, and error collection.
 - **Admin Monitoring**: SyncStatus and BillingStatus components on Home page for admins to monitor sync logs and billing events.
 
 ### Documentation
