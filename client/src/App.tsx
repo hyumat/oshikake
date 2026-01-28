@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard";
+import { AppShell } from "./components/layout/AppShell";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -13,6 +14,7 @@ import Matches from "./pages/Matches";
 import MatchDetail from "./pages/MatchDetail";
 import Stats from "./pages/Stats";
 import Savings from "./pages/Savings";
+import Expenses from "./pages/Expenses";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Support from "./pages/Support";
@@ -26,7 +28,9 @@ import Settings from "./pages/Settings";
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
     <AuthGuard>
-      <Component />
+      <AppShell>
+        <Component />
+      </AppShell>
     </AuthGuard>
   );
 }
@@ -45,6 +49,7 @@ function Router() {
       <Route path={"/matches/:id"}>{() => <ProtectedRoute component={MatchDetail} />}</Route>
       <Route path={"/stats"}>{() => <ProtectedRoute component={Stats} />}</Route>
       <Route path={"/savings"}>{() => <ProtectedRoute component={Savings} />}</Route>
+      <Route path={"/expenses"}>{() => <ProtectedRoute component={Expenses} />}</Route>
       <Route path={"/account"}>{() => <ProtectedRoute component={Account} />}</Route>
       <Route path={"/settings"}>{() => <ProtectedRoute component={Settings} />}</Route>
 

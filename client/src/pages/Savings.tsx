@@ -14,7 +14,6 @@ import { Loader2, Plus, Trash2, PiggyBank, TrendingUp, Bell, Sparkles } from 'lu
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { formatCurrency } from '@shared/formatters';
-import DashboardLayout from '@/components/DashboardLayout';
 
 export default function Savings() {
   const [newCondition, setNewCondition] = useState('');
@@ -117,8 +116,7 @@ export default function Savings() {
   }, [recentTriggers.length, historyLoading]);
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
         {/* ヘッダー */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
@@ -336,7 +334,6 @@ export default function Savings() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -966,7 +965,7 @@ export default function AdminConsole() {
 
   if (user?.role !== "admin") {
     return (
-      <DashboardLayout>
+      <div className="space-y-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <Card className="max-w-md">
             <CardContent className="pt-6 text-center">
@@ -979,12 +978,12 @@ export default function AdminConsole() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <div className="space-y-6">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -1067,6 +1066,6 @@ export default function AdminConsole() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

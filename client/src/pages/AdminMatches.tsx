@@ -2,7 +2,6 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -358,7 +357,7 @@ function AdminMatchesContent() {
 
   if (user?.role !== "admin") {
     return (
-      <DashboardLayout>
+      <div className="space-y-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <Card className="max-w-md">
             <CardContent className="pt-6 text-center">
@@ -371,7 +370,7 @@ function AdminMatchesContent() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -441,9 +440,8 @@ function AdminMatchesContent() {
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Shield className="h-6 w-6 text-blue-600" />
@@ -681,8 +679,7 @@ function AdminMatchesContent() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }
 
