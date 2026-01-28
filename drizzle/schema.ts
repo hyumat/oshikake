@@ -346,3 +346,24 @@ export const announcements = pgTable("announcements", {
 
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = typeof announcements.$inferInsert;
+
+/**
+ * Issue #18: 共有URL機能
+ * 
+ * ユーザーの観戦サマリーを共有するためのトークンを管理
+ */
+export const shareTokens = pgTable("share_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  year: integer("year"),
+  enabled: boolean("enabled").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+}, (table) => [
+  index("share_tokens_user_id_idx").on(table.userId),
+  index("share_tokens_token_idx").on(table.token),
+]);
+
+export type ShareToken = typeof shareTokens.$inferSelect;
+export type InsertShareToken = typeof shareTokens.$inferInsert;
