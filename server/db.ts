@@ -170,7 +170,7 @@ export async function getMatches(filters?: { year?: number; competition?: string
     let query: any = db.select().from(matchesTable);
     
     if (filters?.year) {
-      query = query.where(sql`EXTRACT(YEAR FROM ${matchesTable.date}::date) = ${filters.year}`);
+      query = query.where(sql`SUBSTRING(${matchesTable.date}, 1, 4) = ${String(filters.year)}`);
     }
     if (filters?.competition) {
       query = query.where(eq(matchesTable.competition, filters.competition));
