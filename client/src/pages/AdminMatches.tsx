@@ -58,6 +58,7 @@ import {
   CheckCircle,
   Download,
   Pencil,
+  RefreshCw,
 } from "lucide-react";
 import { EditableCell } from "@/components/admin/EditableCell";
 
@@ -450,6 +451,76 @@ function MatchForm({
   );
 }
 
+interface MissingField {
+  key: string;
+  label: string;
+}
+
+function getMissingFields(match: any): MissingField[] {
+  const missing: MissingField[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const isPast = match.date < today;
+  
+  if (!match.kickoff) missing.push({ key: "kickoff", label: "KO" });
+  if (!match.stadium) missing.push({ key: "stadium", label: "会場" });
+  if (!match.competition) missing.push({ key: "competition", label: "大会" });
+  
+  if (isPast) {
+    const hasScore = match.homeScore !== null && match.awayScore !== null;
+    if (!hasScore) missing.push({ key: "homeScore", label: "結果" });
+    if (!match.attendance) missing.push({ key: "attendance", label: "観客" });
+  }
+  
+  return missing;
+}
+
+function MissingFieldsBadge({ 
+  match, 
+  onAutoFill,
+  isLoading 
+}: { 
+  match: any; 
+  onAutoFill?: (matchId: number) => void;
+  isLoading?: boolean;
+}) {
+  const missing = getMissingFields(match);
+  
+  if (missing.length === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-green-600">
+        <CheckCircle className="h-3 w-3" />
+        完了
+      </span>
+    );
+  }
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex flex-wrap gap-1">
+        {missing.map((field) => (
+          <span
+            key={field.key}
+            className="inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700"
+            title={`${field.label}が未入力`}
+          >
+            {field.label}
+          </span>
+        ))}
+      </div>
+      {onAutoFill && (
+        <button
+          onClick={() => onAutoFill(match.id)}
+          disabled={isLoading}
+          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+          title="空欄を自動取得"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function AdminMatchesContent() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
@@ -551,6 +622,20 @@ function AdminMatchesContent() {
     },
     onError: (err) => {
       toast.error(err.message || "削除に失敗しました");
+    },
+  });
+
+  const autoFillMutation = trpc.admin.autoFillEmptyFields.useMutation({
+    onSuccess: (result) => {
+      if (result.filledFields.length > 0) {
+        toast.success(result.message);
+      } else {
+        toast.info(result.message);
+      }
+      utils.admin.getMatches.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "自動取得に失敗しました");
     },
   });
 
@@ -1134,7 +1219,8 @@ function AdminMatchesContent() {
                       <TableHead className="min-w-[150px]">スタジアム</TableHead>
                       <TableHead className="min-w-[100px]">大会</TableHead>
                       <TableHead className="w-[70px]">節</TableHead>
-                      <TableHead className="w-[80px]">操作</TableHead>
+                      <TableHead className="w-[100px]">未入力</TableHead>
+                      <TableHead className="w-[100px]">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1240,6 +1326,13 @@ function AdminMatchesContent() {
                             onSave={async (val) => {
                               await handleCellUpdate(match.id, "roundLabel", val);
                             }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <MissingFieldsBadge 
+                            match={match} 
+                            onAutoFill={(matchId) => autoFillMutation.mutate({ matchId })}
+                            isLoading={autoFillMutation.isPending}
                           />
                         </TableCell>
                         <TableCell>

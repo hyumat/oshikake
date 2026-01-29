@@ -962,6 +962,226 @@ export const adminRouter = router({
       }
     }),
 
+  autoFillEmptyFields: protectedProcedure
+    .input(
+      z.object({
+        matchId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can auto-fill fields',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [existingMatch] = await db
+          .select()
+          .from(matches)
+          .where(eq(matches.id, input.matchId))
+          .limit(1);
+
+        if (!existingMatch) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Match not found',
+          });
+        }
+
+        const { scrapeAllMatches } = await import('../unified-scraper');
+        const scrapedData = await scrapeAllMatches();
+
+        const matchDate = existingMatch.date;
+        const normalizeTeamName = (name: string | null | undefined) => 
+          (name || '').toLowerCase().replace(/\s+/g, '').replace(/[ー−]/g, '-');
+
+        const existingHome = normalizeTeamName(existingMatch.homeTeam);
+        const existingAway = normalizeTeamName(existingMatch.awayTeam);
+        const existingOpponent = normalizeTeamName(existingMatch.opponent);
+
+        const scrapedMatch = scrapedData.fixtures.find((f) => {
+          if (f.date !== matchDate) return false;
+          
+          const scrapedHome = normalizeTeamName(f.home);
+          const scrapedAway = normalizeTeamName(f.away);
+          const scrapedOpponent = normalizeTeamName(f.opponent);
+          
+          const homeMatch = existingHome && scrapedHome && 
+            (existingHome.includes(scrapedHome) || scrapedHome.includes(existingHome));
+          const awayMatch = existingAway && scrapedAway && 
+            (existingAway.includes(scrapedAway) || scrapedAway.includes(existingAway));
+          const opponentMatch = existingOpponent && scrapedOpponent &&
+            (existingOpponent.includes(scrapedOpponent) || scrapedOpponent.includes(existingOpponent));
+          
+          return (homeMatch && awayMatch) || opponentMatch;
+        });
+
+        if (!scrapedMatch) {
+          return {
+            success: false,
+            message: '外部ソースから一致する試合が見つかりませんでした',
+            filledFields: [],
+            match: existingMatch,
+          };
+        }
+
+        const updates: Record<string, any> = {};
+        const filledFields: string[] = [];
+        const fieldMappings: [string, any][] = [
+          ['kickoff', scrapedMatch.kickoff],
+          ['stadium', scrapedMatch.stadium],
+          ['competition', scrapedMatch.competition],
+          ['roundLabel', scrapedMatch.roundLabel],
+          ['roundNumber', scrapedMatch.roundNumber],
+          ['homeScore', scrapedMatch.homeScore],
+          ['awayScore', scrapedMatch.awayScore],
+          ['status', scrapedMatch.status],
+          ['matchUrl', scrapedMatch.matchUrl],
+        ];
+
+        for (const [key, value] of fieldMappings) {
+          const existingValue = (existingMatch as any)[key];
+          if (existingValue === null || existingValue === undefined || existingValue === '') {
+            if (value !== null && value !== undefined && value !== '') {
+              updates[key] = value;
+              filledFields.push(key);
+            }
+          }
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return {
+            success: true,
+            message: '更新対象の空フィールドがありませんでした',
+            filledFields: [],
+            match: existingMatch,
+          };
+        }
+
+        if (updates.homeScore !== undefined && updates.awayScore !== undefined) {
+          updates.isResult = 1;
+        }
+        updates.updatedAt = new Date();
+
+        const [updatedMatch] = await db
+          .update(matches)
+          .set(updates)
+          .where(eq(matches.id, input.matchId))
+          .returning();
+
+        console.log(`[Admin] Auto-filled empty fields for match ${input.matchId}: ${filledFields.join(', ')}`);
+
+        return {
+          success: true,
+          message: `${filledFields.length}件のフィールドを自動入力しました: ${filledFields.join(', ')}`,
+          filledFields,
+          match: updatedMatch,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error auto-filling fields:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to auto-fill fields',
+        });
+      }
+    }),
+
+  fillEmptyFields: protectedProcedure
+    .input(
+      z.object({
+        matchId: z.number(),
+        fields: z.record(z.any()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can fill empty fields',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [existingMatch] = await db
+          .select()
+          .from(matches)
+          .where(eq(matches.id, input.matchId))
+          .limit(1);
+
+        if (!existingMatch) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Match not found',
+          });
+        }
+
+        const updates: Record<string, any> = {};
+        const filledFields: string[] = [];
+
+        for (const [key, value] of Object.entries(input.fields)) {
+          const existingValue = (existingMatch as any)[key];
+          if (existingValue === null || existingValue === undefined || existingValue === '') {
+            if (value !== null && value !== undefined && value !== '') {
+              updates[key] = value;
+              filledFields.push(key);
+            }
+          }
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return {
+            success: true,
+            message: '更新対象の空フィールドがありませんでした',
+            filledFields: [],
+            match: existingMatch,
+          };
+        }
+
+        updates.updatedAt = new Date();
+
+        const [updatedMatch] = await db
+          .update(matches)
+          .set(updates)
+          .where(eq(matches.id, input.matchId))
+          .returning();
+
+        console.log(`[Admin] Filled empty fields for match ${input.matchId}: ${filledFields.join(', ')}`);
+
+        return {
+          success: true,
+          message: `${filledFields.length}件のフィールドを更新しました`,
+          filledFields,
+          match: updatedMatch,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error filling empty fields:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fill empty fields',
+        });
+      }
+    }),
+
   deleteMatch: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
