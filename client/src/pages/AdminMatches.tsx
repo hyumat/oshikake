@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation, useSearch } from "wouter";
 import * as XLSX from "xlsx";
+import Papa from "papaparse";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -462,33 +463,6 @@ function AdminMatchesContent() {
     },
   });
 
-  const parseCsvLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      const nextChar = line[i + 1];
-      
-      if (char === '"') {
-        if (inQuotes && nextChar === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    result.push(current.trim());
-    return result;
-  };
-
   const headerMap: Record<string, string> = {
     '大会名': 'competition',
     '節': 'roundLabel',
@@ -645,32 +619,40 @@ function AdminMatchesContent() {
       };
       reader.readAsArrayBuffer(file);
     } else {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        const cleanText = text.replace(/^\uFEFF/, '');
-        const lines = cleanText.split(/\r?\n/).filter(line => line.trim());
-        if (lines.length < 2) {
-          toast.error('CSVファイルにデータがありません');
-          return;
-        }
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        encoding: 'UTF-8',
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            console.error('CSV parse errors:', results.errors);
+            toast.error('CSVファイルの読み込みに失敗しました');
+            return;
+          }
 
-        const headers = parseCsvLine(lines[0]);
+          if (results.data.length === 0) {
+            toast.error('CSVファイルにデータがありません');
+            return;
+          }
 
-        const parsedData: any[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = parseCsvLine(lines[i]);
-          const row: any = {};
-          headers.forEach((header, idx) => {
-            const key = headerMap[header] || header;
-            row[key] = values[idx] || '';
-          });
-          parsedData.push(row);
-        }
+          const parsedData: any[] = [];
+          for (const rawRow of results.data as Record<string, string>[]) {
+            const row: any = {};
+            for (const [header, value] of Object.entries(rawRow)) {
+              const key = headerMap[header] || header;
+              row[key] = value || '';
+            }
+            parsedData.push(row);
+          }
 
-        setCsvPreviewData(parsedData);
-      };
-      reader.readAsText(file, 'UTF-8');
+          setCsvPreviewData(parsedData);
+          toast.success(`${parsedData.length}件のデータを読み込みました`);
+        },
+        error: (error) => {
+          console.error('CSV parse error:', error);
+          toast.error('CSVファイルの読み込みに失敗しました');
+        },
+      });
     }
   };
 
