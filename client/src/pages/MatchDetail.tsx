@@ -18,9 +18,11 @@ import { LimitReachedModal } from '@/components/LimitReachedModal';
 import { PlanStatusBadge } from '@/components/PlanStatusBadge';
 import type { MatchDTO } from '@shared/dto';
 import { FREE_PLAN_LIMIT } from '@shared/billing';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 export default function MatchDetail() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const params = useParams();
   const matchId = params.id || '';
   const matchIdNum = parseInt(matchId, 10);
@@ -34,7 +36,9 @@ export default function MatchDetail() {
   });
   const [showLimitModal, setShowLimitModal] = useState(false);
 
-  const { data, isLoading, error, refetch } = trpc.matches.listOfficial.useQuery({});
+  const { data, isLoading, error, refetch } = trpc.matches.listOfficial.useQuery({
+    teamId: user?.supportedTeamId ?? undefined,
+  });
   
   const { data: planStatus } = trpc.userMatches.getPlanStatus.useQuery();
   const match = data?.matches?.find((m: { id: number | string }) => String(m.id) === matchId) as MatchDTO | undefined;

@@ -188,6 +188,7 @@ export const matchesRouter = router({
       z.object({
         year: z.number().optional(),
         competition: z.string().optional(),
+        teamId: z.number().optional(),
       })
     )
     .query(async ({ input }) => {
@@ -196,6 +197,7 @@ export const matchesRouter = router({
         const dbMatches = await getMatches({
           year: input.year,
           competition: input.competition,
+          teamId: input.teamId,
         });
         
         // If database has matches, return them

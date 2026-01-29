@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { 
@@ -123,6 +123,7 @@ export async function upsertMatches(matchesData: any[]) {
         matchId: match.matchId || match.sourceKey,
         sourceKey: match.sourceKey,
         source: 'jleague',
+        teamId: match.teamId,
         date: match.date,
         kickoff: match.kickoff,
         competition: match.competition,
@@ -147,6 +148,7 @@ export async function upsertMatches(matchesData: any[]) {
           awayScore: match.awayScore,
           status: match.status,
           isResult: match.isResult ? 1 : 0,
+          teamId: match.teamId,
           updatedAt: new Date(),
         },
       });
@@ -159,7 +161,7 @@ export async function upsertMatches(matchesData: any[]) {
   }
 }
 
-export async function getMatches(filters?: { year?: number; competition?: string }): Promise<any[]> {
+export async function getMatches(filters?: { year?: number; competition?: string; teamId?: number }): Promise<any[]> {
   try {
     const db = await getDb();
     if (!db) {
@@ -167,13 +169,21 @@ export async function getMatches(filters?: { year?: number; competition?: string
       return [];
     }
     
-    let query: any = db.select().from(matchesTable);
+    const conditions = [];
     
     if (filters?.year) {
-      query = query.where(sql`SUBSTRING(${matchesTable.date}, 1, 4) = ${String(filters.year)}`);
+      conditions.push(sql`SUBSTRING(${matchesTable.date}, 1, 4) = ${String(filters.year)}`);
     }
     if (filters?.competition) {
-      query = query.where(eq(matchesTable.competition, filters.competition));
+      conditions.push(eq(matchesTable.competition, filters.competition));
+    }
+    if (filters?.teamId) {
+      conditions.push(eq(matchesTable.teamId, filters.teamId));
+    }
+    
+    let query = db.select().from(matchesTable);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as typeof query;
     }
     
     const result = await query;

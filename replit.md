@@ -1,7 +1,7 @@
 # オシカケ (Oshikake)
 
 ## Overview
-オシカケは、横浜F・マリノスのサポーターに特化したWebアプリケーションです。ユーザーは観戦した公式試合の記録、交通費、チケット代、飲食費などの費用を追跡できます。本サービスは、観戦記録から得られる勝敗、費用合計、平均費用などの統計データを提供し、観戦体験の振り返りと費用管理をサポートすることを目的としています。
+オシカケは、Jリーグサポーター向けのWebアプリケーションです。ユーザーは応援するクラブを選択し（J1/J2対応）、観戦した公式試合の記録、交通費、チケット代、飲食費などの費用を追跡できます。本サービスは、観戦記録から得られる勝敗、費用合計、平均費用などの統計データを提供し、観戦体験の振り返りと費用管理をサポートすることを目的としています。
 **Product Principles:**
 1. Focus on "match records" and "cost records related to watching matches".
 2. Ability to view "match results" and "match schedules" in one place for review.
@@ -49,6 +49,7 @@
 - **Database Optimization**: Comprehensive indexing on frequently queried columns (userMatches, matches, syncLogs, auditLogs, eventLogs, matchExpenses) and N+1 query fixes in savings module.
 - **Admin Monitoring**: SyncStatus and BillingStatus components on Home page for admins to monitor sync logs and billing events.
 - **Ad Control**: AdBanner component hidden for Plus/Pro subscribers; Free users see ad placeholders.
+- **Multi-Team Support**: Users select their supported J1/J2 club during onboarding via TeamSelect page. Matches are filtered by user's supportedTeamId. Settings page allows club change. Teams table has league column (J1/J2/null for J3). AuthGuard redirects users without supportedTeamId to /onboarding/team.
 - **Savings Auto-Trigger**: Automatic savings rule triggers when match results are confirmed; prevents duplicate entries per (userId, matchId, ruleId) tuple.
 - **Savings Notifications**: Recent triggers notification banner (24h) and one-time toast on Savings page load.
 - **Frontend Performance Optimization** (v0.1.1): QueryClient caching (staleTime: 5min, gcTime: 30min, no refetch on window focus), memoized MatchCard component with React.memo, WebP images with lazy loading on Landing page.

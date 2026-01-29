@@ -9,6 +9,7 @@ import { MatchFilter, type FilterState } from '@/components/MatchFilter';
 import { toast } from 'sonner';
 import { AdBanner } from '@/components/AdBanner';
 import { MatchCard } from '@/components/MatchCard';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 type AttendanceStatus = 'undecided' | 'attending' | 'not-attending';
 
@@ -38,6 +39,7 @@ type DisplayMode = 'both' | 'upcoming' | 'past';
 
 export default function Matches() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +74,9 @@ export default function Matches() {
   }, [setLocation]);
 
   // tRPC クエリ・ミューテーション
-  const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({});
+  const { data: matchesData, isLoading: isLoadingMatches, refetch } = trpc.matches.listOfficial.useQuery({
+    teamId: user?.supportedTeamId ?? undefined,
+  });
   const fetchOfficialMutation = trpc.matches.fetchOfficial.useMutation();
 
   // ページアクセス時はキャッシュデータを表示（スクレイピングは手動）
