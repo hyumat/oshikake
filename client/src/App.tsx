@@ -27,6 +27,7 @@ import AdminTeams from "./pages/AdminTeams";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Share from "./pages/Share";
+import TeamSelect from "./pages/TeamSelect";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
@@ -55,6 +56,7 @@ function Router() {
       <Route path={"/"} component={Landing} />
       <Route path={"/login"} component={Login} />
       <Route path={"/signup"} component={Signup} />
+      <Route path={"/onboarding/team"}>{() => <AuthGuard skipTeamCheck><TeamSelect /></AuthGuard>}</Route>
 
       {/* Protected App Routes */}
       <Route path={"/app"}>{() => <ProtectedRoute component={Home} />}</Route>

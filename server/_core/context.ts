@@ -25,6 +25,7 @@ function createMockDevUser(): User {
     planExpiresAt: null,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
+    supportedTeamId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),

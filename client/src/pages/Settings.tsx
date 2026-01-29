@@ -5,16 +5,39 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Settings as SettingsIcon, Bell, Download, Palette } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Download, Palette, Shield, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { canUseFeature, type Plan } from "@shared/billing";
 import { ExportModal } from "@/components/ExportModal";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Settings() {
   const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  const utils = trpc.useUtils();
+  const { data: supportedTeam, isLoading: teamLoading } = trpc.teams.getSupported.useQuery();
+  const { data: allTeams } = trpc.teams.list.useQuery();
+  const setSupportedMutation = trpc.teams.setSupported.useMutation({
+    onSuccess: () => {
+      toast.success("応援クラブを変更しました");
+      utils.teams.getSupported.invalidate();
+      utils.auth.me.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "変更に失敗しました");
+    },
+  });
 
   if (!user) {
     return null;
@@ -33,6 +56,52 @@ export default function Settings() {
         </h1>
         <p className="text-muted-foreground">アプリの設定を変更できます</p>
       </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              応援クラブ
+            </CardTitle>
+            <CardDescription>応援するJリーグクラブを設定します</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {teamLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">読み込み中...</span>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>現在の応援クラブ</Label>
+                  <Select
+                    value={supportedTeam?.id?.toString() || ""}
+                    onValueChange={(value) => {
+                      setSupportedMutation.mutate({ teamId: Number(value) });
+                    }}
+                    disabled={setSupportedMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="クラブを選択してください" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allTeams?.map((team) => (
+                        <SelectItem key={team.id} value={team.id.toString()}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  選択したクラブの試合予定・結果が表示されます
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

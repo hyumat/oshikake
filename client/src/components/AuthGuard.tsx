@@ -5,10 +5,11 @@ import { useEffect } from "react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  skipTeamCheck?: boolean;
 }
 
-export default function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, loading } = useAuth();
+export default function AuthGuard({ children, skipTeamCheck = false }: AuthGuardProps) {
+  const { isAuthenticated, loading, user } = useAuth();
   const [location, navigate] = useLocation();
 
   useEffect(() => {
@@ -17,6 +18,16 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       navigate(`/login?returnTo=${returnTo}`);
     }
   }, [loading, isAuthenticated, navigate, location]);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && user && !skipTeamCheck) {
+      const isOnboardingPage = location.startsWith("/onboarding");
+      const isAdminPage = location.startsWith("/admin");
+      if (!user.supportedTeamId && !isOnboardingPage && !isAdminPage) {
+        navigate("/onboarding/team");
+      }
+    }
+  }, [loading, isAuthenticated, user, location, navigate, skipTeamCheck]);
 
   if (loading) {
     return (

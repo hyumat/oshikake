@@ -44,6 +44,8 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   /** Stripe subscription ID */
   stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
+  /** User's supported team ID (references teams table) */
+  supportedTeamId: integer("supportedTeamId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -63,6 +65,7 @@ export const teams = pgTable("teams", {
   name: varchar("name", { length: 128 }).notNull(),
   slug: varchar("slug", { length: 32 }).notNull().unique(),
   aliases: text("aliases"),
+  league: varchar("league", { length: 8 }),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
