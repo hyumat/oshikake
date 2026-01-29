@@ -59,22 +59,9 @@ export async function createContext(
   try {
     user = await sdk.authenticateRequest(opts.req);
   } catch (error) {
-    // Authentication failed - check if we should use dev fallback
-    if (!ENV.isProduction) {
-      // Development mode: auto-login as dev user for testing
-      try {
-        user = await getOrCreateDevUser();
-        console.log("[Auth] Using dev fallback user:", user.name);
-      } catch (devError) {
-        console.error("[Auth] Failed to create dev user:", devError);
-        user = null;
-      }
-    }
-    
-    if (!user) {
-      // Authentication is optional for public procedures.
-      user = null;
-    }
+    // Authentication failed - user remains null
+    // In development, use /api/dev/switch-user/:type to login as test users
+    user = null;
   }
 
   return {
@@ -83,3 +70,6 @@ export async function createContext(
     user,
   };
 }
+
+// Export for use in dev switch-user endpoint
+export { getOrCreateDevUser };
