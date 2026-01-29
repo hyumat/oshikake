@@ -2,8 +2,8 @@ import { router, protectedProcedure, getApiPerformanceStats, getApiMetrics } fro
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { getDb } from '../db';
-import { eventLogs, matches, users, syncLogs, announcements, userMatches } from '../../drizzle/schema';
-import { desc, sql, eq, like, or, and, gte, lte, count } from 'drizzle-orm';
+import { eventLogs, matches, users, syncLogs, announcements, userMatches, teams, seasons } from '../../drizzle/schema';
+import { desc, sql, eq, like, or, and, gte, lte, count, asc } from 'drizzle-orm';
 
 export const adminRouter = router({
   getEventLogs: protectedProcedure
@@ -119,6 +119,275 @@ export const adminRouter = router({
       }
     }),
 
+  // === Team Management (Issue #211) ===
+
+  getTeams: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view teams',
+      });
+    }
+
+    const db = await getDb();
+    if (!db) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Database not available',
+      });
+    }
+
+    try {
+      const teamList = await db.select().from(teams).orderBy(asc(teams.name));
+      return { success: true, teams: teamList };
+    } catch (error) {
+      console.error('[Admin Router] Error fetching teams:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch teams',
+      });
+    }
+  }),
+
+  createTeam: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
+        aliases: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can create teams',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [newTeam] = await db
+          .insert(teams)
+          .values({
+            name: input.name,
+            slug: input.slug,
+            aliases: input.aliases || null,
+          })
+          .returning();
+
+        console.log(`[Admin] Team created: ${input.slug} by user ${ctx.user.id}`);
+        return { success: true, team: newTeam };
+      } catch (error: any) {
+        console.error('[Admin Router] Error creating team:', error);
+        if (error.code === '23505') {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Team slug already exists',
+          });
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create team',
+        });
+      }
+    }),
+
+  updateTeam: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+        aliases: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can update teams',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const { id, ...updateData } = input;
+        const [updatedTeam] = await db
+          .update(teams)
+          .set({ ...updateData, updatedAt: new Date() })
+          .where(eq(teams.id, id))
+          .returning();
+
+        if (!updatedTeam) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Team not found',
+          });
+        }
+
+        console.log(`[Admin] Team updated: ${updatedTeam.slug} by user ${ctx.user.id}`);
+        return { success: true, team: updatedTeam };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error updating team:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update team',
+        });
+      }
+    }),
+
+  // === Season Management (Issue #211) ===
+
+  getSeasons: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view seasons',
+      });
+    }
+
+    const db = await getDb();
+    if (!db) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Database not available',
+      });
+    }
+
+    try {
+      const seasonList = await db.select().from(seasons).orderBy(desc(seasons.year));
+      return { success: true, seasons: seasonList };
+    } catch (error) {
+      console.error('[Admin Router] Error fetching seasons:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch seasons',
+      });
+    }
+  }),
+
+  createSeason: protectedProcedure
+    .input(
+      z.object({
+        year: z.number().min(2020).max(2100),
+        label: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can create seasons',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const [newSeason] = await db
+          .insert(seasons)
+          .values({
+            year: input.year,
+            label: input.label || `${input.year}シーズン`,
+            startDate: input.startDate || null,
+            endDate: input.endDate || null,
+          })
+          .returning();
+
+        console.log(`[Admin] Season created: ${input.year} by user ${ctx.user.id}`);
+        return { success: true, season: newSeason };
+      } catch (error: any) {
+        console.error('[Admin Router] Error creating season:', error);
+        if (error.code === '23505') {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Season year already exists',
+          });
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create season',
+        });
+      }
+    }),
+
+  updateSeason: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        year: z.number().min(2020).max(2100).optional(),
+        label: z.string().nullable().optional(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can update seasons',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const { id, ...updateData } = input;
+        const [updatedSeason] = await db
+          .update(seasons)
+          .set({ ...updateData, updatedAt: new Date() })
+          .where(eq(seasons.id, id))
+          .returning();
+
+        if (!updatedSeason) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Season not found',
+          });
+        }
+
+        console.log(`[Admin] Season updated: ${updatedSeason.year} by user ${ctx.user.id}`);
+        return { success: true, season: updatedSeason };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error updating season:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update season',
+        });
+      }
+    }),
+
   // === Match Management CRUD ===
 
   getMatches: protectedProcedure
@@ -128,6 +397,8 @@ export const adminRouter = router({
         offset: z.number().default(0).optional(),
         search: z.string().optional(),
         year: z.number().optional(),
+        teamId: z.number().optional(),
+        seasonId: z.number().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -168,9 +439,15 @@ export const adminRouter = router({
         if (input.year) {
           conditions.push(like(matches.date, `${input.year}-%`));
         }
+        if (input.teamId) {
+          conditions.push(eq(matches.teamId, input.teamId));
+        }
+        if (input.seasonId) {
+          conditions.push(eq(matches.seasonId, input.seasonId));
+        }
 
         if (conditions.length > 0) {
-          query = query.where(sql`${conditions[0]}${conditions.slice(1).map(c => sql` AND ${c}`)}`) as any;
+          query = query.where(and(...conditions)) as any;
         }
 
         const matchList = await query;
@@ -181,7 +458,7 @@ export const adminRouter = router({
           .from(matches);
         
         if (conditions.length > 0) {
-          countQuery = countQuery.where(sql`${conditions[0]}${conditions.slice(1).map(c => sql` AND ${c}`)}`) as any;
+          countQuery = countQuery.where(and(...conditions)) as any;
         }
         
         const countResult = await countQuery;
@@ -264,6 +541,14 @@ export const adminRouter = router({
         status: z.string().optional(),
         roundLabel: z.string().optional(),
         roundNumber: z.number().optional(),
+        teamId: z.number().optional(),
+        seasonId: z.number().optional(),
+        ticketSales1: z.string().optional(),
+        ticketSales2: z.string().optional(),
+        ticketSales3: z.string().optional(),
+        ticketSalesGeneral: z.string().optional(),
+        resultScore: z.string().optional(),
+        resultOutcome: z.enum(['win', 'draw', 'loss']).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -308,6 +593,14 @@ export const adminRouter = router({
             sourceKey,
             roundLabel: input.roundLabel || null,
             roundNumber: input.roundNumber || null,
+            teamId: input.teamId || null,
+            seasonId: input.seasonId || null,
+            ticketSales1: input.ticketSales1 ? new Date(input.ticketSales1) : null,
+            ticketSales2: input.ticketSales2 ? new Date(input.ticketSales2) : null,
+            ticketSales3: input.ticketSales3 ? new Date(input.ticketSales3) : null,
+            ticketSalesGeneral: input.ticketSalesGeneral ? new Date(input.ticketSalesGeneral) : null,
+            resultScore: input.resultScore || null,
+            resultOutcome: input.resultOutcome || null,
           })
           .returning();
 
@@ -349,6 +642,14 @@ export const adminRouter = router({
         status: z.string().nullable().optional(),
         roundLabel: z.string().nullable().optional(),
         roundNumber: z.number().nullable().optional(),
+        teamId: z.number().nullable().optional(),
+        seasonId: z.number().nullable().optional(),
+        ticketSales1: z.string().nullable().optional(),
+        ticketSales2: z.string().nullable().optional(),
+        ticketSales3: z.string().nullable().optional(),
+        ticketSalesGeneral: z.string().nullable().optional(),
+        resultScore: z.string().nullable().optional(),
+        resultOutcome: z.enum(['win', 'draw', 'loss']).nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -368,12 +669,26 @@ export const adminRouter = router({
       }
 
       try {
-        const { id, ...updateData } = input;
+        const { id, ticketSales1, ticketSales2, ticketSales3, ticketSalesGeneral, ...updateData } = input;
 
         // Calculate isResult if scores are provided
         const updates: any = { ...updateData, updatedAt: new Date() };
         if ('homeScore' in updateData && 'awayScore' in updateData) {
           updates.isResult = updateData.homeScore !== null && updateData.awayScore !== null ? 1 : 0;
+        }
+        
+        // Handle timestamp fields
+        if (ticketSales1 !== undefined) {
+          updates.ticketSales1 = ticketSales1 ? new Date(ticketSales1) : null;
+        }
+        if (ticketSales2 !== undefined) {
+          updates.ticketSales2 = ticketSales2 ? new Date(ticketSales2) : null;
+        }
+        if (ticketSales3 !== undefined) {
+          updates.ticketSales3 = ticketSales3 ? new Date(ticketSales3) : null;
+        }
+        if (ticketSalesGeneral !== undefined) {
+          updates.ticketSalesGeneral = ticketSalesGeneral ? new Date(ticketSalesGeneral) : null;
         }
 
         const [updatedMatch] = await db

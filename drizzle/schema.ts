@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["user", "admin"]);
 export const planEnum = pgEnum("plan", ["free", "plus", "pro"]);
@@ -7,6 +7,7 @@ export const userMatchStatusEnum = pgEnum("userMatchStatus", ["planned", "attend
 export const resultWdlEnum = pgEnum("resultWdl", ["W", "D", "L"]);
 export const syncStatusEnum = pgEnum("syncStatus", ["success", "partial", "failed"]);
 export const expenseCategoryEnum = pgEnum("expenseCategory", ["transport", "ticket", "food", "other"]);
+export const matchOutcomeEnum = pgEnum("matchOutcome", ["win", "draw", "loss"]);
 export const auditActionEnum = pgEnum("auditAction", [
   "attendance_create",
   "attendance_update",
@@ -50,6 +51,42 @@ export const users = pgTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+/**
+ * Issue #211: チーム別→シーズン別データ構成
+ * 
+ * チームマスターテーブル
+ * 将来的にマリノス以外のチームも追加できる設計
+ */
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  slug: varchar("slug", { length: 32 }).notNull().unique(),
+  aliases: text("aliases"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = typeof teams.$inferInsert;
+
+/**
+ * Issue #211: シーズンテーブル
+ * 
+ * 2024年から結果を蓄積していく
+ */
+export const seasons = pgTable("seasons", {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull().unique(),
+  label: varchar("label", { length: 64 }),
+  startDate: varchar("startDate", { length: 10 }),
+  endDate: varchar("endDate", { length: 10 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type Season = typeof seasons.$inferSelect;
+export type InsertSeason = typeof seasons.$inferInsert;
 
 /**
  * Issue #144: マリノス貯金機能 - 貯金ルール
@@ -120,6 +157,12 @@ export type InsertSavingsHistory = typeof savingsHistory.$inferInsert;
 export const matches = pgTable("matches", {
   id: serial("id").primaryKey(),
   
+  // === Issue #211: チーム/シーズン紐付け ===
+  /** チームID (teams.idを参照) - nullable for backward compatibility */
+  teamId: integer("teamId").references(() => teams.id),
+  /** シーズンID (seasons.idを参照) - nullable for backward compatibility */
+  seasonId: integer("seasonId").references(() => seasons.id),
+  
   // === Sheets列に対応 ===
   /** match_id: 固定ID (Sheetsのmatch_id列) */
   matchId: varchar("matchId", { length: 32 }).notNull().unique(),
@@ -137,13 +180,29 @@ export const matches = pgTable("matches", {
   kickoff: varchar("kickoff", { length: 5 }),
   /** competition: 大会名 */
   competition: varchar("competition", { length: 128 }),
-  /** ticket_sales_start: チケット販売開始日 */
+  /** ticket_sales_start: チケット販売開始日 (従来互換用) */
   ticketSalesStart: varchar("ticketSalesStart", { length: 10 }),
   /** notes: 備考 */
   notes: text("notes"),
   
+  // === Issue #211: チケット販売開始日（複数対応） ===
+  /** 一次販売開始 (DateTime) */
+  ticketSales1: timestamp("ticketSales1"),
+  /** 二次販売開始 (DateTime) */
+  ticketSales2: timestamp("ticketSales2"),
+  /** 三次販売開始 (DateTime) */
+  ticketSales3: timestamp("ticketSales3"),
+  /** 一般販売開始 (DateTime) */
+  ticketSalesGeneral: timestamp("ticketSalesGeneral"),
+  
+  // === Issue #211: 試合結果（勝敗） ===
+  /** 結果スコア (例: "2-1") */
+  resultScore: varchar("resultScore", { length: 16 }),
+  /** 勝敗 (win/draw/loss) */
+  resultOutcome: matchOutcomeEnum("resultOutcome"),
+  
   // === メタデータ (内部管理用) ===
-  /** データソース ("sheets", "jleague", "phew") */
+  /** データソース ("sheets", "jleague", "phew", "admin") */
   source: varchar("source", { length: 32 }).default("sheets").notNull(),
   /** 以前のsourceKeyとの互換性維持 */
   sourceKey: varchar("sourceKey", { length: 128 }).notNull().unique(),
@@ -173,6 +232,9 @@ export const matches = pgTable("matches", {
   index("matches_competition_idx").on(table.competition),
   index("matches_isResult_idx").on(table.isResult),
   index("matches_date_marinosSide_idx").on(table.date, table.marinosSide),
+  index("matches_teamId_idx").on(table.teamId),
+  index("matches_seasonId_idx").on(table.seasonId),
+  index("matches_teamId_seasonId_idx").on(table.teamId, table.seasonId),
 ]);
 
 export type Match = typeof matches.$inferSelect;
