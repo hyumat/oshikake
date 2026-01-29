@@ -792,6 +792,7 @@ export const adminRouter = router({
         ticketSalesGeneral: z.string().optional(),
         resultScore: z.string().optional(),
         resultOutcome: z.enum(['win', 'draw', 'loss']).optional(),
+        attendance: z.number().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -844,6 +845,7 @@ export const adminRouter = router({
             ticketSalesGeneral: input.ticketSalesGeneral ? new Date(input.ticketSalesGeneral) : null,
             resultScore: input.resultScore || null,
             resultOutcome: input.resultOutcome || null,
+            attendance: input.attendance ?? null,
           })
           .returning();
 

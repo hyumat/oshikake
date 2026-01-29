@@ -57,6 +57,7 @@ import {
   AlertCircle,
   CheckCircle,
   Download,
+  Pencil,
 } from "lucide-react";
 import { EditableCell } from "@/components/admin/EditableCell";
 
@@ -79,6 +80,13 @@ interface MatchFormData {
   roundNumber: number | null;
   teamId: number | null;
   seasonId: number | null;
+  ticketSales1: string;
+  ticketSales2: string;
+  ticketSales3: string;
+  ticketSalesGeneral: string;
+  resultScore: string;
+  resultOutcome: "win" | "draw" | "loss" | null;
+  attendance: number | null;
 }
 
 const defaultFormData: MatchFormData = {
@@ -100,6 +108,13 @@ const defaultFormData: MatchFormData = {
   roundNumber: null,
   teamId: null,
   seasonId: null,
+  ticketSales1: "",
+  ticketSales2: "",
+  ticketSales3: "",
+  ticketSalesGeneral: "",
+  resultScore: "",
+  resultOutcome: null,
+  attendance: null,
 };
 
 function MatchForm({
@@ -309,7 +324,7 @@ function MatchForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="ticketSalesStart">チケット販売開始</Label>
+          <Label htmlFor="ticketSalesStart">チケット販売開始（旧）</Label>
           <Input
             id="ticketSalesStart"
             type="date"
@@ -336,6 +351,92 @@ function MatchForm({
         </div>
       </div>
 
+      <div className="border-t pt-4 mt-4">
+        <h4 className="text-sm font-medium text-slate-700 mb-3">チケット販売日程</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="ticketSales1">一次販売開始</Label>
+            <Input
+              id="ticketSales1"
+              type="datetime-local"
+              value={data.ticketSales1}
+              onChange={(e) => handleChange("ticketSales1", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ticketSales2">二次販売開始</Label>
+            <Input
+              id="ticketSales2"
+              type="datetime-local"
+              value={data.ticketSales2}
+              onChange={(e) => handleChange("ticketSales2", e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-3">
+          <div className="space-y-2">
+            <Label htmlFor="ticketSales3">三次販売開始</Label>
+            <Input
+              id="ticketSales3"
+              type="datetime-local"
+              value={data.ticketSales3}
+              onChange={(e) => handleChange("ticketSales3", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ticketSalesGeneral">一般販売開始</Label>
+            <Input
+              id="ticketSalesGeneral"
+              type="datetime-local"
+              value={data.ticketSalesGeneral}
+              onChange={(e) => handleChange("ticketSalesGeneral", e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t pt-4 mt-4">
+        <h4 className="text-sm font-medium text-slate-700 mb-3">試合結果</h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="resultScore">スコア</Label>
+            <Input
+              id="resultScore"
+              value={data.resultScore}
+              onChange={(e) => handleChange("resultScore", e.target.value)}
+              placeholder="2-1"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="resultOutcome">勝敗</Label>
+            <Select
+              value={data.resultOutcome || ""}
+              onValueChange={(value) => handleChange("resultOutcome", value || null)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="--" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="win">勝</SelectItem>
+                <SelectItem value="draw">分</SelectItem>
+                <SelectItem value="loss">負</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="attendance">観客数</Label>
+            <Input
+              id="attendance"
+              type="number"
+              min="0"
+              value={data.attendance ?? ""}
+              onChange={(e) => handleChange("attendance", e.target.value ? parseInt(e.target.value) : null)}
+              placeholder="50000"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="notes">備考</Label>
         <Input
@@ -356,9 +457,11 @@ function AdminMatchesContent() {
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [editingMatch, setEditingMatch] = useState<any>(null);
   const [formData, setFormData] = useState<MatchFormData>(defaultFormData);
   const [importMode, setImportMode] = useState<'insert' | 'upsert'>('upsert');
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -428,6 +531,9 @@ function AdminMatchesContent() {
 
   const updateMutation = trpc.admin.updateMatch.useMutation({
     onSuccess: () => {
+      toast.success("試合を更新しました");
+      setIsEditOpen(false);
+      setEditingMatch(null);
       utils.admin.getMatches.invalidate();
     },
     onError: (err) => {
@@ -729,8 +835,54 @@ function AdminMatchesContent() {
       roundNumber: null,
       teamId: match.teamId,
       seasonId: match.seasonId,
+      ticketSales1: "",
+      ticketSales2: "",
+      ticketSales3: "",
+      ticketSalesGeneral: "",
+      resultScore: "",
+      resultOutcome: null,
+      attendance: null,
     });
     setIsCreateOpen(true);
+  }, []);
+
+  const formatDateTimeLocal = (date: string | Date | null | undefined): string => {
+    if (!date) return "";
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 16);
+  };
+
+  const handleEditMatch = useCallback((match: any) => {
+    setEditingMatch(match);
+    setFormData({
+      matchId: match.matchId || "",
+      date: match.date || "",
+      opponent: match.opponent || "",
+      homeScore: match.homeScore ?? null,
+      awayScore: match.awayScore ?? null,
+      stadium: match.stadium || "",
+      kickoff: match.kickoff || "",
+      competition: match.competition || "",
+      ticketSalesStart: match.ticketSalesStart || "",
+      notes: match.notes || "",
+      marinosSide: match.marinosSide || "home",
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      status: match.status || "Scheduled",
+      roundLabel: match.roundLabel || "",
+      roundNumber: match.roundNumber ?? null,
+      teamId: match.teamId ?? null,
+      seasonId: match.seasonId ?? null,
+      ticketSales1: formatDateTimeLocal(match.ticketSales1),
+      ticketSales2: formatDateTimeLocal(match.ticketSales2),
+      ticketSales3: formatDateTimeLocal(match.ticketSales3),
+      ticketSalesGeneral: formatDateTimeLocal(match.ticketSalesGeneral),
+      resultScore: match.resultScore || "",
+      resultOutcome: match.resultOutcome || null,
+      attendance: match.attendance ?? null,
+    });
+    setIsEditOpen(true);
   }, []);
 
   if (user?.role !== "admin") {
@@ -770,6 +922,44 @@ function AdminMatchesContent() {
       roundNumber: formData.roundNumber || undefined,
       teamId: formData.teamId || undefined,
       seasonId: formData.seasonId || undefined,
+      ticketSales1: formData.ticketSales1 || undefined,
+      ticketSales2: formData.ticketSales2 || undefined,
+      ticketSales3: formData.ticketSales3 || undefined,
+      ticketSalesGeneral: formData.ticketSalesGeneral || undefined,
+      resultScore: formData.resultScore || undefined,
+      resultOutcome: formData.resultOutcome || undefined,
+      attendance: formData.attendance ?? undefined,
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editingMatch) return;
+    updateMutation.mutate({
+      id: editingMatch.id,
+      matchId: formData.matchId,
+      date: formData.date,
+      opponent: formData.opponent,
+      homeScore: formData.homeScore,
+      awayScore: formData.awayScore,
+      stadium: formData.stadium || null,
+      kickoff: formData.kickoff || null,
+      competition: formData.competition || null,
+      ticketSalesStart: formData.ticketSalesStart || null,
+      notes: formData.notes || null,
+      marinosSide: formData.marinosSide,
+      homeTeam: formData.homeTeam,
+      awayTeam: formData.awayTeam,
+      status: formData.status || null,
+      roundLabel: formData.roundLabel || null,
+      roundNumber: formData.roundNumber,
+      teamId: formData.teamId,
+      seasonId: formData.seasonId,
+      ticketSales1: formData.ticketSales1 || null,
+      ticketSales2: formData.ticketSales2 || null,
+      ticketSales3: formData.ticketSales3 || null,
+      ticketSalesGeneral: formData.ticketSalesGeneral || null,
+      resultScore: formData.resultScore || null,
+      resultOutcome: formData.resultOutcome,
     });
   };
 
@@ -1057,6 +1247,14 @@ function AdminMatchesContent() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => handleEditMatch(match)}
+                              title="編集"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => handleDuplicateMatch(match)}
                               title="複製"
                             >
@@ -1134,6 +1332,35 @@ function AdminMatchesContent() {
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? "作成中..." : "作成"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>試合を編集</DialogTitle>
+            <DialogDescription>
+              試合情報を編集してください
+            </DialogDescription>
+          </DialogHeader>
+          <MatchForm
+            data={formData}
+            onChange={setFormData}
+            isEdit={true}
+            teams={teams}
+            seasons={seasons}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "更新中..." : "更新"}
             </Button>
           </DialogFooter>
         </DialogContent>
