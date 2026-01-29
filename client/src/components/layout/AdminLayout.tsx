@@ -27,13 +27,14 @@ import {
   Users,
   Shield,
   ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
-  { icon: LayoutDashboard, label: "管理コンソール", path: "/admin" },
+  { icon: LayoutDashboard, label: "ダッシュボード", path: "/admin" },
   { icon: Calendar, label: "試合データ管理", path: "/admin/matches" },
   { icon: Users, label: "チーム管理", path: "/admin/teams" },
 ];
@@ -44,12 +45,12 @@ type AdminLayoutProps = {
 
 function AdminLayoutSkeleton() {
   return (
-    <div className="flex h-screen bg-slate-50">
-      <div className="w-64 bg-white border-r p-4">
-        <Skeleton className="h-8 w-32 mb-8" />
+    <div className="flex h-screen bg-gray-100">
+      <div className="w-64 bg-slate-900 p-4">
+        <Skeleton className="h-8 w-32 mb-8 bg-slate-800" />
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-10 w-full bg-slate-800" />
           ))}
         </div>
       </div>
@@ -72,11 +73,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!user || user.role !== "admin") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Shield className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold mb-2">アクセス権限がありません</h1>
-          <p className="text-slate-600">この画面は管理者専用です。</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center bg-white rounded-2xl shadow-sm p-12">
+          <Shield className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold mb-2 text-slate-900">アクセス権限がありません</h1>
+          <p className="text-slate-500">この画面は管理者専用です。</p>
         </div>
       </div>
     );
@@ -89,15 +90,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
-      <div className="flex h-screen w-full bg-slate-50">
-        <Sidebar className="border-r bg-white">
-          <SidebarHeader className="border-b px-4 py-4">
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-blue-600" />
-              <span className="font-semibold text-lg">Admin</span>
+      <div className="flex h-screen w-full bg-gray-100">
+        <Sidebar className="border-r-0 bg-slate-900">
+          <SidebarHeader className="px-4 py-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-white">オシカケ</span>
+                <span className="text-xs text-slate-400">Admin Portal</span>
+              </div>
             </div>
           </SidebarHeader>
-          <SidebarContent className="px-2 py-4">
+          <SidebarContent className="px-3 py-2">
+            <div className="mb-2 px-3 py-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                メニュー
+              </span>
+            </div>
             <SidebarMenu>
               {adminMenuItems.map((item) => {
                 const Icon = item.icon;
@@ -110,13 +121,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       onClick={() => setLocation(item.path)}
                       isActive={isActive}
                       className={cn(
-                        "w-full justify-start gap-3 px-3 py-2.5 text-sm font-medium transition-colors",
+                        "w-full justify-start gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                         isActive
-                          ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                          : "text-slate-700 hover:bg-slate-100"
+                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
                       )}
                     >
-                      <Icon className={cn("h-5 w-5", isActive ? "text-blue-600" : "text-slate-500")} />
+                      <Icon className={cn("h-5 w-5", isActive ? "text-white" : "text-slate-400")} />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -124,32 +135,33 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               })}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="border-t p-2">
+          <SidebarFooter className="border-t border-slate-800 p-3">
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton className="w-full justify-between px-3 py-2.5">
+                    <SidebarMenuButton className="w-full justify-between px-3 py-3 rounded-lg hover:bg-slate-800 transition-colors">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
+                        <Avatar className="h-9 w-9 ring-2 ring-slate-700">
+                          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-medium">
                             {user.name?.[0] || "A"}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col items-start text-sm">
-                          <span className="font-medium">{user.name || "Admin"}</span>
-                          <span className="text-xs text-slate-500">管理者</span>
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-medium text-white">{user.name || "Admin"}</span>
+                          <span className="text-xs text-slate-400">管理者</span>
                         </div>
                       </div>
-                      <ChevronUp className="h-4 w-4 text-slate-400" />
+                      <ChevronUp className="h-4 w-4 text-slate-500" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" className="w-56">
-                    <DropdownMenuItem onClick={() => setLocation("/app")}>
+                    <DropdownMenuItem onClick={() => setLocation("/app")} className="gap-2">
+                      <ExternalLink className="h-4 w-4" />
                       ユーザー画面へ
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-600 focus:text-red-600">
+                      <LogOut className="h-4 w-4" />
                       ログアウト
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -159,15 +171,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex-1 overflow-auto">
-          <header className="flex h-14 items-center gap-4 border-b bg-white px-6 lg:hidden">
-            <SidebarTrigger />
+        <SidebarInset className="flex-1 overflow-auto bg-gray-100">
+          <header className="flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-6 lg:hidden">
+            <SidebarTrigger className="text-slate-600" />
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              <span className="font-semibold">Admin</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
+                <Shield className="h-4 w-4 text-white" />
+              </div>
+              <span className="font-semibold text-slate-900">Admin</span>
             </div>
           </header>
-          <main className="p-6">
+          <main className="p-8">
             {children}
           </main>
         </SidebarInset>
