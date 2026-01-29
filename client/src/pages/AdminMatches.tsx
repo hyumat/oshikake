@@ -692,16 +692,16 @@ function AdminMatchesContent() {
                         </TableCell>
                         <TableCell className="p-0">
                           <EditableCell
-                            value={match.resultOutcome || ""}
+                            value={match.resultOutcome || "none"}
                             type="select"
                             options={[
-                              { value: "", label: "-" },
+                              { value: "none", label: "-" },
                               { value: "win", label: "勝" },
                               { value: "draw", label: "分" },
                               { value: "loss", label: "負" },
                             ]}
                             onSave={async (val) => {
-                              await handleCellUpdate(match.id, "resultOutcome", val === "" ? null : val);
+                              await handleCellUpdate(match.id, "resultOutcome", val === "none" ? null : val);
                             }}
                           />
                         </TableCell>
