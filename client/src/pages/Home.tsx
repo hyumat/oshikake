@@ -233,7 +233,7 @@ export default function Home() {
             <CardDescription>管理者専用の機能</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <Button onClick={() => navigate('/admin')} className="w-full">
                 管理コンソール
               </Button>
@@ -243,6 +243,13 @@ export default function Home() {
                 className="w-full"
               >
                 試合データ管理
+              </Button>
+              <Button
+                onClick={() => navigate('/admin/teams')}
+                variant="outline"
+                className="w-full"
+              >
+                チーム管理
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">

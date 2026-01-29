@@ -388,6 +388,61 @@ export const adminRouter = router({
       }
     }),
 
+  deleteTeam: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can delete teams',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const matchCount = await db
+          .select({ count: count() })
+          .from(matches)
+          .where(eq(matches.teamId, input.id));
+
+        if (matchCount[0].count > 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `このチームには ${matchCount[0].count} 件の試合データが紐づいているため削除できません`,
+          });
+        }
+
+        const [deletedTeam] = await db
+          .delete(teams)
+          .where(eq(teams.id, input.id))
+          .returning();
+
+        if (!deletedTeam) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Team not found',
+          });
+        }
+
+        console.log(`[Admin] Team deleted: ${deletedTeam.slug} by user ${ctx.user.id}`);
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error deleting team:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to delete team',
+        });
+      }
+    }),
+
   // === Match Management CRUD ===
 
   getMatches: protectedProcedure
@@ -1202,4 +1257,268 @@ export const adminRouter = router({
       })),
     };
   }),
+
+  // === CSV Import (Issue #212) ===
+
+  importMatchesCsv: protectedProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        seasonId: z.number(),
+        mode: z.enum(['insert', 'upsert']),
+        dryRun: z.boolean().default(false),
+        csvData: z.array(z.object({
+          competition: z.string().optional(),
+          roundLabel: z.string().optional(),
+          marinosSide: z.string().optional(),
+          date: z.string(),
+          kickoff: z.string().optional(),
+          opponent: z.string(),
+          stadium: z.string(),
+          ticketSales1: z.string().optional(),
+          ticketSales2: z.string().optional(),
+          ticketSales3: z.string().optional(),
+          ticketSalesGeneral: z.string().optional(),
+          resultScore: z.string().optional(),
+          resultOutcome: z.string().optional(),
+          matchId: z.number().optional(),
+        })),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can import matches',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      const results = {
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as { rowNumber: number; message: string; rawRow: any }[],
+        preview: [] as { rowNumber: number; action: string; data: any }[],
+      };
+
+      const normalizeHomeAway = (val: string | undefined): 'home' | 'away' | null => {
+        if (!val) return null;
+        const v = val.trim().toUpperCase();
+        if (v === 'HOME' || v === 'H' || v === 'ホーム') return 'home';
+        if (v === 'AWAY' || v === 'A' || v === 'アウェイ') return 'away';
+        return null;
+      };
+
+      const normalizeOutcome = (val: string | undefined): 'win' | 'draw' | 'loss' | null => {
+        if (!val) return null;
+        const v = val.trim().toUpperCase();
+        if (v === '勝' || v === 'W' || v === 'WIN') return 'win';
+        if (v === '分' || v === 'D' || v === 'DRAW') return 'draw';
+        if (v === '負' || v === 'L' || v === 'LOSS') return 'loss';
+        return null;
+      };
+
+      const parseDate = (val: string): string | null => {
+        if (!val) return null;
+        const normalized = val.replace(/\//g, '-');
+        const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (match) {
+          return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+        }
+        return null;
+      };
+
+      const parseDateTime = (val: string | undefined): Date | null => {
+        if (!val) return null;
+        const normalized = val.replace(/\//g, '-');
+        const dateTimeMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
+        if (dateTimeMatch) {
+          const [, y, m, d, h, min] = dateTimeMatch;
+          return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${h.padStart(2, '0')}:${min}:00`);
+        }
+        const dateOnlyMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (dateOnlyMatch) {
+          const [, y, m, d] = dateOnlyMatch;
+          return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`);
+        }
+        return null;
+      };
+
+      const parseScore = (val: string | undefined): { home: number; away: number } | null => {
+        if (!val) return null;
+        const match = val.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+        if (match) {
+          return { home: parseInt(match[1]), away: parseInt(match[2]) };
+        }
+        return null;
+      };
+
+      try {
+        for (let i = 0; i < input.csvData.length; i++) {
+          const row = input.csvData[i];
+          const rowNumber = i + 2;
+
+          const requiredErrors: string[] = [];
+          if (!row.date) requiredErrors.push('試合日付');
+          if (!row.opponent) requiredErrors.push('対戦相手');
+          if (!row.stadium) requiredErrors.push('会場');
+
+          if (requiredErrors.length > 0) {
+            results.failed++;
+            results.errors.push({
+              rowNumber,
+              message: `必須項目が不足: ${requiredErrors.join(', ')}`,
+              rawRow: row,
+            });
+            continue;
+          }
+
+          const parsedDate = parseDate(row.date);
+          if (!parsedDate) {
+            results.failed++;
+            results.errors.push({
+              rowNumber,
+              message: `日付のパースに失敗: ${row.date}`,
+              rawRow: row,
+            });
+            continue;
+          }
+
+          const marinosSide = normalizeHomeAway(row.marinosSide);
+          const resultOutcome = normalizeOutcome(row.resultOutcome);
+          const score = parseScore(row.resultScore);
+
+          const matchData = {
+            teamId: input.teamId,
+            seasonId: input.seasonId,
+            date: parsedDate,
+            kickoff: row.kickoff || null,
+            opponent: row.opponent.trim(),
+            stadium: row.stadium.trim(),
+            marinosSide,
+            competition: row.competition?.trim() || null,
+            roundLabel: row.roundLabel?.trim() || null,
+            ticketSales1: parseDateTime(row.ticketSales1),
+            ticketSales2: parseDateTime(row.ticketSales2),
+            ticketSales3: parseDateTime(row.ticketSales3),
+            ticketSalesGeneral: parseDateTime(row.ticketSalesGeneral),
+            homeScore: score?.home ?? null,
+            awayScore: score?.away ?? null,
+            resultOutcome,
+            status: 'Scheduled' as const,
+          };
+
+          let existingMatch = null;
+          if (row.matchId) {
+            const [found] = await db
+              .select()
+              .from(matches)
+              .where(eq(matches.id, row.matchId))
+              .limit(1);
+            existingMatch = found;
+          }
+
+          if (!existingMatch) {
+            const found = await db
+              .select()
+              .from(matches)
+              .where(
+                and(
+                  eq(matches.teamId, input.teamId),
+                  eq(matches.seasonId, input.seasonId),
+                  eq(matches.date, parsedDate),
+                  eq(matches.opponent, matchData.opponent),
+                  eq(matches.stadium, matchData.stadium)
+                )
+              )
+              .limit(2);
+            
+            if (found.length === 1) {
+              existingMatch = found[0];
+            } else if (found.length > 1) {
+              results.failed++;
+              results.errors.push({
+                rowNumber,
+                message: '複数の既存レコードがマッチしました（突合キーが曖昧）',
+                rawRow: row,
+              });
+              continue;
+            }
+          }
+
+          if (input.dryRun) {
+            results.preview.push({
+              rowNumber,
+              action: existingMatch ? 'update' : 'insert',
+              data: matchData,
+            });
+            if (existingMatch) {
+              results.updated++;
+            } else {
+              results.inserted++;
+            }
+            continue;
+          }
+
+          if (existingMatch) {
+            if (input.mode === 'insert') {
+              results.skipped++;
+              continue;
+            }
+
+            await db
+              .update(matches)
+              .set({ ...matchData, updatedAt: new Date() })
+              .where(eq(matches.id, existingMatch.id));
+            results.updated++;
+          } else {
+            const matchIdStr = `csv-${Date.now()}-${i}`;
+            const sourceKey = `csv-import-${input.teamId}-${parsedDate}-${matchData.opponent}`;
+            const homeTeamName = marinosSide === 'home' ? '横浜F・マリノス' : matchData.opponent;
+            const awayTeamName = marinosSide === 'away' ? '横浜F・マリノス' : matchData.opponent;
+
+            await db.insert(matches).values({
+              ...matchData,
+              matchId: matchIdStr,
+              sourceKey,
+              source: 'admin',
+              homeTeam: homeTeamName,
+              awayTeam: awayTeamName,
+              isResult: score ? 1 : 0,
+            });
+            results.inserted++;
+          }
+        }
+
+        console.log(`[Admin] CSV Import completed by user ${ctx.user.id}: inserted=${results.inserted}, updated=${results.updated}, skipped=${results.skipped}, failed=${results.failed}`);
+
+        return {
+          success: true,
+          summary: {
+            inserted: results.inserted,
+            updated: results.updated,
+            skipped: results.skipped,
+            failed: results.failed,
+            total: input.csvData.length,
+          },
+          errors: results.errors,
+          preview: input.dryRun ? results.preview : undefined,
+        };
+      } catch (error) {
+        console.error('[Admin Router] Error importing CSV:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'CSVインポートに失敗しました',
+        });
+      }
+    }),
 });

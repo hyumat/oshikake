@@ -22,6 +22,7 @@ import Upgrade from "./pages/Upgrade";
 import Pricing from "./pages/Pricing";
 import AdminMatches from "./pages/AdminMatches";
 import AdminConsole from "./pages/AdminConsole";
+import AdminTeams from "./pages/AdminTeams";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Share from "./pages/Share";
@@ -57,6 +58,7 @@ function Router() {
       {/* Admin Routes */}
       <Route path={"/admin"}>{() => <ProtectedRoute component={AdminConsole} />}</Route>
       <Route path={"/admin/matches"}>{() => <ProtectedRoute component={AdminMatches} />}</Route>
+      <Route path={"/admin/teams"}>{() => <ProtectedRoute component={AdminTeams} />}</Route>
 
       {/* Public Share Page */}
       <Route path={"/share/:token"} component={Share} />

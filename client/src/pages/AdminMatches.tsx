@@ -50,6 +50,10 @@ import {
   ChevronRight,
   Shield,
   Copy,
+  Upload,
+  FileText,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { EditableCell } from "@/components/admin/EditableCell";
 
@@ -350,8 +354,15 @@ function AdminMatchesContent() {
   const [offset, setOffset] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [formData, setFormData] = useState<MatchFormData>(defaultFormData);
+  const [importMode, setImportMode] = useState<'insert' | 'upsert'>('upsert');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreviewData, setCsvPreviewData] = useState<any[]>([]);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [importTeamId, setImportTeamId] = useState<number | undefined>();
+  const [importSeasonId, setImportSeasonId] = useState<number | undefined>();
   const limit = 20;
 
   const [selectedTeamId, setSelectedTeamId] = useState<number | undefined>();
@@ -409,6 +420,142 @@ function AdminMatchesContent() {
       toast.error(err.message || "削除に失敗しました");
     },
   });
+
+  const importMutation = trpc.admin.importMatchesCsv.useMutation({
+    onSuccess: (result) => {
+      setImportResult(result);
+      if (result.summary.failed === 0) {
+        toast.success(`${result.summary.inserted}件追加、${result.summary.updated}件更新しました`);
+      } else {
+        toast.warning(`${result.summary.failed}件のエラーがあります`);
+      }
+      utils.admin.getMatches.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "インポートに失敗しました");
+    },
+  });
+
+  const parseCsvLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFile(file);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const cleanText = text.replace(/^\uFEFF/, '');
+      const lines = cleanText.split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 2) {
+        toast.error('CSVファイルにデータがありません');
+        return;
+      }
+
+      const headers = parseCsvLine(lines[0]);
+
+      const headerMap: Record<string, string> = {
+        '大会名': 'competition',
+        '節': 'roundLabel',
+        'HOME/AWAY': 'marinosSide',
+        '試合日付': 'date',
+        'キックオフ': 'kickoff',
+        '対戦相手': 'opponent',
+        '会場': 'stadium',
+        '一次販売開始': 'ticketSales1',
+        '二次販売開始': 'ticketSales2',
+        '三次販売開始': 'ticketSales3',
+        '一般販売開始': 'ticketSalesGeneral',
+        '試合結果': 'resultScore',
+        '勝敗': 'resultOutcome',
+        'match_id': 'matchId',
+      };
+
+      const parsedData: any[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCsvLine(lines[i]);
+        const row: any = {};
+        headers.forEach((header, idx) => {
+          const key = headerMap[header] || header;
+          row[key] = values[idx] || '';
+        });
+        parsedData.push(row);
+      }
+
+      setCsvPreviewData(parsedData);
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleImportPreview = () => {
+    if (!importTeamId || !importSeasonId) {
+      toast.error('チームとシーズンを選択してください');
+      return;
+    }
+    if (csvPreviewData.length === 0) {
+      toast.error('CSVファイルを選択してください');
+      return;
+    }
+
+    importMutation.mutate({
+      teamId: importTeamId,
+      seasonId: importSeasonId,
+      mode: importMode,
+      dryRun: true,
+      csvData: csvPreviewData,
+    });
+  };
+
+  const handleImportExecute = () => {
+    if (!importTeamId || !importSeasonId) {
+      toast.error('チームとシーズンを選択してください');
+      return;
+    }
+
+    importMutation.mutate({
+      teamId: importTeamId,
+      seasonId: importSeasonId,
+      mode: importMode,
+      dryRun: false,
+      csvData: csvPreviewData,
+    });
+  };
+
+  const resetImportState = () => {
+    setCsvFile(null);
+    setCsvPreviewData([]);
+    setImportResult(null);
+    setImportTeamId(undefined);
+    setImportSeasonId(undefined);
+    setIsImportOpen(false);
+  };
 
   const handleCellUpdate = useCallback(
     async (matchId: number, field: string, value: string | number | null) => {
@@ -530,16 +677,22 @@ function AdminMatchesContent() {
             試合データの追加・編集・削除を行います（セルをクリックして直接編集）
           </p>
         </div>
-        <Button onClick={() => {
-          const defaultData = { ...defaultFormData };
-          if (selectedTeamId) defaultData.teamId = selectedTeamId;
-          if (selectedSeasonId) defaultData.seasonId = selectedSeasonId;
-          setFormData(defaultData);
-          setIsCreateOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          試合を追加
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            CSVインポート
+          </Button>
+          <Button onClick={() => {
+            const defaultData = { ...defaultFormData };
+            if (selectedTeamId) defaultData.teamId = selectedTeamId;
+            if (selectedSeasonId) defaultData.seasonId = selectedSeasonId;
+            setFormData(defaultData);
+            setIsCreateOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            試合を追加
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -840,6 +993,200 @@ function AdminMatchesContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isImportOpen} onOpenChange={(open) => { if (!open) resetImportState(); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              CSVインポート
+            </DialogTitle>
+            <DialogDescription>
+              CSVファイルから試合データを一括登録・更新します
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>対象チーム</Label>
+                <Select
+                  value={importTeamId?.toString() || ""}
+                  onValueChange={(v) => setImportTeamId(parseInt(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="チームを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id.toString()}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>対象シーズン</Label>
+                <Select
+                  value={importSeasonId?.toString() || ""}
+                  onValueChange={(v) => setImportSeasonId(parseInt(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="シーズンを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seasons.map((season) => (
+                      <SelectItem key={season.id} value={season.id.toString()}>
+                        {season.label || `${season.year}シーズン`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>取り込みモード</Label>
+              <Select
+                value={importMode}
+                onValueChange={(v) => setImportMode(v as 'insert' | 'upsert')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="insert">追加のみ（既存はスキップ）</SelectItem>
+                  <SelectItem value="upsert">追加＋更新（Upsert）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>CSVファイル</Label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFileChange}
+              />
+              <p className="text-xs text-slate-500">
+                必須列: 試合日付, 対戦相手, 会場 / 任意列: 大会名, 節, HOME/AWAY, キックオフ, 試合結果, 勝敗
+              </p>
+            </div>
+
+            {csvPreviewData.length > 0 && !importResult && (
+              <div className="space-y-2">
+                <Label>プレビュー（先頭10行）</Label>
+                <div className="border rounded-md overflow-x-auto max-h-60">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>日付</TableHead>
+                        <TableHead>対戦相手</TableHead>
+                        <TableHead>会場</TableHead>
+                        <TableHead>H/A</TableHead>
+                        <TableHead>大会</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csvPreviewData.slice(0, 10).map((row, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-slate-500">{idx + 1}</TableCell>
+                          <TableCell>{row.date}</TableCell>
+                          <TableCell>{row.opponent}</TableCell>
+                          <TableCell>{row.stadium}</TableCell>
+                          <TableCell>{row.marinosSide}</TableCell>
+                          <TableCell>{row.competition}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-sm text-slate-600">
+                  全{csvPreviewData.length}行
+                </p>
+              </div>
+            )}
+
+            {importResult && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-md bg-slate-100">
+                  <h4 className="font-medium mb-2">
+                    {importResult.preview ? 'プレビュー結果' : '取り込み結果'}
+                  </h4>
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>追加: {importResult.summary.inserted}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <span>更新: {importResult.summary.updated}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500">スキップ: {importResult.summary.skipped}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <span>失敗: {importResult.summary.failed}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {importResult.errors.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-red-600">エラー行</Label>
+                    <div className="border border-red-200 rounded-md overflow-x-auto max-h-40">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>行</TableHead>
+                            <TableHead>エラー</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importResult.errors.map((err: any, idx: number) => (
+                            <TableRow key={idx}>
+                              <TableCell>{err.rowNumber}</TableCell>
+                              <TableCell className="text-red-600">{err.message}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={resetImportState}>
+              キャンセル
+            </Button>
+            {!importResult ? (
+              <Button
+                onClick={handleImportPreview}
+                disabled={importMutation.isPending || csvPreviewData.length === 0}
+              >
+                {importMutation.isPending ? "確認中..." : "プレビュー"}
+              </Button>
+            ) : importResult.preview ? (
+              <Button
+                onClick={handleImportExecute}
+                disabled={importMutation.isPending}
+              >
+                {importMutation.isPending ? "インポート中..." : "インポート実行"}
+              </Button>
+            ) : (
+              <Button onClick={resetImportState}>
+                完了
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
