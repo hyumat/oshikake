@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard";
 import { AppShell } from "./components/layout/AppShell";
+import { AdminLayout } from "./components/layout/AdminLayout";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -37,6 +38,16 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   );
 }
 
+function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <AuthGuard>
+      <AdminLayout>
+        <Component />
+      </AdminLayout>
+    </AuthGuard>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -56,9 +67,9 @@ function Router() {
       <Route path={"/settings"}>{() => <ProtectedRoute component={Settings} />}</Route>
 
       {/* Admin Routes */}
-      <Route path={"/admin"}>{() => <ProtectedRoute component={AdminConsole} />}</Route>
-      <Route path={"/admin/matches"}>{() => <ProtectedRoute component={AdminMatches} />}</Route>
-      <Route path={"/admin/teams"}>{() => <ProtectedRoute component={AdminTeams} />}</Route>
+      <Route path={"/admin"}>{() => <ProtectedAdminRoute component={AdminConsole} />}</Route>
+      <Route path={"/admin/matches"}>{() => <ProtectedAdminRoute component={AdminMatches} />}</Route>
+      <Route path={"/admin/teams"}>{() => <ProtectedAdminRoute component={AdminTeams} />}</Route>
 
       {/* Public Share Page */}
       <Route path={"/share/:token"} component={Share} />

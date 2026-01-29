@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { getDb } from '../db';
 import { eventLogs, matches, users, syncLogs, announcements, userMatches, teams, seasons } from '../../drizzle/schema';
-import { desc, sql, eq, like, or, and, gte, lte, count, asc } from 'drizzle-orm';
+import { desc, sql, eq, like, or, and, gte, lte, lt, count, asc, isNull, not } from 'drizzle-orm';
 
 export const adminRouter = router({
   getEventLogs: protectedProcedure
@@ -1076,6 +1076,127 @@ export const adminRouter = router({
           lastSync: null,
           lastSyncStatus: null,
           recentErrors: 0,
+        },
+      };
+    }
+  }),
+
+  getDataQuality: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only admins can view data quality',
+      });
+    }
+
+    const db = await getDb();
+    if (!db) {
+      return {
+        success: false,
+        quality: {
+          missingKickoff: 0,
+          missingStadium: 0,
+          missingTicketSales: 0,
+          missingResults: 0,
+          inconsistencies: 0,
+          lastUpdate: null,
+          lastCsvImport: null,
+        },
+      };
+    }
+
+    try {
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+
+      const [missingKickoffResult] = await db
+        .select({ count: count() })
+        .from(matches)
+        .where(
+          and(
+            gte(matches.date, today),
+            or(isNull(matches.kickoff), eq(matches.kickoff, ''))
+          )
+        );
+
+      const [missingStadiumResult] = await db
+        .select({ count: count() })
+        .from(matches)
+        .where(
+          and(
+            gte(matches.date, today),
+            or(isNull(matches.stadium), eq(matches.stadium, ''))
+          )
+        );
+
+      const [missingTicketSalesResult] = await db
+        .select({ count: count() })
+        .from(matches)
+        .where(
+          and(
+            gte(matches.date, today),
+            isNull(matches.ticketSales1),
+            isNull(matches.ticketSalesGeneral)
+          )
+        );
+
+      const [missingResultsResult] = await db
+        .select({ count: count() })
+        .from(matches)
+        .where(
+          and(
+            lt(matches.date, today),
+            isNull(matches.resultOutcome)
+          )
+        );
+
+      const [inconsistenciesResult] = await db
+        .select({ count: count() })
+        .from(matches)
+        .where(
+          and(
+            not(isNull(matches.ticketSalesGeneral)),
+            sql`${matches.ticketSalesGeneral}::date > ${matches.date}::date`
+          )
+        );
+
+      const [lastUpdateResult] = await db
+        .select({ updatedAt: matches.updatedAt })
+        .from(matches)
+        .orderBy(desc(matches.updatedAt))
+        .limit(1);
+
+      const [lastCsvImportResult] = await db
+        .select()
+        .from(eventLogs)
+        .where(like(eventLogs.eventName, '%CSV Import%'))
+        .orderBy(desc(eventLogs.createdAt))
+        .limit(1);
+
+      return {
+        success: true,
+        quality: {
+          missingKickoff: missingKickoffResult?.count || 0,
+          missingStadium: missingStadiumResult?.count || 0,
+          missingTicketSales: missingTicketSalesResult?.count || 0,
+          missingResults: missingResultsResult?.count || 0,
+          inconsistencies: inconsistenciesResult?.count || 0,
+          lastUpdate: lastUpdateResult?.updatedAt || null,
+          lastCsvImport: lastCsvImportResult?.createdAt || null,
+        },
+      };
+    } catch (error) {
+      console.error('[Admin Router] Error fetching data quality:', error);
+      return {
+        success: false,
+        quality: {
+          missingKickoff: 0,
+          missingStadium: 0,
+          missingTicketSales: 0,
+          missingResults: 0,
+          inconsistencies: 0,
+          lastUpdate: null,
+          lastCsvImport: null,
         },
       };
     }

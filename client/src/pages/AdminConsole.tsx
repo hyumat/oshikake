@@ -180,6 +180,180 @@ function SystemStatusCard() {
   );
 }
 
+function DataQualityCard() {
+  const { data, isLoading, refetch } = trpc.admin.getDataQuality.useQuery();
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            データ品質
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-20" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const quality = data?.quality;
+  const totalMissing = (Number(quality?.missingKickoff) || 0) + 
+                       (Number(quality?.missingStadium) || 0) + 
+                       (Number(quality?.missingTicketSales) || 0) + 
+                       (Number(quality?.missingResults) || 0);
+  const hasIssues = totalMissing > 0 || (Number(quality?.inconsistencies) || 0) > 0;
+
+  return (
+    <Card className={hasIssues ? "border-amber-200" : ""}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            {hasIssues ? (
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            ) : (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            )}
+            データ品質
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+        <CardDescription>
+          未入力項目と整合性チェック
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">KO未定</span>
+            </div>
+            <span className={`text-2xl font-bold ${Number(quality?.missingKickoff) > 0 ? 'text-amber-500' : 'text-green-600'}`}>
+              {quality?.missingKickoff || 0}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">会場未定</span>
+            </div>
+            <span className={`text-2xl font-bold ${Number(quality?.missingStadium) > 0 ? 'text-amber-500' : 'text-green-600'}`}>
+              {quality?.missingStadium || 0}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">発売日未入力</span>
+            </div>
+            <span className={`text-2xl font-bold ${Number(quality?.missingTicketSales) > 0 ? 'text-amber-500' : 'text-green-600'}`}>
+              {quality?.missingTicketSales || 0}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">結果未入力</span>
+            </div>
+            <span className={`text-2xl font-bold ${Number(quality?.missingResults) > 0 ? 'text-amber-500' : 'text-green-600'}`}>
+              {quality?.missingResults || 0}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">矛盾</span>
+            </div>
+            <span className={`text-2xl font-bold ${Number(quality?.inconsistencies) > 0 ? 'text-red-500' : 'text-green-600'}`}>
+              {quality?.inconsistencies || 0}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            <span>最終更新: </span>
+            <span className="font-medium">
+              {quality?.lastUpdate
+                ? new Date(quality.lastUpdate).toLocaleString('ja-JP')
+                : '未更新'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            <span>最終CSVインポート: </span>
+            <span className="font-medium">
+              {quality?.lastCsvImport
+                ? new Date(quality.lastCsvImport).toLocaleString('ja-JP')
+                : 'なし'}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NavigationCards() {
+  const [, navigate] = useLocation();
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card 
+        className="cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+        onClick={() => navigate("/admin/matches")}
+      >
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-blue-50">
+              <Calendar className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">試合データ管理</h3>
+              <p className="text-sm text-slate-600">
+                試合情報の追加・編集・インポート
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card 
+        className="cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+        onClick={() => navigate("/admin/teams")}
+      >
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-green-50">
+              <Users className="h-8 w-8 text-green-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">チーム管理</h3>
+              <p className="text-sm text-slate-600">
+                チームの追加・編集・有効化
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function UserManagementTab() {
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<string>("all");
@@ -984,20 +1158,21 @@ export default function AdminConsole() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Shield className="h-6 w-6 text-blue-600" />
-            管理コンソール
-          </h1>
-          <p className="text-slate-600 mt-1">
-            システム状態の監視、ユーザー管理、お知らせ管理
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">管理コンソール</h1>
+        <p className="text-slate-600 mt-1">
+          運用状況の確認とデータ管理
+        </p>
+      </div>
 
+      <NavigationCards />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SystemStatusCard />
+        <DataQualityCard />
+      </div>
 
-        <Tabs defaultValue="users" className="w-full">
+      <Tabs defaultValue="users" className="w-full">
           <TabsList>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -1065,7 +1240,6 @@ export default function AdminConsole() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   );
 }
