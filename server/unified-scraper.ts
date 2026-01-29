@@ -13,7 +13,7 @@ import * as cheerio from 'cheerio';
 import iconv from 'iconv-lite';
 
 interface MatchFixture {
-  source: 'jleague.jp' | 'google_calendar' | 'phew.homeip.net' | 'f-marinos.com';
+  source: 'jleague.jp' | 'google_calendar' | 'phew.homeip.net' | 'f-marinos.com' | 'jleague-ticket.jp';
   date: string; // ISO format: YYYY-MM-DD
   kickoff?: string; // HH:mm format
   competition?: string;
@@ -24,6 +24,7 @@ interface MatchFixture {
   away: string;
   homeScore?: number;
   awayScore?: number;
+  attendance?: number;
   status: string;
   isResult: boolean;
   marinosSide?: 'home' | 'away' | null;
@@ -281,11 +282,23 @@ async function scrapeMatchDetail(matchUrl: string | null | undefined): Promise<P
   // Status
   const statusVal = $('.matchStatus').text().trim() || (Number.isFinite(homeScore) ? '試合終了' : 'vs');
 
+  // Attendance (spectator count)
+  const attendanceText = normalizeSpaces(
+    $('.matchData .spectator').text() ||
+    $('.stadiumInfo .spectator').text() ||
+    $('.matchData .attendance').text()
+  );
+  const attendanceMatch = attendanceText.match(/[\d,]+/);
+  const attendance = attendanceMatch 
+    ? Number(attendanceMatch[0].replace(/,/g, '')) 
+    : undefined;
+
   return {
     home,
     away,
     homeScore: homeScore ?? undefined,
     awayScore: awayScore ?? undefined,
+    attendance: attendance && !isNaN(attendance) ? attendance : undefined,
     stadium: stadium || undefined,
     status: statusVal,
     kickoff: kickoff ?? undefined,
@@ -581,14 +594,23 @@ async function fetchMarinosSchedule(): Promise<MatchFixture[]> {
   }
 }
 
+// ====== Source Configuration ======
+export interface DataSourceConfig {
+  jleague: boolean;
+  phew: boolean;
+  jleagueTicket: boolean;
+}
+
 // ====== Main Export ======
-export async function scrapeAllMatches(): Promise<{
+export async function scrapeAllMatches(sources?: DataSourceConfig): Promise<{
   fixtures: MatchFixture[];
   results: MatchFixture[];
   upcoming: MatchFixture[];
   counts: { total: number; results: number; upcoming: number };
   errors: string[];
 }> {
+  const enabledSources = sources || { jleague: true, phew: true, jleagueTicket: false };
+  
   // Data sources specified by user
   const JLEAGUE_URL_2026 = 'https://www.jleague.jp/match/search/?category%5B%5D=100yj1&category%5B%5D=j2j3&category%5B%5D=j1&category%5B%5D=leaguecup&category%5B%5D=j2&category%5B%5D=j3&category%5B%5D=playoff&category%5B%5D=j2playoff&category%5B%5D=J3jflplayoff&category%5B%5D=emperor&category%5B%5D=acle&category%5B%5D=acl2&category%5B%5D=acl&category%5B%5D=fcwc&category%5B%5D=supercup&category%5B%5D=asiachallenge&category%5B%5D=jwc&club%5B%5D=yokohamafm&year=2026';
   const JLEAGUE_URL_2025 = 'https://www.jleague.jp/match/search/?category%5B%5D=100yj1&category%5B%5D=j2j3&category%5B%5D=j1&category%5B%5D=leaguecup&category%5B%5D=j2&category%5B%5D=j3&category%5B%5D=playoff&category%5B%5D=j2playoff&category%5B%5D=J3jflplayoff&category%5B%5D=emperor&category%5B%5D=acle&category%5B%5D=acl2&category%5B%5D=acl&category%5B%5D=fcwc&category%5B%5D=supercup&category%5B%5D=asiachallenge&category%5B%5D=jwc&club%5B%5D=yokohamafm&year=2025';
@@ -600,28 +622,52 @@ export async function scrapeAllMatches(): Promise<{
   const startTime = Date.now();
 
   try {
-    const [jleagueHtml2026, jleagueHtml2025, phewFixtures2026, phewFixtures2025, phewFixtures2024, marinosFixtures] = await Promise.all([
-      fetchJleagueHtml(JLEAGUE_URL_2026),
-      fetchJleagueHtml(JLEAGUE_URL_2025),
-      fetchPhewFixtures(PHEW_URL_2026),
-      fetchPhewFixtures(PHEW_URL_2025),
-      fetchPhewFixtures(PHEW_URL_2024),
-      fetchMarinosSchedule(),
-    ]);
+    const fetchPromises: Promise<any>[] = [];
+    
+    if (enabledSources.jleague) {
+      fetchPromises.push(fetchJleagueHtml(JLEAGUE_URL_2026));
+      fetchPromises.push(fetchJleagueHtml(JLEAGUE_URL_2025));
+    } else {
+      fetchPromises.push(Promise.resolve(null));
+      fetchPromises.push(Promise.resolve(null));
+    }
+    
+    if (enabledSources.phew) {
+      fetchPromises.push(fetchPhewFixtures(PHEW_URL_2026));
+      fetchPromises.push(fetchPhewFixtures(PHEW_URL_2025));
+      fetchPromises.push(fetchPhewFixtures(PHEW_URL_2024));
+    } else {
+      fetchPromises.push(Promise.resolve([]));
+      fetchPromises.push(Promise.resolve([]));
+      fetchPromises.push(Promise.resolve([]));
+    }
+    
+    // J.League Ticket source (placeholder for future implementation)
+    // This source would provide ticket sale schedules
+    if (enabledSources.jleagueTicket) {
+      console.log('[Unified Scraper] J.League Ticket source enabled but not yet implemented');
+      fetchPromises.push(Promise.resolve([]));
+    } else {
+      fetchPromises.push(Promise.resolve([]));
+    }
+
+    const [jleagueHtml2026, jleagueHtml2025, phewFixtures2026, phewFixtures2025, phewFixtures2024, jleagueTicketData] = await Promise.all(fetchPromises);
 
     let jFixtures: MatchFixture[] = [];
-    if (jleagueHtml2026) {
-      const fixtures2026 = await parseJleagueSearch(jleagueHtml2026);
-      jFixtures.push(...fixtures2026);
-    }
-    if (jleagueHtml2025) {
-      const fixtures2025 = await parseJleagueSearch(jleagueHtml2025);
-      jFixtures.push(...fixtures2025);
+    if (enabledSources.jleague) {
+      if (jleagueHtml2026) {
+        const fixtures2026 = await parseJleagueSearch(jleagueHtml2026);
+        jFixtures.push(...fixtures2026);
+      }
+      if (jleagueHtml2025) {
+        const fixtures2025 = await parseJleagueSearch(jleagueHtml2025);
+        jFixtures.push(...fixtures2025);
+      }
     }
 
-    const phewFixtures = [...phewFixtures2026, ...phewFixtures2025, ...phewFixtures2024];
+    const phewFixtures = enabledSources.phew ? [...phewFixtures2026, ...phewFixtures2025, ...phewFixtures2024] : [];
     
-    console.log(`[Unified Scraper] Sources: JLeague=${jFixtures.length}, Phew=${phewFixtures.length}, Marinos=${marinosFixtures.length}`);
+    console.log(`[Unified Scraper] Sources: JLeague=${jFixtures.length}, Phew=${phewFixtures.length} (enabled: jleague=${enabledSources.jleague}, phew=${enabledSources.phew}, jleagueTicket=${enabledSources.jleagueTicket})`);
 
     // Merge logic
     const combinedMap = new Map<string, MatchFixture>();
@@ -655,8 +701,9 @@ export async function scrapeAllMatches(): Promise<{
       }
     };
 
-    // Priority: JLeague > Marinos > Phew (JLeague has most accurate data)
-    marinosFixtures.forEach(addOrUpdate);
+    // Priority: JLeague > Phew > JLeague Ticket (JLeague has most accurate data)
+    // jleagueTicketData is a placeholder for future ticket schedule integration
+    (jleagueTicketData as MatchFixture[]).forEach(addOrUpdate);
     phewFixtures.forEach(addOrUpdate);
     jFixtures.forEach(addOrUpdate);
 

@@ -63,7 +63,11 @@ import {
   ArrowDown,
   ArrowUpDown,
   GripVertical,
+  Settings2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EditableCell } from "@/components/admin/EditableCell";
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -91,6 +95,20 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
 ];
 
 const STORAGE_KEY_COLUMN_ORDER = 'adminMatches:columnOrder';
+const STORAGE_KEY_COLUMN_VISIBILITY = 'adminMatches:columnVisibility';
+const STORAGE_KEY_DATA_SOURCES = 'adminMatches:dataSources';
+
+interface DataSourceConfig {
+  jleague: boolean;
+  phew: boolean;
+  jleagueTicket: boolean;
+}
+
+const DEFAULT_DATA_SOURCES: DataSourceConfig = {
+  jleague: true,
+  phew: true,
+  jleagueTicket: true,
+};
 
 function getStoredColumnOrder(): string[] | null {
   try {
@@ -108,6 +126,38 @@ function getStoredColumnOrder(): string[] | null {
 function saveColumnOrder(order: string[]) {
   try {
     localStorage.setItem(STORAGE_KEY_COLUMN_ORDER, JSON.stringify(order));
+  } catch {}
+}
+
+function getStoredColumnVisibility(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_COLUMN_VISIBILITY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {}
+  return {};
+}
+
+function saveColumnVisibility(visibility: Record<string, boolean>) {
+  try {
+    localStorage.setItem(STORAGE_KEY_COLUMN_VISIBILITY, JSON.stringify(visibility));
+  } catch {}
+}
+
+function getStoredDataSources(): DataSourceConfig {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_DATA_SOURCES);
+    if (stored) {
+      return { ...DEFAULT_DATA_SOURCES, ...JSON.parse(stored) };
+    }
+  } catch {}
+  return DEFAULT_DATA_SOURCES;
+}
+
+function saveDataSources(config: DataSourceConfig) {
+  try {
+    localStorage.setItem(STORAGE_KEY_DATA_SOURCES, JSON.stringify(config));
   } catch {}
 }
 
@@ -601,8 +651,32 @@ function AdminMatchesContent() {
     return stored || DEFAULT_COLUMNS.map(c => c.id);
   });
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => getStoredColumnVisibility());
+  const [dataSources, setDataSources] = useState<DataSourceConfig>(() => getStoredDataSources());
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const orderedColumns = columnOrder.map(id => DEFAULT_COLUMNS.find(c => c.id === id)!).filter(Boolean);
+  useEffect(() => {
+    saveColumnVisibility(columnVisibility);
+  }, [columnVisibility]);
+
+  useEffect(() => {
+    saveDataSources(dataSources);
+  }, [dataSources]);
+
+  const toggleColumnVisibility = (columnId: string) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [columnId]: prev[columnId] === false ? true : (prev[columnId] === undefined ? false : !prev[columnId])
+    }));
+  };
+
+  const isColumnVisible = (columnId: string) => {
+    return columnVisibility[columnId] !== false;
+  };
+
+  const orderedColumns = columnOrder
+    .map(id => DEFAULT_COLUMNS.find(c => c.id === id)!)
+    .filter(col => col && isColumnVisible(col.id));
 
   const handleSort = (column: ColumnDef) => {
     if (!column.sortable || !column.sortKey) return;
@@ -762,6 +836,28 @@ function AdminMatchesContent() {
       toast.error(err.message || "自動取得に失敗しました");
     },
   });
+
+  const bulkAutoFillMutation = trpc.admin.bulkAutoFill.useMutation({
+    onSuccess: (result) => {
+      if (result.updated > 0) {
+        toast.success(result.message);
+      } else {
+        toast.info(result.message);
+      }
+      utils.admin.getMatches.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "一括自動取得に失敗しました");
+    },
+  });
+
+  const handleBulkAutoFill = () => {
+    bulkAutoFillMutation.mutate({
+      teamId: selectedTeamId,
+      seasonId: selectedSeasonId,
+      sources: dataSources,
+    });
+  };
 
   const importMutation = trpc.admin.importMatchesCsv.useMutation({
     onSuccess: (result) => {
@@ -1240,6 +1336,14 @@ function AdminMatchesContent() {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
+            onClick={() => setIsSettingsOpen(true)}
+            title="表示設定"
+          >
+            <Settings2 className="h-4 w-4 mr-2" />
+            設定
+          </Button>
+          <Button 
+            variant="outline" 
             onClick={handleCsvExport}
             disabled={!selectedTeamId || !selectedSeasonId}
             title={!selectedTeamId || !selectedSeasonId ? "チームとシーズンを選択してください" : undefined}
@@ -1303,17 +1407,28 @@ function AdminMatchesContent() {
               </Select>
             </div>
             
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="対戦相手、スタジアム、大会名で検索..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setOffset(0);
-                }}
-                className="pl-10"
-              />
+            <div className="flex gap-2 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="対戦相手、スタジアム、大会名で検索..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleBulkAutoFill}
+                disabled={bulkAutoFillMutation.isPending}
+                title="未入力項目がある試合を一括で外部ソースから取得"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${bulkAutoFillMutation.isPending ? 'animate-spin' : ''}`} />
+                {bulkAutoFillMutation.isPending ? '取得中...' : '一括自動取得'}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -1855,6 +1970,92 @@ function AdminMatchesContent() {
                 完了
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>表示設定</DialogTitle>
+            <DialogDescription>
+              テーブルに表示する列と外部データソースを設定します
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div>
+              <h4 className="font-medium mb-3">表示する列</h4>
+              <div className="space-y-2">
+                {DEFAULT_COLUMNS.map((col) => (
+                  <div key={col.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`col-${col.id}`}
+                      checked={isColumnVisible(col.id)}
+                      onCheckedChange={() => toggleColumnVisibility(col.id)}
+                      disabled={col.id === 'actions'}
+                    />
+                    <label
+                      htmlFor={`col-${col.id}`}
+                      className="text-sm cursor-pointer flex items-center gap-2"
+                    >
+                      {isColumnVisible(col.id) ? (
+                        <Eye className="h-4 w-4 text-slate-500" />
+                      ) : (
+                        <EyeOff className="h-4 w-4 text-slate-300" />
+                      )}
+                      {col.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-3">外部データソース（自動取得用）</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="source-jleague"
+                    checked={dataSources.jleague}
+                    onCheckedChange={(checked) => 
+                      setDataSources(prev => ({ ...prev, jleague: !!checked }))
+                    }
+                  />
+                  <label htmlFor="source-jleague" className="text-sm cursor-pointer">
+                    J.League公式データ（試合結果・観客数）
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="source-phew"
+                    checked={dataSources.phew}
+                    onCheckedChange={(checked) => 
+                      setDataSources(prev => ({ ...prev, phew: !!checked }))
+                    }
+                  />
+                  <label htmlFor="source-phew" className="text-sm cursor-pointer">
+                    Phew（試合詳細情報）
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="source-jleague-ticket"
+                    checked={dataSources.jleagueTicket}
+                    onCheckedChange={(checked) => 
+                      setDataSources(prev => ({ ...prev, jleagueTicket: !!checked }))
+                    }
+                  />
+                  <label htmlFor="source-jleague-ticket" className="text-sm cursor-pointer">
+                    J.Leagueチケット（販売日程）
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsSettingsOpen(false)}>
+              閉じる
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

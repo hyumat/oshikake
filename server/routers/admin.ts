@@ -1045,6 +1045,7 @@ export const adminRouter = router({
           ['roundNumber', scrapedMatch.roundNumber],
           ['homeScore', scrapedMatch.homeScore],
           ['awayScore', scrapedMatch.awayScore],
+          ['attendance', scrapedMatch.attendance],
           ['status', scrapedMatch.status],
           ['matchUrl', scrapedMatch.matchUrl],
         ];
@@ -1097,11 +1098,154 @@ export const adminRouter = router({
       }
     }),
 
+  bulkAutoFill: protectedProcedure
+    .input(
+      z.object({
+        teamId: z.number().optional(),
+        seasonId: z.number().optional(),
+        sources: z.object({
+          jleague: z.boolean(),
+          phew: z.boolean(),
+          jleagueTicket: z.boolean(),
+        }).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can bulk auto-fill',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const conditions = [];
+        if (input.teamId) {
+          conditions.push(eq(matches.teamId, input.teamId));
+        }
+        if (input.seasonId) {
+          conditions.push(eq(matches.seasonId, input.seasonId));
+        }
+
+        const allMatches = conditions.length > 0
+          ? await db.select().from(matches).where(and(...conditions))
+          : await db.select().from(matches);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const matchesWithMissing = allMatches.filter(match => {
+          const isPast = match.date < today;
+          const hasKickoff = !!match.kickoff;
+          const hasStadium = !!match.stadium;
+          const hasCompetition = !!match.competition;
+          const hasScore = match.homeScore !== null && match.awayScore !== null;
+          const hasAttendance = !!match.attendance;
+
+          if (!hasKickoff || !hasStadium || !hasCompetition) return true;
+          if (isPast && (!hasScore || !hasAttendance)) return true;
+          return false;
+        });
+
+        if (matchesWithMissing.length === 0) {
+          return {
+            success: true,
+            message: '未入力の試合はありませんでした',
+            processed: 0,
+            updated: 0,
+          };
+        }
+
+        const { scrapeAllMatches } = await import('../unified-scraper');
+        const sources = input.sources || { jleague: true, phew: true, jleagueTicket: false };
+        const scrapedData = await scrapeAllMatches(sources);
+
+        const normalizeTeamName = (name: string | null | undefined) => 
+          (name || '').toLowerCase().replace(/\s+/g, '').replace(/[ー−]/g, '-');
+
+        let updatedCount = 0;
+
+        for (const existingMatch of matchesWithMissing) {
+          const matchDate = existingMatch.date;
+          const existingHome = normalizeTeamName(existingMatch.homeTeam);
+          const existingAway = normalizeTeamName(existingMatch.awayTeam);
+          const existingOpponent = normalizeTeamName(existingMatch.opponent);
+
+          const scrapedMatch = scrapedData.fixtures.find((f) => {
+            if (f.date !== matchDate) return false;
+            const scrapedHome = normalizeTeamName(f.home);
+            const scrapedAway = normalizeTeamName(f.away);
+            const scrapedOpponent = normalizeTeamName(f.opponent);
+            const homeMatch = existingHome && scrapedHome && 
+              (existingHome.includes(scrapedHome) || scrapedHome.includes(existingHome));
+            const awayMatch = existingAway && scrapedAway && 
+              (existingAway.includes(scrapedAway) || scrapedAway.includes(existingAway));
+            const opponentMatch = existingOpponent && scrapedOpponent &&
+              (existingOpponent.includes(scrapedOpponent) || scrapedOpponent.includes(existingOpponent));
+            return (homeMatch && awayMatch) || opponentMatch;
+          });
+
+          if (!scrapedMatch) continue;
+
+          const updates: Record<string, any> = {};
+          const fieldMappings: [string, any][] = [
+            ['kickoff', scrapedMatch.kickoff],
+            ['stadium', scrapedMatch.stadium],
+            ['competition', scrapedMatch.competition],
+            ['roundLabel', scrapedMatch.roundLabel],
+            ['roundNumber', scrapedMatch.roundNumber],
+            ['homeScore', scrapedMatch.homeScore],
+            ['awayScore', scrapedMatch.awayScore],
+            ['attendance', scrapedMatch.attendance],
+            ['status', scrapedMatch.status],
+            ['matchUrl', scrapedMatch.matchUrl],
+          ];
+
+          for (const [key, value] of fieldMappings) {
+            const existingValue = (existingMatch as any)[key];
+            if (existingValue === null || existingValue === undefined || existingValue === '') {
+              if (value !== null && value !== undefined && value !== '') {
+                updates[key] = value;
+              }
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await db
+              .update(matches)
+              .set({ ...updates, updatedAt: new Date() })
+              .where(eq(matches.id, existingMatch.id));
+            updatedCount++;
+          }
+        }
+
+        return {
+          success: true,
+          message: `${updatedCount}件の試合を更新しました（${matchesWithMissing.length}件処理）`,
+          processed: matchesWithMissing.length,
+          updated: updatedCount,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Admin Router] Error bulk auto-filling:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to bulk auto-fill',
+        });
+      }
+    }),
+
   fillEmptyFields: protectedProcedure
     .input(
       z.object({
         matchId: z.number(),
-        fields: z.record(z.any()),
+        fields: z.record(z.string(), z.any()),
       })
     )
     .mutation(async ({ ctx, input }) => {
