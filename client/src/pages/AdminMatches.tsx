@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation, useSearch } from "wouter";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ import {
   FileText,
   AlertCircle,
   CheckCircle,
+  Download,
 } from "lucide-react";
 import { EditableCell } from "@/components/admin/EditableCell";
 
@@ -370,9 +372,33 @@ function AdminMatchesContent() {
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
-    setSelectedTeamId(params.get("team") ? parseInt(params.get("team")!) : undefined);
-    setSelectedSeasonId(params.get("season") ? parseInt(params.get("season")!) : undefined);
-  }, [searchString]);
+    const teamParam = params.get("teamId");
+    const seasonParam = params.get("seasonId");
+    if (teamParam) setSelectedTeamId(parseInt(teamParam));
+    if (seasonParam) setSelectedSeasonId(parseInt(seasonParam));
+  }, []);
+
+  const updateUrlParams = (teamId?: number, seasonId?: number) => {
+    const params = new URLSearchParams();
+    if (teamId) params.set("teamId", String(teamId));
+    if (seasonId) params.set("seasonId", String(seasonId));
+    const queryStr = params.toString();
+    navigate(`/admin/matches${queryStr ? `?${queryStr}` : ''}`, { replace: true });
+  };
+
+  const handleTeamChange = (value: string) => {
+    const newTeamId = value === "all" ? undefined : parseInt(value);
+    setSelectedTeamId(newTeamId);
+    setOffset(0);
+    updateUrlParams(newTeamId, selectedSeasonId);
+  };
+
+  const handleSeasonChange = (value: string) => {
+    const newSeasonId = value === "all" ? undefined : parseInt(value);
+    setSelectedSeasonId(newSeasonId);
+    setOffset(0);
+    updateUrlParams(selectedTeamId, newSeasonId);
+  };
 
   const utils = trpc.useUtils();
 
@@ -463,55 +489,189 @@ function AdminMatchesContent() {
     return result;
   };
 
+  const headerMap: Record<string, string> = {
+    '大会名': 'competition',
+    '節': 'roundLabel',
+    'HOME/AWAY': 'marinosSide',
+    '試合日付': 'date',
+    'キックオフ': 'kickoff',
+    '対戦相手': 'opponent',
+    '会場': 'stadium',
+    '一次販売開始': 'ticketSales1',
+    '二次販売開始': 'ticketSales2',
+    '三次販売開始': 'ticketSales3',
+    '一般販売開始': 'ticketSalesGeneral',
+    '試合結果': 'resultScore',
+    '勝敗': 'resultOutcome',
+    '観客数': 'attendance',
+    'match_id': 'matchId',
+  };
+
+  const dateColumns = ['試合日付', '一次販売開始', '二次販売開始', '三次販売開始', '一般販売開始'];
+  const timeColumns = ['キックオフ'];
+  const dateTimeColumns = ['一次販売開始', '二次販売開始', '三次販売開始', '一般販売開始'];
+  const numericColumns = ['観客数'];
+
+  const excelSerialToDate = (serial: number): Date => {
+    const utcDays = Math.floor(serial - 25569);
+    const utcValue = utcDays * 86400 * 1000;
+    return new Date(utcValue);
+  };
+
+  const excelSerialToTime = (serial: number): string => {
+    const fractional = serial % 1;
+    const totalSeconds = Math.round(fractional * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
+  const formatDateValue = (value: any, header: string): string => {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+
+    if (value instanceof Date) {
+      if (timeColumns.includes(header)) {
+        const hours = value.getHours();
+        const minutes = value.getMinutes();
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      }
+      if (dateTimeColumns.includes(header)) {
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, '0');
+        const day = String(value.getDate()).padStart(2, '0');
+        const hours = String(value.getHours()).padStart(2, '0');
+        const minutes = String(value.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      }
+      if (dateColumns.includes(header)) {
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, '0');
+        const day = String(value.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      return value.toISOString().slice(0, 10);
+    }
+
+    if (typeof value === 'number') {
+      if (numericColumns.includes(header)) {
+        return String(value);
+      }
+      if (timeColumns.includes(header) && value < 1) {
+        return excelSerialToTime(value);
+      }
+      if (dateColumns.includes(header) || dateTimeColumns.includes(header)) {
+        const date = excelSerialToDate(value);
+        if (dateTimeColumns.includes(header)) {
+          const fractional = value % 1;
+          if (fractional > 0) {
+            const timeStr = excelSerialToTime(value);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day} ${timeStr}`;
+          }
+        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    }
+
+    return String(value);
+  };
+
+  const parseXlsxData = (workbook: XLSX.WorkBook): any[] => {
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+    const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { header: 1, raw: true });
+    
+    if (jsonData.length < 2) {
+      return [];
+    }
+    
+    const headers = (jsonData[0] as any[]).map(h => String(h || '').trim());
+    const parsedData: any[] = [];
+    
+    for (let i = 1; i < jsonData.length; i++) {
+      const rowArr = rawData[i] as any[];
+      if (!rowArr || rowArr.every(cell => cell === null || cell === undefined || cell === '')) {
+        continue;
+      }
+      
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        const key = headerMap[header] || header;
+        const rawValue = rowArr[idx];
+        row[key] = formatDateValue(rawValue, header);
+      });
+      parsedData.push(row);
+    }
+    
+    return parsedData;
+  };
+
   const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setCsvFile(file);
     setImportResult(null);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const cleanText = text.replace(/^\uFEFF/, '');
-      const lines = cleanText.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length < 2) {
-        toast.error('CSVファイルにデータがありません');
-        return;
-      }
+    const fileName = file.name.toLowerCase();
+    const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
-      const headers = parseCsvLine(lines[0]);
-
-      const headerMap: Record<string, string> = {
-        '大会名': 'competition',
-        '節': 'roundLabel',
-        'HOME/AWAY': 'marinosSide',
-        '試合日付': 'date',
-        'キックオフ': 'kickoff',
-        '対戦相手': 'opponent',
-        '会場': 'stadium',
-        '一次販売開始': 'ticketSales1',
-        '二次販売開始': 'ticketSales2',
-        '三次販売開始': 'ticketSales3',
-        '一般販売開始': 'ticketSalesGeneral',
-        '試合結果': 'resultScore',
-        '勝敗': 'resultOutcome',
-        'match_id': 'matchId',
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const parsedData = parseXlsxData(workbook);
+          
+          if (parsedData.length === 0) {
+            toast.error('Excelファイルにデータがありません');
+            return;
+          }
+          
+          setCsvPreviewData(parsedData);
+          toast.success(`${parsedData.length}件のデータを読み込みました`);
+        } catch (error) {
+          console.error('XLSX parse error:', error);
+          toast.error('Excelファイルの読み込みに失敗しました');
+        }
       };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const cleanText = text.replace(/^\uFEFF/, '');
+        const lines = cleanText.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 2) {
+          toast.error('CSVファイルにデータがありません');
+          return;
+        }
 
-      const parsedData: any[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = parseCsvLine(lines[i]);
-        const row: any = {};
-        headers.forEach((header, idx) => {
-          const key = headerMap[header] || header;
-          row[key] = values[idx] || '';
-        });
-        parsedData.push(row);
-      }
+        const headers = parseCsvLine(lines[0]);
 
-      setCsvPreviewData(parsedData);
-    };
-    reader.readAsText(file, 'UTF-8');
+        const parsedData: any[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const values = parseCsvLine(lines[i]);
+          const row: any = {};
+          headers.forEach((header, idx) => {
+            const key = headerMap[header] || header;
+            row[key] = values[idx] || '';
+          });
+          parsedData.push(row);
+        }
+
+        setCsvPreviewData(parsedData);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
   };
 
   const handleImportPreview = () => {
@@ -636,30 +796,49 @@ function AdminMatchesContent() {
     deleteMutation.mutate({ id: selectedMatch.id });
   };
 
-  const handleTeamChange = (value: string) => {
-    const newTeamId = value === "all" ? undefined : parseInt(value);
-    setSelectedTeamId(newTeamId);
-    setOffset(0);
-    const params = new URLSearchParams(searchString);
-    if (newTeamId) {
-      params.set("team", newTeamId.toString());
-    } else {
-      params.delete("team");
+  const handleCsvExport = async () => {
+    if (!selectedTeamId || !selectedSeasonId) {
+      toast.error("チームとシーズンを選択してください");
+      return;
     }
-    navigate(`/admin/matches${params.toString() ? `?${params.toString()}` : ""}`);
-  };
-
-  const handleSeasonChange = (value: string) => {
-    const newSeasonId = value === "all" ? undefined : parseInt(value);
-    setSelectedSeasonId(newSeasonId);
-    setOffset(0);
-    const params = new URLSearchParams(searchString);
-    if (newSeasonId) {
-      params.set("season", newSeasonId.toString());
-    } else {
-      params.delete("season");
+    try {
+      const result = await utils.admin.exportMatchesCsv.fetch({
+        teamId: selectedTeamId,
+        seasonId: selectedSeasonId,
+      });
+      if (!result.rows || result.rows.length === 0) {
+        toast.info("エクスポート対象の試合がありません");
+        return;
+      }
+      const headers = Object.keys(result.rows[0]);
+      const escapeField = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+      const csvContent = [
+        '\uFEFF' + headers.map(escapeField).join(','),
+        ...result.rows.map((row: Record<string, string>) => 
+          headers.map(h => escapeField(row[h] || '')).join(',')
+        ),
+      ].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const team = teams.find(t => t.id === selectedTeamId);
+      const season = seasons.find(s => s.id === selectedSeasonId);
+      const filename = `matches_${team?.slug || selectedTeamId}_${season?.year || selectedSeasonId}.csv`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${result.count}件の試合をエクスポートしました`);
+    } catch (error: any) {
+      toast.error(error.message || "エクスポートに失敗しました");
     }
-    navigate(`/admin/matches${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
   const teams = teamsData?.teams || [];
@@ -678,6 +857,15 @@ function AdminMatchesContent() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleCsvExport}
+            disabled={!selectedTeamId || !selectedSeasonId}
+            title={!selectedTeamId || !selectedSeasonId ? "チームとシーズンを選択してください" : undefined}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            CSVエクスポート
+          </Button>
           <Button variant="outline" onClick={() => setIsImportOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             CSVインポート
@@ -1063,14 +1251,14 @@ function AdminMatchesContent() {
             </div>
 
             <div className="space-y-2">
-              <Label>CSVファイル</Label>
+              <Label>CSV/Excelファイル</Label>
               <Input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleCsvFileChange}
               />
               <p className="text-xs text-slate-500">
-                必須列: 試合日付, 対戦相手, 会場 / 任意列: 大会名, 節, HOME/AWAY, キックオフ, 試合結果, 勝敗
+                対応形式: CSV、Excel（.xlsx/.xls）/ 必須列: 試合日付, 対戦相手, 会場 / 任意列: 大会名, 節, HOME/AWAY, キックオフ, 試合結果, 勝敗, 観客数
               </p>
             </div>
 

@@ -41,7 +41,7 @@
 - **Subscription Plans**: Free, Plus, and Pro plans with varying limits and access to advanced features (e.g., export, multi-season stats, priority support).
 - **Landing Page**: Explains service, includes FAQs, and a pricing comparison table.
 - **UX Improvements**: Enhanced attendance form with validation, improved error display, responsive mobile design, and asynchronous data synchronization with loading/toast notifications.
-- **Admin Management**: Admin users can manage match data directly via `/admin/matches` without Spreadsheet dependency. CRUD operations for matches with search and pagination.
+- **Admin Management**: Admin users can manage match data directly via `/admin/matches` without Spreadsheet dependency. CRUD operations for matches with search and pagination. Supports CSV and Excel (.xlsx/.xls) import/export with attendance field.
 - **Admin Operations Console**: Comprehensive admin dashboard at `/admin` with system status monitoring (DB connection, user/match counts, 24h errors), user plan management for billing recovery, announcements CRUD with type classification and date ranges, API performance monitoring (avg/p50/p95/p99, error rate, by-path stats), and event log viewer.
 - **API Performance Logging**: In-memory metrics collection for all tRPC calls with automatic slow call warnings (>1000ms threshold).
 - **Scraper Stabilization**: Retry logic with exponential backoff (up to 3 retries) for external data fetching, consistent timeout handling, and error collection.

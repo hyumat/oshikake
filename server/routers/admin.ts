@@ -207,6 +207,7 @@ export const adminRouter = router({
         name: z.string().optional(),
         slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
         aliases: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -634,6 +635,89 @@ export const adminRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to fetch matches',
+        });
+      }
+    }),
+
+  exportMatchesCsv: protectedProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        seasonId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can export matches',
+        });
+      }
+
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Database not available',
+        });
+      }
+
+      try {
+        const matchList = await db
+          .select()
+          .from(matches)
+          .where(
+            and(
+              eq(matches.teamId, input.teamId),
+              eq(matches.seasonId, input.seasonId)
+            )
+          )
+          .orderBy(asc(matches.date));
+
+        const formatDateTime = (dt: Date | null) => {
+          if (!dt) return '';
+          const y = dt.getFullYear();
+          const m = String(dt.getMonth() + 1).padStart(2, '0');
+          const d = String(dt.getDate()).padStart(2, '0');
+          const h = String(dt.getHours()).padStart(2, '0');
+          const min = String(dt.getMinutes()).padStart(2, '0');
+          return `${y}-${m}-${d} ${h}:${min}`;
+        };
+
+        const outcomeMap: Record<string, string> = {
+          win: '勝',
+          draw: '分',
+          loss: '負',
+        };
+
+        const csvRows = matchList.map((m) => ({
+          match_id: m.matchId,
+          大会名: m.competition || '',
+          節: m.roundLabel || '',
+          'HOME/AWAY': m.marinosSide === 'home' ? 'HOME' : m.marinosSide === 'away' ? 'AWAY' : '',
+          試合日付: m.date,
+          キックオフ: m.kickoff || '',
+          対戦相手: m.opponent,
+          会場: m.stadium || '',
+          一次販売開始: formatDateTime(m.ticketSales1),
+          二次販売開始: formatDateTime(m.ticketSales2),
+          三次販売開始: formatDateTime(m.ticketSales3),
+          一般販売開始: formatDateTime(m.ticketSalesGeneral),
+          試合結果: m.resultScore || '',
+          勝敗: m.resultOutcome ? outcomeMap[m.resultOutcome] || '' : '',
+          観客数: m.attendance != null ? String(m.attendance) : '',
+        }));
+
+        return {
+          success: true,
+          rows: csvRows,
+          count: csvRows.length,
+        };
+      } catch (error) {
+        console.error('[Admin Router] Error exporting matches:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to export matches',
         });
       }
     }),
@@ -1385,6 +1469,7 @@ export const adminRouter = router({
           ticketSalesGeneral: z.string().optional(),
           resultScore: z.string().optional(),
           resultOutcome: z.string().optional(),
+          attendance: z.string().optional(),
           matchId: z.number().optional(),
         })),
       })
@@ -1501,6 +1586,8 @@ export const adminRouter = router({
           const resultOutcome = normalizeOutcome(row.resultOutcome);
           const score = parseScore(row.resultScore);
 
+          const attendance = row.attendance ? parseInt(row.attendance.replace(/,/g, ''), 10) : null;
+
           const matchData = {
             teamId: input.teamId,
             seasonId: input.seasonId,
@@ -1518,6 +1605,7 @@ export const adminRouter = router({
             homeScore: score?.home ?? null,
             awayScore: score?.away ?? null,
             resultOutcome,
+            attendance: isNaN(attendance as number) ? null : attendance,
             status: 'Scheduled' as const,
           };
 

@@ -63,6 +63,7 @@ export const teams = pgTable("teams", {
   name: varchar("name", { length: 128 }).notNull(),
   slug: varchar("slug", { length: 32 }).notNull().unique(),
   aliases: text("aliases"),
+  isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -200,6 +201,8 @@ export const matches = pgTable("matches", {
   resultScore: varchar("resultScore", { length: 16 }),
   /** 勝敗 (win/draw/loss) */
   resultOutcome: matchOutcomeEnum("resultOutcome"),
+  /** 観客数 (Issue #215) */
+  attendance: integer("attendance"),
   
   // === メタデータ (内部管理用) ===
   /** データソース ("sheets", "jleague", "phew", "admin") */

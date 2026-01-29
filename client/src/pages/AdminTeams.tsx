@@ -43,7 +43,10 @@ import {
   Trash2,
   ArrowLeft,
   Download,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface TeamFormData {
   name: string;
@@ -177,6 +180,17 @@ function AdminTeamsContent() {
     setIsDeleteOpen(true);
   };
 
+  const handleToggleActive = (teamId: number, isActive: boolean) => {
+    updateMutation.mutate(
+      { id: teamId, isActive },
+      {
+        onSuccess: () => {
+          toast.success(isActive ? "チームを有効にしました" : "チームを非表示にしました");
+        },
+      }
+    );
+  };
+
   return (
     <div className="container mx-auto py-6 px-4 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
@@ -242,19 +256,37 @@ function AdminTeamsContent() {
                   <TableHead>チーム名</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>別名（エイリアス）</TableHead>
+                  <TableHead>ステータス</TableHead>
                   <TableHead>作成日</TableHead>
                   <TableHead className="w-[100px]">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {teams.map((team) => (
-                  <TableRow key={team.id}>
-                    <TableCell className="font-medium">{team.name}</TableCell>
+                  <TableRow key={team.id} className={!team.isActive ? "opacity-50" : ""}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {team.name}
+                        {!team.isActive && (
+                          <Badge variant="outline" className="text-slate-400">
+                            <EyeOff className="h-3 w-3 mr-1" />
+                            非表示
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{team.slug}</Badge>
                     </TableCell>
                     <TableCell className="text-slate-500">
                       {team.aliases || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={team.isActive}
+                        onCheckedChange={(checked) => handleToggleActive(team.id, checked)}
+                        aria-label={team.isActive ? "アクティブ" : "非アクティブ"}
+                      />
                     </TableCell>
                     <TableCell className="text-slate-500">
                       {new Date(team.createdAt).toLocaleDateString("ja-JP")}
