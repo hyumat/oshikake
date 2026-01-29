@@ -59,8 +59,57 @@ import {
   Download,
   Pencil,
   RefreshCw,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  GripVertical,
 } from "lucide-react";
 import { EditableCell } from "@/components/admin/EditableCell";
+
+type SortDirection = 'asc' | 'desc' | null;
+
+interface ColumnDef {
+  id: string;
+  label: string;
+  width: string;
+  sortable: boolean;
+  sortKey?: string;
+}
+
+const DEFAULT_COLUMNS: ColumnDef[] = [
+  { id: 'date', label: '日付', width: 'w-[110px]', sortable: true, sortKey: 'date' },
+  { id: 'kickoff', label: 'KO', width: 'w-[60px]', sortable: true, sortKey: 'kickoff' },
+  { id: 'marinosSide', label: 'H/A', width: 'w-[60px]', sortable: true, sortKey: 'marinosSide' },
+  { id: 'opponent', label: '対戦相手', width: 'min-w-[120px]', sortable: true, sortKey: 'opponent' },
+  { id: 'result', label: '結果', width: 'w-[80px]', sortable: false },
+  { id: 'resultOutcome', label: '勝敗', width: 'w-[60px]', sortable: true, sortKey: 'resultOutcome' },
+  { id: 'stadium', label: 'スタジアム', width: 'min-w-[150px]', sortable: true, sortKey: 'stadium' },
+  { id: 'competition', label: '大会', width: 'min-w-[100px]', sortable: true, sortKey: 'competition' },
+  { id: 'roundLabel', label: '節', width: 'w-[70px]', sortable: true, sortKey: 'roundLabel' },
+  { id: 'missing', label: '未入力', width: 'w-[100px]', sortable: false },
+  { id: 'actions', label: '操作', width: 'w-[100px]', sortable: false },
+];
+
+const STORAGE_KEY_COLUMN_ORDER = 'adminMatches:columnOrder';
+
+function getStoredColumnOrder(): string[] | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_COLUMN_ORDER);
+    if (stored) {
+      const order = JSON.parse(stored);
+      if (Array.isArray(order) && order.every(id => DEFAULT_COLUMNS.some(c => c.id === id))) {
+        return order;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function saveColumnOrder(order: string[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY_COLUMN_ORDER, JSON.stringify(order));
+  } catch {}
+}
 
 interface MatchFormData {
   matchId: string;
@@ -545,6 +594,57 @@ function AdminMatchesContent() {
   const [selectedTeamId, setSelectedTeamId] = useState<number | undefined>();
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | undefined>();
 
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const stored = getStoredColumnOrder();
+    return stored || DEFAULT_COLUMNS.map(c => c.id);
+  });
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+
+  const orderedColumns = columnOrder.map(id => DEFAULT_COLUMNS.find(c => c.id === id)!).filter(Boolean);
+
+  const handleSort = (column: ColumnDef) => {
+    if (!column.sortable || !column.sortKey) return;
+    if (sortKey === column.sortKey) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortKey(null);
+        setSortDirection(null);
+      } else {
+        setSortDirection('asc');
+      }
+    } else {
+      setSortKey(column.sortKey);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleDragStart = (columnId: string) => {
+    setDraggedColumn(columnId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetId) return;
+    const newOrder = [...columnOrder];
+    const fromIndex = newOrder.indexOf(draggedColumn);
+    const toIndex = newOrder.indexOf(targetId);
+    if (fromIndex !== -1 && toIndex !== -1) {
+      newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, draggedColumn);
+      setColumnOrder(newOrder);
+    }
+  };
+
+  const handleDragEnd = () => {
+    if (draggedColumn) {
+      saveColumnOrder(columnOrder);
+    }
+    setDraggedColumn(null);
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const teamParam = params.get("teamId");
@@ -587,6 +687,30 @@ function AdminMatchesContent() {
     teamId: selectedTeamId,
     seasonId: selectedSeasonId,
   });
+
+  const sortedMatches = useCallback(() => {
+    if (!data?.matches || !sortKey) return data?.matches;
+    const sorted = [...data.matches].sort((a: any, b: any) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      const aIsNull = aVal === null || aVal === undefined || aVal === '';
+      const bIsNull = bVal === null || bVal === undefined || bVal === '';
+      if (aIsNull && bIsNull) return 0;
+      if (aIsNull) return 1;
+      if (bIsNull) return -1;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      const strA = String(aVal);
+      const strB = String(bVal);
+      return sortDirection === 'asc' ? strA.localeCompare(strB, 'ja') : strB.localeCompare(strA, 'ja');
+    });
+    return sorted;
+  }, [data?.matches, sortKey, sortDirection]);
+
+  useEffect(() => {
+    saveColumnOrder(columnOrder);
+  }, [columnOrder]);
 
   const createMutation = trpc.admin.createMatch.useMutation({
     onSuccess: () => {
@@ -1210,162 +1334,219 @@ function AdminMatchesContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[110px]">日付</TableHead>
-                      <TableHead className="w-[60px]">KO</TableHead>
-                      <TableHead className="w-[60px]">H/A</TableHead>
-                      <TableHead className="min-w-[120px]">対戦相手</TableHead>
-                      <TableHead className="w-[80px]">結果</TableHead>
-                      <TableHead className="w-[60px]">勝敗</TableHead>
-                      <TableHead className="min-w-[150px]">スタジアム</TableHead>
-                      <TableHead className="min-w-[100px]">大会</TableHead>
-                      <TableHead className="w-[70px]">節</TableHead>
-                      <TableHead className="w-[100px]">未入力</TableHead>
-                      <TableHead className="w-[100px]">操作</TableHead>
+                      {orderedColumns.map((col) => (
+                        <TableHead
+                          key={col.id}
+                          className={`${col.width} ${col.sortable ? 'cursor-pointer select-none hover:bg-slate-100' : ''} ${draggedColumn === col.id ? 'opacity-50' : ''}`}
+                          draggable
+                          onDragStart={() => handleDragStart(col.id)}
+                          onDragOver={(e) => handleDragOver(e, col.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => col.sortable && handleSort(col)}
+                        >
+                          <div className="flex items-center gap-1">
+                            <GripVertical className="h-3 w-3 text-slate-400 cursor-grab" />
+                            <span>{col.label}</span>
+                            {col.sortable && col.sortKey && (
+                              <span className="ml-1">
+                                {sortKey === col.sortKey ? (
+                                  sortDirection === 'asc' ? (
+                                    <ArrowUp className="h-3 w-3" />
+                                  ) : (
+                                    <ArrowDown className="h-3 w-3" />
+                                  )
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-300" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data?.matches.map((match) => (
+                    {sortedMatches()?.map((match) => (
                       <TableRow key={match.id} className="hover:bg-slate-50">
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.date}
-                            type="date"
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "date", val as string);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.kickoff}
-                            type="time"
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "kickoff", val);
-                            }}
-                            emptyText="--:--"
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.marinosSide || ""}
-                            type="select"
-                            options={[
-                              { value: "home", label: "H" },
-                              { value: "away", label: "A" },
-                            ]}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "marinosSide", val);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.opponent}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "opponent", val as string);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <div className="flex items-center gap-1 px-2">
-                            <EditableCell
-                              value={match.homeScore}
-                              type="number"
-                              onSave={async (val) => {
-                                await handleCellUpdate(match.id, "homeScore", val);
-                              }}
-                              emptyText="-"
-                              className="w-8 text-center"
-                            />
-                            <span className="text-slate-400">-</span>
-                            <EditableCell
-                              value={match.awayScore}
-                              type="number"
-                              onSave={async (val) => {
-                                await handleCellUpdate(match.id, "awayScore", val);
-                              }}
-                              emptyText="-"
-                              className="w-8 text-center"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.resultOutcome || "none"}
-                            type="select"
-                            options={[
-                              { value: "none", label: "-" },
-                              { value: "win", label: "勝" },
-                              { value: "draw", label: "分" },
-                              { value: "loss", label: "負" },
-                            ]}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "resultOutcome", val === "none" ? null : val);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.stadium}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "stadium", val);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.competition}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "competition", val);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-0">
-                          <EditableCell
-                            value={match.roundLabel}
-                            onSave={async (val) => {
-                              await handleCellUpdate(match.id, "roundLabel", val);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <MissingFieldsBadge 
-                            match={match} 
-                            onAutoFill={(matchId) => autoFillMutation.mutate({ matchId })}
-                            isLoading={autoFillMutation.isPending}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditMatch(match)}
-                              title="編集"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDuplicateMatch(match)}
-                              title="複製"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSelectedMatch(match);
-                                setIsDeleteOpen(true);
-                              }}
-                              title="削除"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {orderedColumns.map((col) => {
+                          switch (col.id) {
+                            case 'date':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.date}
+                                    type="date"
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "date", val as string);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'kickoff':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.kickoff}
+                                    type="time"
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "kickoff", val);
+                                    }}
+                                    emptyText="--:--"
+                                  />
+                                </TableCell>
+                              );
+                            case 'marinosSide':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.marinosSide || ""}
+                                    type="select"
+                                    options={[
+                                      { value: "home", label: "H" },
+                                      { value: "away", label: "A" },
+                                    ]}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "marinosSide", val);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'opponent':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.opponent}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "opponent", val as string);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'result':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <div className="flex items-center gap-1 px-2">
+                                    <EditableCell
+                                      value={match.homeScore}
+                                      type="number"
+                                      onSave={async (val) => {
+                                        await handleCellUpdate(match.id, "homeScore", val);
+                                      }}
+                                      emptyText="-"
+                                      className="w-8 text-center"
+                                    />
+                                    <span className="text-slate-400">-</span>
+                                    <EditableCell
+                                      value={match.awayScore}
+                                      type="number"
+                                      onSave={async (val) => {
+                                        await handleCellUpdate(match.id, "awayScore", val);
+                                      }}
+                                      emptyText="-"
+                                      className="w-8 text-center"
+                                    />
+                                  </div>
+                                </TableCell>
+                              );
+                            case 'resultOutcome':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.resultOutcome || "none"}
+                                    type="select"
+                                    options={[
+                                      { value: "none", label: "-" },
+                                      { value: "win", label: "勝" },
+                                      { value: "draw", label: "分" },
+                                      { value: "loss", label: "負" },
+                                    ]}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "resultOutcome", val === "none" ? null : val);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'stadium':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.stadium}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "stadium", val);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'competition':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.competition}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "competition", val);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'roundLabel':
+                              return (
+                                <TableCell key={col.id} className="p-0">
+                                  <EditableCell
+                                    value={match.roundLabel}
+                                    onSave={async (val) => {
+                                      await handleCellUpdate(match.id, "roundLabel", val);
+                                    }}
+                                  />
+                                </TableCell>
+                              );
+                            case 'missing':
+                              return (
+                                <TableCell key={col.id}>
+                                  <MissingFieldsBadge 
+                                    match={match} 
+                                    onAutoFill={(matchId) => autoFillMutation.mutate({ matchId })}
+                                    isLoading={autoFillMutation.isPending}
+                                  />
+                                </TableCell>
+                              );
+                            case 'actions':
+                              return (
+                                <TableCell key={col.id}>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEditMatch(match)}
+                                      title="編集"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDuplicateMatch(match)}
+                                      title="複製"
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setSelectedMatch(match);
+                                        setIsDeleteOpen(true);
+                                      }}
+                                      title="削除"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              );
+                            default:
+                              return null;
+                          }
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
