@@ -42,6 +42,7 @@ import {
   Pencil,
   Trash2,
   ArrowLeft,
+  Download,
 } from "lucide-react";
 
 interface TeamFormData {
@@ -103,6 +104,16 @@ function AdminTeamsContent() {
     },
     onError: (err) => {
       toast.error(err.message || "削除に失敗しました");
+    },
+  });
+
+  const importJLeagueMutation = trpc.admin.importJLeagueTeams.useMutation({
+    onSuccess: (result) => {
+      toast.success(`J.Leagueチームをインポートしました（${result.inserted}件追加、${result.updated}件更新）`);
+      utils.admin.getTeams.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "インポートに失敗しました");
     },
   });
 
@@ -183,13 +194,23 @@ function AdminTeamsContent() {
             </p>
           </div>
         </div>
-        <Button onClick={() => {
-          setFormData(defaultFormData);
-          setIsCreateOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          チームを追加
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => importJLeagueMutation.mutate()}
+            disabled={importJLeagueMutation.isPending}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {importJLeagueMutation.isPending ? "インポート中..." : "J.Leagueチームをインポート"}
+          </Button>
+          <Button onClick={() => {
+            setFormData(defaultFormData);
+            setIsCreateOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            チームを追加
+          </Button>
+        </div>
       </div>
 
       <Card>
