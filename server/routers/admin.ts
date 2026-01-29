@@ -1649,6 +1649,10 @@ export const adminRouter = router({
 
       const parseDateTime = (val: string | undefined): Date | null => {
         if (!val) return null;
+        // Skip non-date text values (e.g., "販売概要発表：試合日の5～7週間前...")
+        if (val.includes('販売') || val.includes('概要') || val.includes('週間')) {
+          return null;
+        }
         const normalized = val.replace(/\//g, '-');
         const dateTimeMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
         if (dateTimeMatch) {
@@ -1709,13 +1713,23 @@ export const adminRouter = router({
 
           const attendance = row.attendance ? parseInt(row.attendance.replace(/,/g, ''), 10) : null;
 
+          // Treat "未定" as null for optional fields
+          const normalizeUndefined = (val: string | undefined): string | null => {
+            if (!val) return null;
+            const trimmed = val.trim();
+            if (trimmed === '未定' || trimmed === '') return null;
+            return trimmed;
+          };
+
+          const normalizedStadium = normalizeUndefined(row.stadium);
+
           const matchData = {
             teamId: input.teamId,
             seasonId: input.seasonId,
             date: parsedDate,
-            kickoff: row.kickoff || null,
+            kickoff: normalizeUndefined(row.kickoff),
             opponent: row.opponent.trim(),
-            stadium: row.stadium.trim(),
+            stadium: normalizedStadium,
             marinosSide,
             competition: row.competition?.trim() || null,
             roundLabel: row.roundLabel?.trim() || null,
@@ -1741,18 +1755,23 @@ export const adminRouter = router({
           }
 
           if (!existingMatch) {
+            // Build WHERE conditions (stadium may be null for "未定")
+            const whereConditions = [
+              eq(matches.teamId, input.teamId),
+              eq(matches.seasonId, input.seasonId),
+              eq(matches.date, parsedDate),
+              eq(matches.opponent, matchData.opponent),
+            ];
+            if (matchData.stadium) {
+              whereConditions.push(eq(matches.stadium, matchData.stadium));
+            } else {
+              whereConditions.push(isNull(matches.stadium));
+            }
+
             const found = await db
               .select()
               .from(matches)
-              .where(
-                and(
-                  eq(matches.teamId, input.teamId),
-                  eq(matches.seasonId, input.seasonId),
-                  eq(matches.date, parsedDate),
-                  eq(matches.opponent, matchData.opponent),
-                  eq(matches.stadium, matchData.stadium)
-                )
-              )
+              .where(and(...whereConditions))
               .limit(2);
             
             if (found.length === 1) {
