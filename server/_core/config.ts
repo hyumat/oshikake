@@ -23,7 +23,7 @@ export const config = {
   },
 
   auth: {
-    appId: process.env.VITE_APP_ID ?? "",
+    appId: process.env.VITE_APP_ID || (isDevelopment ? "dev-oshikake-app" : ""),
     cookieSecret: process.env.SESSION_SECRET ?? process.env.JWT_SECRET ?? "",
     oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
     ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
