@@ -18,6 +18,8 @@ import { LimitReachedModal } from '@/components/LimitReachedModal';
 import { PlanStatusBadge } from '@/components/PlanStatusBadge';
 import { TravelTrends } from '@/components/TravelTrends';
 import { TravelPlanForm } from '@/components/TravelPlanForm';
+import { PastSelf } from '@/components/PastSelf';
+import { TripPlanCard } from '@/components/TripPlanCard';
 import type { MatchDTO } from '@shared/dto';
 import { FREE_PLAN_LIMIT } from '@shared/billing';
 import { useAuth } from '@/_core/hooks/useAuth';
@@ -212,6 +214,8 @@ export default function MatchDetail() {
           onDelete={hasExpenses ? handleDelete : undefined}
           isSaving={isSaving}
         />
+        <TripPlanCard matchId={matchIdNum} />
+        <PastSelf matchId={matchIdNum} opponent={match.opponent} stadium={match.stadium} />
         <TravelTrends matchId={matchIdNum} />
         <TravelPlanForm matchId={matchIdNum} />
       </div>
