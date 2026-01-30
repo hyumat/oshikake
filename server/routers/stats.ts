@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
-import { getDb } from '../db';
+import { getDb, isDbConnectionError } from '../db';
 import { userMatches, matches } from '../../drizzle/schema';
 import { eq, and, sql, type SQL } from 'drizzle-orm';
 
@@ -157,13 +157,7 @@ export const statsRouter = router({
         return result;
       } catch (error) {
         console.error('[Stats Router] Error getting summary:', error);
-        const isDbConnectionError = 
-          error instanceof Error && 
-          (error.message.includes('ECONNREFUSED') || 
-           error.message.includes('connect') ||
-           (error as any).cause?.code === 'ECONNREFUSED');
-        
-        if (isDbConnectionError) {
+        if (isDbConnectionError(error)) {
           return emptyResult;
         }
         throw error;

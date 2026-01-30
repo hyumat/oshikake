@@ -1,11 +1,12 @@
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { 
-  InsertUser, users, 
-  matches as matchesTable, 
-  userMatches as userMatchesTable, 
-  syncLogs as syncLogsTable, 
+import { TRPCError } from '@trpc/server';
+import {
+  InsertUser, users,
+  matches as matchesTable,
+  userMatches as userMatchesTable,
+  syncLogs as syncLogsTable,
   matchExpenses as matchExpensesTable,
   auditLogs as auditLogsTable,
   eventLogs as eventLogsTable,
@@ -14,7 +15,7 @@ import {
   InsertAuditLog, InsertEventLog
 } from "../drizzle/schema";
 import { ENV, config } from './_core/env';
-import { Plan } from '../shared/billing';
+import { Plan, canCreateAttendance, getPlanLimit } from '../shared/billing';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _client: ReturnType<typeof postgres> | null = null;
@@ -31,6 +32,82 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/**
+ * Issue #131: DB接続を必須とするヘルパー。
+ * DB が利用不可の場合は TRPCError をスローする。
+ */
+export async function requireDb() {
+  const db = await getDb();
+  if (!db) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Database not available',
+    });
+  }
+  return db;
+}
+
+/**
+ * Issue #131: DB接続エラーかどうかを判定する共通ヘルパー。
+ * stats.ts で2箇所重複していたロジックを統一。
+ */
+export function isDbConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message;
+  const cause = (error as Error & { cause?: { code?: string } }).cause;
+  return (
+    msg.includes('ECONNREFUSED') ||
+    msg.includes('connect') ||
+    cause?.code === 'ECONNREFUSED'
+  );
+}
+
+/**
+ * Issue #131: 観戦記録の追加可否チェックを一箇所に集約。
+ * userMatches.ts 内で3回繰り返されていたロジック。
+ */
+export async function requireAttendanceCapacity(userId: number): Promise<void> {
+  const { plan, planExpiresAt } = await getUserPlan(userId);
+  const currentCount = await getTotalAttendanceCount(userId);
+
+  if (!canCreateAttendance(plan, planExpiresAt, currentCount)) {
+    const limit = getPlanLimit(plan, planExpiresAt);
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'LIMIT_REACHED',
+      cause: { type: 'LIMIT_REACHED', currentCount, limit },
+    });
+  }
+}
+
+/**
+ * Issue #131: 複数 userMatch の経費を一括取得する。
+ * exportData の N+1 クエリ解消用。
+ */
+export async function getExpensesByUserMatchIds(
+  userMatchIds: number[],
+  userId: number,
+): Promise<MatchExpense[]> {
+  if (userMatchIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(matchExpensesTable)
+      .where(
+        and(
+          inArray(matchExpensesTable.userMatchId, userMatchIds),
+          eq(matchExpensesTable.userId, userId),
+        ),
+      );
+  } catch (error) {
+    console.error('[Database] Failed to get expenses by user match ids:', error);
+    return [];
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
