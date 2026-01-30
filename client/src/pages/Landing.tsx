@@ -1,134 +1,41 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AccountMenu } from "@/components/AccountMenu";
 import { getLoginUrl, getSignUpUrl } from "@/const";
+import { ChevronDown, Calendar, PiggyBank, BarChart3, CheckCircle2, Smartphone, Shield, Clock } from "lucide-react";
 
-const DEBUG_HOTSPOTS = false;
-
-interface HeroHotspot {
-  id: string;
-  href: string;
-  pc: { top: string; left: string; width: string; height: string };
-  sp: { top: string; left: string; width: string; height: string };
-}
-
-const HOTSPOTS: HeroHotspot[] = [
-  {
-    id: "signup",
-    href: getSignUpUrl(),
-    pc: { top: "68%", left: "10%", width: "13%", height: "8%" },
-    sp: { top: "68%", left: "8%", width: "28%", height: "6%" },
-  },
-  {
-    id: "howto",
-    href: "#howto",
-    pc: { top: "68%", left: "25%", width: "11%", height: "8%" },
-    sp: { top: "68%", left: "40%", width: "24%", height: "6%" },
-  },
-];
-
-function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const [isSp, setIsSp] = useState(false);
+function FadeInSection({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    setIsSp(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsSp(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => setIsVisible(true), delay);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [delay]);
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-6 pb-8 md:pt-8 md:pb-12">
-      <div className="relative">
-        <picture>
-          <source media="(max-width: 768px)" srcSet="/lp/hero-sp.webp" type="image/webp" />
-          <source srcSet="/lp/hero-pc.webp" type="image/webp" />
-          <img
-            src="/lp/hero-pc.webp"
-            alt="オシカケ - 観戦と費用を、ひとつに"
-            className="w-full h-auto rounded-2xl md:rounded-3xl"
-            style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.12)" }}
-            loading="eager"
-            decoding="async"
-          />
-        </picture>
-
-        {DEBUG_HOTSPOTS ? (
-          <>
-            {HOTSPOTS.map((hs) => {
-              const pos = isSp ? hs.sp : hs.pc;
-              return (
-                <a
-                  key={hs.id}
-                  href={hs.href}
-                  className="absolute bg-blue-500/30 border-2 border-blue-600"
-                  style={{
-                    top: pos.top,
-                    left: pos.left,
-                    width: pos.width,
-                    height: pos.height,
-                  }}
-                  aria-label={hs.id === "signup" ? "無料で始める" : "使い方を見る"}
-                />
-              );
-            })}
-            <a
-              href="/app"
-              className="absolute bg-green-500/30 border-2 border-green-600"
-              style={isSp 
-                ? { top: "68%", left: "8%", width: "56%", height: "6%" }
-                : { top: "68%", left: "10%", width: "26%", height: "8%" }
-              }
-              aria-label="ダッシュボードへ"
-            />
-          </>
-        ) : isLoggedIn ? (
-          <a
-            href="/app"
-            className="absolute"
-            style={isSp 
-              ? { top: "68%", left: "8%", width: "56%", height: "6%" }
-              : { top: "68%", left: "10%", width: "26%", height: "8%" }
-            }
-            aria-label="ダッシュボードへ"
-          />
-        ) : (
-          HOTSPOTS.map((hs) => {
-            const pos = isSp ? hs.sp : hs.pc;
-            return (
-              <a
-                key={hs.id}
-                href={hs.href}
-                className="absolute"
-                style={{
-                  top: pos.top,
-                  left: pos.left,
-                  width: pos.width,
-                  height: pos.height,
-                }}
-                aria-label={hs.id === "signup" ? "無料で始める" : "使い方を見る"}
-              />
-            );
-          })
-        )}
-      </div>
-    </section>
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ${
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+      }`}
+    >
+      {children}
+    </div>
   );
 }
 
 export default function LandingPage() {
-  const [year, setYear] = useState<number>(2025);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const { user, loading: authLoading } = useAuth();
-
-  const statsPreview = {
-    2024: { watch: 6, win: 2, draw: 2, loss: 2, unknown: 0, total: 71200 },
-    2025: { watch: 7, win: 3, draw: 2, loss: 1, unknown: 1, total: 84200 },
-    2026: { watch: 1, win: 0, draw: 0, loss: 0, unknown: 1, total: 9800 },
-  }[year] ?? { watch: 7, win: 3, draw: 2, loss: 1, unknown: 1, total: 84200 };
-
-  const avg = statsPreview.watch > 0 ? Math.round(statsPreview.total / statsPreview.watch) : 0;
 
   const faq = [
     {
@@ -147,42 +54,43 @@ export default function LandingPage() {
       q: "途中でプラン変更や解約はできますか？",
       a: "いつでも変更・解約できます。（決済画面の「管理ページ」から手続きできます）",
     },
+    {
+      q: "Jリーグのどのクラブに対応していますか？",
+      a: "J1・J2リーグの全クラブに対応しています。登録時にお好きなクラブを選択していただけます。",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#F5F1E6] text-slate-900" style={{ "--lp-bg": "#F5F1E6" } as React.CSSProperties}>
-
-      <header className="sticky top-0 z-30 border-b border-[#E8E4D9] bg-[#F5F1E6]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/30 to-indigo-50/50 text-slate-900">
+      <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
             <img
               src="/logo.png"
               alt="オシカケ"
-              className="h-9 w-9 rounded-xl shadow-sm"
+              className="h-10 w-10 rounded-xl shadow-sm"
             />
             <div className="leading-tight">
-              <div className="text-sm font-bold text-blue-900">オシカケ</div>
-              <div className="text-[11px] text-slate-500">観戦と費用を、ひとつに。</div>
+              <div className="text-base font-bold text-slate-900">オシカケ</div>
+              <div className="text-xs text-slate-500">観戦と費用を、ひとつに。</div>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-6 md:flex">
-            <a href="#pain" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">悩み</a>
-            <a href="#solution" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">できること</a>
-            <a href="#howto" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">使い方</a>
-            <a href="#stats" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">集計</a>
-            <a href="#pricing" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">料金</a>
-            <a href="#faq" className="text-sm text-slate-600 hover:text-blue-700 transition-colors">FAQ</a>
+          <nav className="hidden items-center gap-8 md:flex">
+            <a href="#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">機能</a>
+            <a href="#howto" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">使い方</a>
+            <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">料金</a>
+            <a href="#faq" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">FAQ</a>
           </nav>
 
           <div className="flex items-center gap-3">
             {authLoading ? (
-              <div className="h-8 w-8 rounded-full bg-slate-200 animate-pulse" />
+              <div className="h-9 w-9 rounded-full bg-slate-200 animate-pulse" />
             ) : user ? (
               <>
                 <a
                   href="/app"
-                  className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors hidden sm:block"
+                  className="hidden sm:inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 transition-all"
                 >
                   ダッシュボード
                 </a>
@@ -192,15 +100,15 @@ export default function LandingPage() {
               <>
                 <a
                   href={getLoginUrl()}
-                  className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors"
+                  className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
                 >
                   ログイン
                 </a>
                 <a
                   href={getSignUpUrl()}
-                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all"
+                  className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 transition-all"
                 >
-                  無料で登録
+                  無料で始める
                 </a>
               </>
             )}
@@ -208,406 +116,454 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <HeroSection isLoggedIn={!!user} />
-
-      <section id="pain" className="py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">共感</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">こんな悩み、ありませんか？</h2>
-              <p className="mt-3 text-sm text-slate-500 max-w-xl mx-auto">
-                放っておくと、今季いくら使ったか分からない。あとから思い出そうとしても、記録がバラバラで探せない...
-              </p>
-            </div>
-          </FadeInSection>
-
-          <div className="grid gap-8 md:grid-cols-2 items-center">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FadeInSection delay={0}>
-                <PainCard icon="📱" text="観戦メモがSNS・メモアプリ・写真フォルダに散らばって、あとから探せない" />
-              </FadeInSection>
-              <FadeInSection delay={100}>
-                <PainCard icon="💸" text="気づいたら今季の出費が分からない。次の遠征の予算も立てづらい" />
-              </FadeInSection>
-              <FadeInSection delay={200}>
-                <PainCard icon="🔍" text="試合予定・結果を確認するたびに、毎回別のサイトを開いてしまう" />
-              </FadeInSection>
-              <FadeInSection delay={300}>
-                <PainCard icon="📅" text="シーズンが終わったあと、どの試合を観に行ったか思い出せない" />
-              </FadeInSection>
-            </div>
-            <FadeInSection delay={400}>
-              <picture>
-                <source srcSet="/lp/lp-pain.webp" type="image/webp" />
-                <img
-                  src="/lp/lp-pain.png"
-                  alt="記録が散らばりやすい状況のイメージ"
-                  className="rounded-2xl shadow-lg w-full max-w-md mx-auto"
-                  width={400}
-                  height={300}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </picture>
-            </FadeInSection>
-          </div>
-        </div>
-      </section>
-
-      <section id="solution" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">解決</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">オシカケでできること</h2>
-            </div>
-          </FadeInSection>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <FadeInSection delay={0}>
-              <SolutionCard
-                icon="📝"
-                title="観戦メモが散らばらない"
-                desc="試合ごとに観戦日とメモを1か所にまとめて残せます。"
-              />
-            </FadeInSection>
-            <FadeInSection delay={100}>
-              <SolutionCard
-                icon="💰"
-                title="いくら使ったか、あとで一発で分かる"
-                desc="チケット・交通・飲食など、費用をカテゴリ別に記録できます。"
-              />
-            </FadeInSection>
-            <FadeInSection delay={200}>
-              <SolutionCard
-                icon="📊"
-                title="予定・結果を同じ場所で見返せる"
-                desc="試合一覧と詳細で、別のサイトを開かなくても確認できます。"
-              />
-            </FadeInSection>
-          </div>
-        </div>
-      </section>
-
-      <section id="howto" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">使い方</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">3ステップで完了</h2>
-            </div>
-          </FadeInSection>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <FadeInSection delay={0}>
-              <StepCardWithImage step="1" title="試合を選ぶ" image="/lp/lp-step-1.webp" />
-            </FadeInSection>
-            <FadeInSection delay={100}>
-              <StepCardWithImage step="2" title="記録を残す" image="/lp/lp-step-2.webp" />
-            </FadeInSection>
-            <FadeInSection delay={200}>
-              <StepCardWithImage step="3" title="費用を保存" image="/lp/lp-step-3.webp" />
-            </FadeInSection>
-          </div>
-
-          <FadeInSection delay={300}>
-            <div className="mt-8 text-center">
-              <p className="text-sm text-slate-500">
-                無料で7試合まで試せます。記録はいつでも編集できます。
-              </p>
-            </div>
-          </FadeInSection>
-        </div>
-      </section>
-
-      <section id="stats" className="py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">集計</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">見返し（集計）</h2>
-              <p className="mt-3 text-sm text-slate-600 max-w-xl mx-auto">
-                観戦数、勝敗、費用の合計・平均などをシーズン単位で見返せます。年度の切り替えにも対応しています。
-              </p>
-            </div>
-          </FadeInSection>
-
-          <div className="grid gap-8 md:grid-cols-2 items-center max-w-4xl mx-auto">
-            <FadeInSection>
-              <picture>
-                <source srcSet="/lp/lp-stats.webp" type="image/webp" />
-                <img
-                  src="/lp/lp-stats.png"
-                  alt="今季の振り返りイメージ"
-                  className="rounded-2xl shadow-lg w-full"
-                  width={400}
-                  height={300}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </picture>
-            </FadeInSection>
-
-            <FadeInSection delay={100}>
-              <div className="rounded-3xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-                  <div className="text-sm font-semibold">集計プレビュー</div>
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                  </select>
-                </div>
-
-                <div className="grid gap-4 grid-cols-2">
-                  <StatCard label="観戦数" value={`${statsPreview.watch}`} unit="試合" />
-                  <StatCard label="勝分敗" value={`${statsPreview.win}-${statsPreview.draw}-${statsPreview.loss}`} unit="" hint={statsPreview.unknown > 0 ? `未確定 ${statsPreview.unknown}` : undefined} />
-                  <StatCard label="費用（合計）" value={`¥${statsPreview.total.toLocaleString()}`} unit="" />
-                  <StatCard label="費用（平均）" value={`¥${avg.toLocaleString()}`} unit="" />
-                </div>
-              </div>
-            </FadeInSection>
-          </div>
-        </div>
-      </section>
-
-      <section id="roadmap" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <div className="grid gap-8 md:grid-cols-2 items-center max-w-4xl mx-auto">
-            <div>
+      <section className="relative overflow-hidden py-20 md:py-32">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-100/40 via-indigo-100/30 to-purple-100/40" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl" />
+        
+        <div className="relative mx-auto max-w-6xl px-4">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="text-center md:text-left">
               <FadeInSection>
-                <div className="mb-8">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">期待</div>
-                  <h2 className="mt-2 text-2xl font-bold md:text-3xl">今後のロードマップ</h2>
+                <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700 mb-6">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                  </span>
+                  J1・J2リーグ対応
                 </div>
               </FadeInSection>
-
-              <div className="space-y-4">
-                <FadeInSection delay={0}>
-                  <RoadmapItem label="短期" text="費用内訳、月別推移、グラフ表示" />
-                </FadeInSection>
-                <FadeInSection delay={100}>
-                  <RoadmapItem label="中期" text="CSVエクスポート、共有、オフライン対応" />
-                </FadeInSection>
-                <FadeInSection delay={200}>
-                  <RoadmapItem label="長期" text="モバイルアプリ化、複数ユーザー、SNS連携" />
-                </FadeInSection>
-              </div>
-            </div>
-
-            <FadeInSection delay={300}>
-              <picture>
-                <source srcSet="/lp/lp-future.webp" type="image/webp" />
-                <img
-                  src="/lp/lp-future.png"
-                  alt="見返しが楽しくなるイメージ"
-                  className="rounded-2xl shadow-lg w-full"
-                  width={400}
-                  height={300}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </picture>
-            </FadeInSection>
-          </div>
-        </div>
-      </section>
-
-      <section id="pricing" className="py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
-          <FadeInSection>
-            <div className="text-center mb-12">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">料金プラン</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">Freeで始められます</h2>
-              <p className="mt-4 text-slate-600 max-w-2xl mx-auto">
-                まずはFreeでお試し。気に入ったらPlus/Proで制限を解除できます。
-              </p>
-            </div>
-          </FadeInSection>
-
-          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-            <FadeInSection delay={0}>
-              <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 h-full" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold">Free</h3>
-                  <div className="mt-2">
-                    <span className="text-2xl font-bold">¥0</span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">まずは気軽に始めたい方に</p>
-                </div>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span className="font-medium">記録可能試合：7件まで</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>メモと費用をまとめて残せる</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>基本の集計で見返せる</span>
-                  </li>
-                </ul>
-                <p className="mt-3 text-xs text-slate-400">※「記録可能試合」は、観戦記録（観戦済み）として保存できる件数です。</p>
-                <div className="mt-4">
+              
+              <FadeInSection delay={100}>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
+                  観戦記録と費用を
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                    ひとつに
+                  </span>
+                </h1>
+              </FadeInSection>
+              
+              <FadeInSection delay={200}>
+                <p className="mt-6 text-lg text-slate-600 max-w-lg">
+                  試合ごとにメモ・費用をまとめて記録。
+                  シーズンを通した支出を一目で把握できます。
+                </p>
+              </FadeInSection>
+              
+              <FadeInSection delay={300}>
+                <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                   <a
                     href={user ? "/app" : getSignUpUrl()}
-                    className="block w-full rounded-xl border border-slate-200 bg-white py-2 text-center text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all"
                   >
-                    {user ? "ダッシュボードへ" : "無料で登録"}
+                    {user ? "ダッシュボードへ" : "無料で始める"}
                   </a>
+                  <a
+                    href="#howto"
+                    className="inline-flex items-center justify-center rounded-full border-2 border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition-all"
+                  >
+                    使い方を見る
+                  </a>
+                </div>
+              </FadeInSection>
+            </div>
+            
+            <FadeInSection delay={400}>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl blur-2xl opacity-20 scale-105" />
+                <picture>
+                  <source srcSet="/lp/lp-stats.webp" type="image/webp" />
+                  <img
+                    src="/lp/lp-stats.png"
+                    alt="オシカケのダッシュボード"
+                    className="relative rounded-2xl shadow-2xl border border-white/50"
+                    loading="eager"
+                  />
+                </picture>
+              </div>
+            </FadeInSection>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" className="py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-4">
+          <FadeInSection>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-1.5 text-sm font-medium text-indigo-700 mb-4">
+                機能紹介
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+                オシカケでできること
+              </h2>
+              <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+                散らばりがちな観戦記録と費用を、1か所にまとめて管理できます
+              </p>
+            </div>
+          </FadeInSection>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <FadeInSection delay={0}>
+              <div className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25">
+                  <Calendar className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">試合ごとに記録</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  観戦メモ、写真の思い出、その日の気持ちを試合単位で残せます。
+                </p>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={100}>
+              <div className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 hover:shadow-lg hover:border-green-200 transition-all duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-6 shadow-lg shadow-green-500/25">
+                  <PiggyBank className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">費用を見える化</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  チケット・交通費・飲食費などをカテゴリ別に記録。今季いくら使ったか一目でわかります。
+                </p>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={200}>
+              <div className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg shadow-purple-500/25">
+                  <BarChart3 className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">シーズン集計</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  観戦数、勝敗記録、費用の合計・平均をシーズン単位で振り返れます。
+                </p>
+              </div>
+            </FadeInSection>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 mt-8">
+            <FadeInSection delay={300}>
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">スマホ対応</div>
+                  <div className="text-sm text-slate-500">どこでも記録</div>
                 </div>
               </div>
             </FadeInSection>
 
-            <FadeInSection delay={50}>
-              <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 h-full" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold">Plus</h3>
-                  <div className="mt-2">
-                    <span className="text-2xl font-bold">¥490</span>
-                    <span className="text-slate-500 text-sm">/月</span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">シーズンを通して記録したい方に</p>
+            <FadeInSection delay={350}>
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-green-600" />
                 </div>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span className="font-medium">記録可能試合：無制限</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>今のシーズンをしっかり残せる</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>基本の集計で見返せる</span>
-                  </li>
-                </ul>
-                <div className="mt-4">
-                  <a
-                    href="/pricing"
-                    className="block w-full rounded-xl border border-slate-200 bg-white py-2 text-center text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
-                  >
-                    詳細を見る
-                  </a>
+                <div>
+                  <div className="font-semibold text-slate-900">データ安全</div>
+                  <div className="text-sm text-slate-500">クラウド保存</div>
+                </div>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={400}>
+              <div className="flex items-center gap-4 bg-slate-50 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">すぐ使える</div>
+                  <div className="text-sm text-slate-500">1分で登録完了</div>
+                </div>
+              </div>
+            </FadeInSection>
+          </div>
+        </div>
+      </section>
+
+      <section id="howto" className="py-20 md:py-28 bg-gradient-to-b from-white to-slate-50">
+        <div className="mx-auto max-w-6xl px-4">
+          <FadeInSection>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700 mb-4">
+                使い方
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+                3ステップで簡単
+              </h2>
+              <p className="mt-4 text-lg text-slate-600">
+                登録から記録まで、わずか数分で始められます
+              </p>
+            </div>
+          </FadeInSection>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <FadeInSection delay={0}>
+              <div className="relative">
+                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  1
+                </div>
+                <div className="bg-white rounded-2xl p-6 pt-10 shadow-sm border border-slate-200/60 h-full">
+                  <picture>
+                    <source srcSet="/lp/lp-step-1.webp" type="image/webp" />
+                    <img
+                      src="/lp/lp-step-1.png"
+                      alt="試合を選ぶ"
+                      className="rounded-xl mb-4 w-full"
+                      loading="lazy"
+                    />
+                  </picture>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">試合を選ぶ</h3>
+                  <p className="text-slate-600 text-sm">
+                    試合一覧から観戦した試合を選択します。過去の試合も未来の予定も一覧できます。
+                  </p>
                 </div>
               </div>
             </FadeInSection>
 
             <FadeInSection delay={100}>
-              <div className="rounded-2xl border-2 border-blue-600 bg-[rgba(255,255,255,0.95)] p-6 relative h-full" style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.1)" }}>
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">おすすめ</span>
+              <div className="relative">
+                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  2
                 </div>
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold">Pro</h3>
-                  <div className="mt-2">
-                    <span className="text-2xl font-bold">¥980</span>
-                    <span className="text-slate-500 text-sm">/月</span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">全ての試合を記録したい方に</p>
+                <div className="bg-white rounded-2xl p-6 pt-10 shadow-sm border border-slate-200/60 h-full">
+                  <picture>
+                    <source srcSet="/lp/lp-step-2.webp" type="image/webp" />
+                    <img
+                      src="/lp/lp-step-2.png"
+                      alt="記録を残す"
+                      className="rounded-xl mb-4 w-full"
+                      loading="lazy"
+                    />
+                  </picture>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">記録を残す</h3>
+                  <p className="text-slate-600 text-sm">
+                    観戦メモや感想を入力。その日の思い出を文字で残せます。
+                  </p>
                 </div>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span className="font-medium">複数シーズンをまとめて管理</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>CSVで書き出し（保存・共有に便利）</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    <span>支出の内訳や推移まで見える</span>
-                  </li>
-                </ul>
-                <div className="mt-4">
-                  <a
-                    href="/pricing"
-                    className="block w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 py-2 text-center text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition-all"
-                  >
-                    詳細を見る
-                  </a>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={200}>
+              <div className="relative">
+                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  3
+                </div>
+                <div className="bg-white rounded-2xl p-6 pt-10 shadow-sm border border-slate-200/60 h-full">
+                  <picture>
+                    <source srcSet="/lp/lp-step-3.webp" type="image/webp" />
+                    <img
+                      src="/lp/lp-step-3.png"
+                      alt="費用を保存"
+                      className="rounded-xl mb-4 w-full"
+                      loading="lazy"
+                    />
+                  </picture>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">費用を保存</h3>
+                  <p className="text-slate-600 text-sm">
+                    チケット・交通費・飲食費などをカテゴリ別に入力。後で集計できます。
+                  </p>
                 </div>
               </div>
             </FadeInSection>
           </div>
-
-          <FadeInSection delay={200}>
-            <div className="text-center mt-8">
-              <a href="/pricing" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
-                プランの詳細を見る →
-              </a>
-            </div>
-          </FadeInSection>
         </div>
       </section>
 
-      <section id="faq" className="bg-[rgba(255,255,255,0.35)] py-16 md:py-24">
+      <section id="pricing" className="py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-4">
+          <FadeInSection>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1.5 text-sm font-medium text-green-700 mb-4">
+                料金プラン
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+                まずは無料で始められます
+              </h2>
+              <p className="mt-4 text-lg text-slate-600">
+                気に入ったらアップグレード。いつでも解約できます。
+              </p>
+            </div>
+          </FadeInSection>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <FadeInSection delay={0}>
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 h-full flex flex-col">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-slate-900">Free</h3>
+                  <p className="text-sm text-slate-500 mt-1">まずはお試しに</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-slate-900">¥0</span>
+                </div>
+                <ul className="space-y-3 mb-8 flex-grow">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">観戦記録 7件まで</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">メモ・費用の記録</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">基本の集計機能</span>
+                  </li>
+                </ul>
+                <a
+                  href={user ? "/app" : getSignUpUrl()}
+                  className="block w-full rounded-xl border-2 border-slate-200 bg-white py-3 text-center font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all"
+                >
+                  {user ? "ダッシュボードへ" : "無料で始める"}
+                </a>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={100}>
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 h-full flex flex-col">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-slate-900">Plus</h3>
+                  <p className="text-sm text-slate-500 mt-1">シーズンを通して記録</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-slate-900">¥490</span>
+                  <span className="text-slate-500 ml-1">/月</span>
+                </div>
+                <ul className="space-y-3 mb-8 flex-grow">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">観戦記録 無制限</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">今シーズンをしっかり記録</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-600">広告非表示</span>
+                  </li>
+                </ul>
+                <a
+                  href="/pricing"
+                  className="block w-full rounded-xl border-2 border-slate-200 bg-white py-3 text-center font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all"
+                >
+                  詳細を見る
+                </a>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={200}>
+              <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-8 shadow-xl h-full flex flex-col">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-bold text-yellow-900 shadow-lg">
+                    おすすめ
+                  </span>
+                </div>
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-white">Pro</h3>
+                  <p className="text-sm text-blue-100 mt-1">全機能をフル活用</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-white">¥980</span>
+                  <span className="text-blue-200 ml-1">/月</span>
+                </div>
+                <ul className="space-y-3 mb-8 flex-grow">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-300 flex-shrink-0 mt-0.5" />
+                    <span className="text-white">Plusの全機能</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-300 flex-shrink-0 mt-0.5" />
+                    <span className="text-white">複数シーズン管理</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-300 flex-shrink-0 mt-0.5" />
+                    <span className="text-white">CSVエクスポート</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-300 flex-shrink-0 mt-0.5" />
+                    <span className="text-white">優先サポート</span>
+                  </li>
+                </ul>
+                <a
+                  href="/pricing"
+                  className="block w-full rounded-xl bg-white py-3 text-center font-semibold text-blue-600 hover:bg-blue-50 transition-all"
+                >
+                  詳細を見る
+                </a>
+              </div>
+            </FadeInSection>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="py-20 md:py-28 bg-gradient-to-b from-slate-50 to-white">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInSection>
-            <div className="text-center mb-10">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">FAQ</div>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">よくある質問</h2>
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-1.5 text-sm font-medium text-purple-700 mb-4">
+                よくある質問
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+                FAQ
+              </h2>
             </div>
           </FadeInSection>
 
-          <div className="space-y-3">
-            {faq.map((item, idx) => {
-              const open = activeFaq === idx;
-              return (
-                <FadeInSection key={idx} delay={idx * 50}>
+          <div className="space-y-4">
+            {faq.map((item, i) => (
+              <FadeInSection key={i} delay={i * 50}>
+                <div className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
                   <button
-                    type="button"
-                    onClick={() => setActiveFaq(open ? null : idx)}
-                    className="w-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-4 text-left transition-shadow" style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.05)" }}
+                    onClick={() => setActiveFaq(activeFaq === i ? null : i)}
+                    className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-semibold">{item.q}</div>
-                        <div
-                          className={[
-                            "mt-2 text-sm leading-relaxed text-slate-600 transition-all duration-200",
-                            open ? "max-h-96 opacity-100" : "max-h-0 overflow-hidden opacity-0",
-                          ].join(" ")}
-                        >
-                          {item.a}
-                        </div>
-                      </div>
-                      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-transform" style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}>
-                        <span className="text-sm">+</span>
-                      </div>
-                    </div>
+                    <span className="font-semibold text-slate-900 pr-4">{item.q}</span>
+                    <ChevronDown 
+                      className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${
+                        activeFaq === i ? "rotate-180" : ""
+                      }`} 
+                    />
                   </button>
-                </FadeInSection>
-              );
-            })}
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ${
+                      activeFaq === i ? "max-h-40" : "max-h-0"
+                    }`}
+                  >
+                    <div className="px-5 pb-5 text-slate-600">
+                      {item.a}
+                    </div>
+                  </div>
+                </div>
+              </FadeInSection>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16 md:py-24">
-        <div className="mx-auto max-w-5xl px-4">
+      <section className="py-20 md:py-28">
+        <div className="mx-auto max-w-4xl px-4">
           <FadeInSection>
-            <div className="rounded-3xl bg-gradient-to-r from-blue-700 to-blue-800 p-8 text-white shadow-xl md:p-12">
-              <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-2xl font-bold md:text-3xl">今季の観戦を、あとから気持ちよく見返そう。</h2>
-                <p className="mt-4 text-sm leading-relaxed text-white/80 md:text-base">
-                  観戦の記録と費用をまとめて残し、試合結果・試合予定も同じ場所で確認できます。
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 rounded-3xl p-10 md:p-16 text-center overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full">
+                <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute bottom-10 right-10 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
+              </div>
+              
+              <div className="relative z-10">
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  今シーズンの記録を始めよう
+                </h2>
+                <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
+                  無料で7試合まで記録できます。
+                  気に入ったらいつでもアップグレード。
                 </p>
-                <div className="mt-8">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <a
                     href={user ? "/app" : getSignUpUrl()}
-                    className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-blue-800 shadow-md hover:bg-slate-50 transition-all"
+                    className="inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-base font-semibold text-blue-600 shadow-lg hover:bg-blue-50 transition-all"
                   >
-                    {user ? "ダッシュボードへ" : "無料で登録して始める"}
+                    {user ? "ダッシュボードへ" : "無料で始める"}
                   </a>
                 </div>
               </div>
@@ -616,139 +572,35 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-100 py-8">
-        <div className="mx-auto max-w-5xl px-4 flex flex-col items-center justify-between gap-6 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="text-blue-600 font-semibold">オシカケ</span>
-            <span className="text-xs text-slate-500">© {new Date().getFullYear()}</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-slate-500">
-            <a href="#solution" className="hover:text-blue-700 transition-colors">機能</a>
-            <a href="#howto" className="hover:text-blue-700 transition-colors">使い方</a>
-            <a href="#faq" className="hover:text-blue-700 transition-colors">FAQ</a>
-            <a href="/pricing" className="hover:text-blue-700 transition-colors">料金</a>
-            <span className="text-slate-300">|</span>
-            <a href="/privacy" className="hover:text-blue-700 transition-colors">プライバシー</a>
-            <a href="/terms" className="hover:text-blue-700 transition-colors">利用規約</a>
-            <a href="/support" className="hover:text-blue-700 transition-colors">お問い合わせ</a>
+      <footer className="border-t border-slate-200 py-12 bg-white">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="オシカケ"
+                className="h-10 w-10 rounded-xl"
+              />
+              <div>
+                <div className="font-bold text-slate-900">オシカケ</div>
+                <div className="text-sm text-slate-500">観戦と費用を、ひとつに。</div>
+              </div>
+            </div>
+            
+            <nav className="flex flex-wrap items-center justify-center gap-6">
+              <a href="#features" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">機能</a>
+              <a href="#howto" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">使い方</a>
+              <a href="#pricing" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">料金</a>
+              <a href="/terms" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">利用規約</a>
+              <a href="/privacy" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">プライバシー</a>
+            </nav>
+            
+            <div className="text-sm text-slate-500">
+              &copy; {new Date().getFullYear()} オシカケ
+            </div>
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function FadeInSection({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className="transition-all duration-700 ease-out"
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-        transitionDelay: `${delay}ms`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function KpiCard({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-center">
-      <div className="text-xs text-slate-500">{title}</div>
-      <div className="mt-1 text-lg font-bold text-slate-900">{value}</div>
-    </div>
-  );
-}
-
-function PainCard({ icon, text }: { icon: string; text: string }) {
-  return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 h-full transition-shadow hover:shadow-lg" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-      <div className="text-2xl mb-3">{icon}</div>
-      <p className="text-sm text-slate-700 leading-relaxed">{text}</p>
-    </div>
-  );
-}
-
-function SolutionCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 h-full transition-all hover:shadow-lg hover:-translate-y-1" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-      <div className="text-3xl mb-4">{icon}</div>
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{desc}</p>
-    </div>
-  );
-}
-
-function StepCard({ step, title }: { step: string; title: string }) {
-  return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6 text-center transition-shadow hover:shadow-lg" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-      <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-lg mb-4">
-        {step}
-      </div>
-      <p className="text-sm font-medium text-slate-800">{title}</p>
-    </div>
-  );
-}
-
-function StepCardWithImage({ step, title, image }: { step: string; title: string; image: string }) {
-  return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-4 transition-all hover:shadow-lg hover:-translate-y-1" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-      <div className="aspect-[3/4] rounded-xl overflow-hidden bg-[rgba(0,0,0,0.03)] mb-4">
-        <img
-          src={image}
-          alt={`使い方のイメージ（ステップ${step}）`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
-      <div className="text-center">
-        <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm mb-2">
-          {step}
-        </div>
-        <p className="text-sm font-medium text-slate-800">{title}</p>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, unit, hint }: { label: string; value: string; unit: string; hint?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-center">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-xl font-bold text-slate-900">
-        {value}
-        {unit && <span className="text-sm font-normal text-slate-600 ml-1">{unit}</span>}
-      </div>
-      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
-    </div>
-  );
-}
-
-function RoadmapItem({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[rgba(255,255,255,0.9)] p-6" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
-      <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">{label}</div>
-      <p className="text-sm text-slate-700">{text}</p>
     </div>
   );
 }
