@@ -32,10 +32,19 @@ export function registerOAuthRoutes(app: Express) {
       }
 
       try {
-        const user = await db.getUserByOpenId(testUser.openId);
+        let user = await db.getUserByOpenId(testUser.openId);
         if (!user) {
-          res.status(404).json({ error: `Test user "${userType}" not found in database` });
-          return;
+          const role = userType === "admin" ? "admin" : "user";
+          await db.upsertUser({
+            openId: testUser.openId,
+            name: testUser.name,
+            email: `${userType}@test.example.com`,
+            loginMethod: "dev",
+            role,
+            lastSignedIn: new Date(),
+          });
+          user = await db.getUserByOpenId(testUser.openId);
+          console.log(`[Dev] Created test user: ${userType}`);
         }
 
         const sessionToken = await sdk.createSessionToken(testUser.openId, {

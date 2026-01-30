@@ -23,7 +23,8 @@ export default function AuthGuard({ children, skipTeamCheck = false }: AuthGuard
     if (!loading && isAuthenticated && user && !skipTeamCheck) {
       const isOnboardingPage = location.startsWith("/onboarding");
       const isAdminPage = location.startsWith("/admin");
-      if (!user.supportedTeamId && !isOnboardingPage && !isAdminPage) {
+      const isAdmin = user.role === "admin";
+      if (!user.supportedTeamId && !isOnboardingPage && !isAdminPage && !isAdmin) {
         navigate("/onboarding/team");
       }
     }
