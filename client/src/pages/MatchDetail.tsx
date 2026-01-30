@@ -16,6 +16,8 @@ import { UserMatchForm, type ExpenseData } from '@/components/UserMatchForm';
 import { QueryLoading, QueryError } from '@/components/QueryState';
 import { LimitReachedModal } from '@/components/LimitReachedModal';
 import { PlanStatusBadge } from '@/components/PlanStatusBadge';
+import { TravelTrends } from '@/components/TravelTrends';
+import { TravelPlanForm } from '@/components/TravelPlanForm';
 import type { MatchDTO } from '@shared/dto';
 import { FREE_PLAN_LIMIT } from '@shared/billing';
 import { useAuth } from '@/_core/hooks/useAuth';
@@ -210,6 +212,8 @@ export default function MatchDetail() {
           onDelete={hasExpenses ? handleDelete : undefined}
           isSaving={isSaving}
         />
+        <TravelTrends matchId={matchIdNum} />
+        <TravelPlanForm matchId={matchIdNum} />
       </div>
       <LimitReachedModal
         open={showLimitModal}
