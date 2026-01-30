@@ -2,7 +2,7 @@
  * Match Detail Page
  * Issue #39: Refactored to use MatchDetailView and UserMatchForm components
  * Issue #19: Expenses now saved to DB instead of LocalStorage
- * Issue #44: Free plan limit (10 records per season)
+ * Issue #44: Free plan limit (7 records per season)
  */
 
 import { useParams, useLocation } from 'wouter';

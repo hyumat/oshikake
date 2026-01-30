@@ -48,7 +48,7 @@
 - **実装内容**:
   - ✅ `getEffectivePlan()`: 期限切れ判定含むプラン取得
   - ✅ `canCreateAttendance()`: 観戦記録作成可否判定
-  - ✅ `getPlanLimit()`: プラン別件数制限取得（Free: 10件、Plus/Pro: 無制限）
+  - ✅ `getPlanLimit()`: プラン別件数制限取得（Free: 7件、Plus/Pro: 無制限）
   - ✅ `canShowAds()`: 広告表示判定（Free: 表示、Plus/Pro: 非表示）
   - ✅ `calculatePlanStatus()`: プラン状態の総合計算
 
@@ -98,7 +98,7 @@
 **必要な実装**:
 - [ ] `client/src/components/LimitReachedModal.tsx`作成
 - [ ] `LIMIT_REACHED`エラー捕捉時に自動表示
-- [ ] 現在の記録件数と上限の表示（例: 10/10件）
+- [ ] 現在の記録件数と上限の表示（例: 7/7件）
 - [ ] 「料金プランを見る」ボタン → `/pricing`へ遷移
 
 ### 4. 残り件数表示
@@ -108,7 +108,7 @@
 **必要な実装**:
 - [ ] ヘッダーまたは観戦記録一覧に残り件数バッジを追加
 - [ ] `userMatches.getPlanStatus`から残り件数取得
-- [ ] 例: `5/10 件`（残り5件）
+- [ ] 例: `5/7 件`（残り2件）
 
 ### 5. アップグレード導線
 **優先度**: 🟡 中
