@@ -8,6 +8,13 @@ export const resultWdlEnum = pgEnum("resultWdl", ["W", "D", "L"]);
 export const syncStatusEnum = pgEnum("syncStatus", ["success", "partial", "failed"]);
 export const expenseCategoryEnum = pgEnum("expenseCategory", ["transport", "ticket", "food", "other"]);
 export const matchOutcomeEnum = pgEnum("matchOutcome", ["win", "draw", "loss"]);
+/**
+ * Issue #79: 遠征傾向集約 - 宿泊/交通/予算の選択肢
+ */
+export const lodgingTypeEnum = pgEnum("lodgingType", ["day_trip", "hotel", "friend", "night_bus", "other"]);
+export const transportTypeEnum = pgEnum("transportType", ["shinkansen", "car", "bus", "airplane", "local_train", "other"]);
+export const budgetRangeEnum = pgEnum("budgetRange", ["under_5k", "5k_10k", "10k_20k", "20k_30k", "30k_50k", "over_50k"]);
+
 export const auditActionEnum = pgEnum("auditAction", [
   "attendance_create",
   "attendance_update",
@@ -46,6 +53,8 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   /** User's supported team ID (references teams table) */
   supportedTeamId: integer("supportedTeamId"),
+  /** Issue #77: 初回「観戦済み」記録の日時。Free プランの集計閲覧期間の起算点。 */
+  firstAttendedAt: timestamp("firstAttendedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -342,6 +351,8 @@ export const matchExpenses = pgTable("matchExpenses", {
   userMatchId: integer("userMatchId").notNull(),
   userId: integer("userId").notNull(),
   category: expenseCategoryEnum("category").notNull(),
+  /** Issue #74: カスタムカテゴリ参照 (Pro限定)。null の場合は固定カテゴリ */
+  customCategoryId: integer("customCategoryId"),
   amount: integer("amount").notNull(),
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -435,3 +446,130 @@ export const shareTokens = pgTable("share_tokens", {
 
 export type ShareToken = typeof shareTokens.$inferSelect;
 export type InsertShareToken = typeof shareTokens.$inferInsert;
+
+/**
+ * Issue #79: 遠征傾向集約 - travel_intents テーブル
+ *
+ * ユーザーの遠征意向（宿泊・交通手段・予算帯・到着時間帯）を試合ごとに記録。
+ * user×match で一意制約を持ち、upsert パターンで更新する。
+ */
+export const travelIntents = pgTable("travel_intents", {
+  id: serial("id").primaryKey(),
+  /** ユーザーID (users.id を参照) */
+  userId: integer("userId").notNull().references(() => users.id),
+  /** 試合ID (matches.id を参照) */
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  /** 宿泊形態 */
+  lodging: lodgingTypeEnum("lodging").notNull(),
+  /** 交通手段 */
+  transport: transportTypeEnum("transport").notNull(),
+  /** 予算帯 */
+  budget: budgetRangeEnum("budget").notNull(),
+  /** 到着時間帯 (例: "morning", "afternoon", "evening") */
+  arrivalTime: varchar("arrivalTime", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("travel_intents_userId_matchId_idx").on(table.userId, table.matchId),
+  index("travel_intents_matchId_idx").on(table.matchId),
+]);
+
+export type TravelIntent = typeof travelIntents.$inferSelect;
+export type InsertTravelIntent = typeof travelIntents.$inferInsert;
+
+/**
+ * Issue #203: 遠征プラン - 交通・宿泊・立ち寄りスポットの事前メモ
+ */
+export const tripPlanTransportMethodEnum = pgEnum("tripPlanTransportMethod", [
+  "shinkansen", "airplane", "car", "bus", "local_train", "ferry", "other"
+]);
+export const tripPlanDirectionEnum = pgEnum("tripPlanDirection", ["outbound", "return"]);
+export const tripPlanSpotTagEnum = pgEnum("tripPlanSpotTag", [
+  "tourism", "dining", "onsen", "landmark", "merchandise", "other"
+]);
+export const tripPlanSpotPriorityEnum = pgEnum("tripPlanSpotPriority", ["high", "medium", "low"]);
+
+/** 交通プラン */
+export const tripPlanTransports = pgTable("trip_plan_transports", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  direction: tripPlanDirectionEnum("direction").notNull(),
+  method: tripPlanTransportMethodEnum("method").notNull(),
+  departureTime: varchar("departureTime", { length: 16 }),
+  arrivalTime: varchar("arrivalTime", { length: 16 }),
+  departurePlace: varchar("departurePlace", { length: 128 }),
+  arrivalPlace: varchar("arrivalPlace", { length: 128 }),
+  reservationUrl: varchar("reservationUrl", { length: 512 }),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_transports_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanTransport = typeof tripPlanTransports.$inferSelect;
+export type InsertTripPlanTransport = typeof tripPlanTransports.$inferInsert;
+
+/** 宿泊プラン */
+export const tripPlanLodgings = pgTable("trip_plan_lodgings", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  stayOvernight: boolean("stayOvernight").notNull().default(false),
+  hotelName: varchar("hotelName", { length: 256 }),
+  checkIn: varchar("checkIn", { length: 16 }),
+  checkOut: varchar("checkOut", { length: 16 }),
+  reservationUrl: varchar("reservationUrl", { length: 512 }),
+  budgetYen: integer("budgetYen"),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_lodgings_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanLodging = typeof tripPlanLodgings.$inferSelect;
+export type InsertTripPlanLodging = typeof tripPlanLodgings.$inferInsert;
+
+/** 立ち寄りスポット */
+export const tripPlanSpots = pgTable("trip_plan_spots", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  spotName: varchar("spotName", { length: 256 }).notNull(),
+  tag: tripPlanSpotTagEnum("tag"),
+  visitTime: varchar("visitTime", { length: 16 }),
+  url: varchar("url", { length: 512 }),
+  priority: tripPlanSpotPriorityEnum("priority").default("medium"),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_spots_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanSpot = typeof tripPlanSpots.$inferSelect;
+export type InsertTripPlanSpot = typeof tripPlanSpots.$inferInsert;
+
+/**
+ * Issue #74 / #109: カスタム費用カテゴリ（Pro限定）
+ *
+ * Proプランのユーザーが自由に費用カテゴリを追加・管理できる。
+ * Free/Plusは固定カテゴリ (transport, ticket, food, other) のみ。
+ */
+export const customCategories = pgTable("custom_categories", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 64 }).notNull(),
+  icon: varchar("icon", { length: 64 }),
+  color: varchar("color", { length: 32 }),
+  displayOrder: integer("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("custom_categories_userId_idx").on(table.userId),
+]);
+
+export type CustomCategory = typeof customCategories.$inferSelect;
+export type InsertCustomCategory = typeof customCategories.$inferInsert;

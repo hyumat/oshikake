@@ -2,7 +2,7 @@
  * Match Detail Page
  * Issue #39: Refactored to use MatchDetailView and UserMatchForm components
  * Issue #19: Expenses now saved to DB instead of LocalStorage
- * Issue #44: Free plan limit (10 records per season)
+ * Issue #44: Free plan limit (7 records per season)
  */
 
 import { useParams, useLocation } from 'wouter';
@@ -16,6 +16,10 @@ import { UserMatchForm, type ExpenseData } from '@/components/UserMatchForm';
 import { QueryLoading, QueryError } from '@/components/QueryState';
 import { LimitReachedModal } from '@/components/LimitReachedModal';
 import { PlanStatusBadge } from '@/components/PlanStatusBadge';
+import { TravelTrends } from '@/components/TravelTrends';
+import { TravelPlanForm } from '@/components/TravelPlanForm';
+import { PastSelf } from '@/components/PastSelf';
+import { TripPlanCard } from '@/components/TripPlanCard';
 import type { MatchDTO } from '@shared/dto';
 import { FREE_PLAN_LIMIT } from '@shared/billing';
 import { useAuth } from '@/_core/hooks/useAuth';
@@ -210,6 +214,10 @@ export default function MatchDetail() {
           onDelete={hasExpenses ? handleDelete : undefined}
           isSaving={isSaving}
         />
+        <TripPlanCard matchId={matchIdNum} />
+        <PastSelf matchId={matchIdNum} opponent={match.opponent} stadium={match.stadium} />
+        <TravelTrends matchId={matchIdNum} />
+        <TravelPlanForm matchId={matchIdNum} />
       </div>
       <LimitReachedModal
         open={showLimitModal}

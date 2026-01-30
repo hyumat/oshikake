@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `myTeamSlug` varchar(64);

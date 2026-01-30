@@ -150,7 +150,7 @@ function canCreateAttendance(plan: Plan, planExpiresAt: Date | null, currentCoun
 {
   seasonYear: 2026,
   count: 7,
-  limit: 10,
+  limit: 7,
   isPro: false
 }
 ```
@@ -163,7 +163,7 @@ function canCreateAttendance(plan: Plan, planExpiresAt: Date | null, currentCoun
 {
   error: 'LIMIT_REACHED',
   message: '無料プランの上限に達しました',
-  limit: 10,
+  limit: 7,
   upgradeUrl: '/upgrade'
 }
 ```

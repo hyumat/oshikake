@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../_core/trpc';
 import { getDb, getUserMatches } from '../db';
@@ -162,22 +162,26 @@ export const shareRouter = router({
 
       const userMatchIds = filteredMatches.map((m: { id: number }) => m.id);
       
+      // Issue #131: SQL SUM() で集約（アプリ側での reduce を排除）
       let totalCost = 0;
       if (userMatchIds.length > 0) {
-        const allExpenses = await db.select()
+        const [result] = await db.select({
+          total: sql<number>`COALESCE(SUM(${matchExpenses.amount}), 0)::int`,
+        })
           .from(matchExpenses)
           .where(and(
             inArray(matchExpenses.userMatchId, userMatchIds),
             eq(matchExpenses.userId, user.id)
           ));
-        totalCost = allExpenses.reduce((sum, e) => sum + e.amount, 0);
+        totalCost = result?.total ?? 0;
       }
 
+      // Issue #131: 型キャスト除去
       for (const m of filteredMatches) {
-        const match = m as { id: number; match?: { resultWdl?: string } };
-        if (match.match?.resultWdl === 'W') record.win++;
-        else if (match.match?.resultWdl === 'D') record.draw++;
-        else if (match.match?.resultWdl === 'L') record.loss++;
+        const resultWdl = (m as Record<string, unknown>).resultWdl as string | undefined;
+        if (resultWdl === 'W') record.win++;
+        else if (resultWdl === 'D') record.draw++;
+        else if (resultWdl === 'L') record.loss++;
       }
 
       const watchCount = filteredMatches.length;

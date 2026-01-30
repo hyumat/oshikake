@@ -14,18 +14,23 @@ import { formatCurrency } from "@shared/formatters";
 import { QueryState } from "@/components/QueryState";
 import { AdBanner } from "@/components/AdBanner";
 import { ShareModal } from "@/components/ShareModal";
+import { StatsPaywall } from "@/components/StatsPaywall";
 
 function StatsPage() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
+  const { data: planStatus } = trpc.userMatches.getPlanStatus.useQuery();
   const { data: yearsData, isLoading: yearsLoading } = trpc.stats.getAvailableYears.useQuery();
   const {
     data: statsData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats,
-  } = trpc.stats.getSummary.useQuery({ year: selectedYear });
+  } = trpc.stats.getSummary.useQuery(
+    { year: selectedYear },
+    { enabled: planStatus?.entitlements?.canViewStats !== false },
+  );
 
   const years = yearsData?.years ?? [];
   const allYears = years.length > 0 ? years : [currentYear];
@@ -38,6 +43,17 @@ function StatsPage() {
 
   const isLoading = yearsLoading || statsLoading;
 
+  // Issue #77: 集計閲覧期間が終了している場合はペイウォール表示
+  const isExpired = statsError?.message === 'STATS_ACCESS_EXPIRED' ||
+    planStatus?.entitlements?.canViewStats === false;
+
+  if (isExpired) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <StatsPaywall expiresAt={planStatus?.entitlements?.statsAccessExpiresAt} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
