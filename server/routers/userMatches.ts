@@ -13,12 +13,15 @@ import {
   createExpense,
   deleteExpensesByUserMatch,
   getExpensesByUserMatch,
+  getExpensesByUserMatchIds,
   logEvent,
   getTotalAttendanceCount,
   getUserPlan,
+  requireAttendanceCapacity,
+  setFirstAttendedIfNeeded,
 } from '../db';
 import { userMatches as userMatchesTable } from '../../drizzle/schema';
-import { FREE_PLAN_LIMIT, getCurrentSeasonYear, canCreateAttendance, calculatePlanStatus, getPlanLimit } from '../../shared/billing';
+import { FREE_PLAN_LIMIT, getCurrentSeasonYear, calculatePlanStatus } from '../../shared/billing';
 import { invalidateStatsCache } from './stats';
 
 export const userMatchesRouter = router({
@@ -29,10 +32,10 @@ export const userMatchesRouter = router({
     .query(async ({ ctx }) => {
       try {
         const seasonYear = getCurrentSeasonYear();
-        const { plan, planExpiresAt } = await getUserPlan(ctx.user.id);
+        const { plan, planExpiresAt, firstAttendedAt } = await getUserPlan(ctx.user.id);
         const attendanceCount = await getTotalAttendanceCount(ctx.user.id);
-        
-        const status = calculatePlanStatus(plan, planExpiresAt, attendanceCount);
+
+        const status = calculatePlanStatus(plan, planExpiresAt, attendanceCount, firstAttendedAt);
         
         return {
           success: true,
@@ -136,17 +139,7 @@ export const userMatchesRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         if (input.status === 'attended') {
-          const { plan, planExpiresAt } = await getUserPlan(ctx.user.id);
-          const currentCount = await getTotalAttendanceCount(ctx.user.id);
-          
-          if (!canCreateAttendance(plan, planExpiresAt, currentCount)) {
-            const limit = getPlanLimit(plan, planExpiresAt);
-            throw new TRPCError({
-              code: 'FORBIDDEN',
-              message: 'LIMIT_REACHED',
-              cause: { type: 'LIMIT_REACHED', currentCount, limit }
-            });
-          }
+          await requireAttendanceCapacity(ctx.user.id);
         }
 
         const result = await createUserMatch(ctx.user.id, {
@@ -164,6 +157,11 @@ export const userMatchesRouter = router({
           costYen: input.costYen,
           note: input.note,
         });
+
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (input.status === 'attended') {
+          await setFirstAttendedIfNeeded(ctx.user.id);
+        }
 
         invalidateStatsCache(ctx.user.id);
 
@@ -199,27 +197,23 @@ export const userMatchesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        let isNewAttendance = false;
         if (input.status === 'attended') {
           const existingMatch = await getUserMatchById(input.id, ctx.user.id);
-          const isNewAttendance = !existingMatch || existingMatch.status !== 'attended';
-          
+          isNewAttendance = !existingMatch || existingMatch.status !== 'attended';
+
           if (isNewAttendance) {
-            const { plan, planExpiresAt } = await getUserPlan(ctx.user.id);
-            const currentCount = await getTotalAttendanceCount(ctx.user.id);
-            
-            if (!canCreateAttendance(plan, planExpiresAt, currentCount)) {
-              const limit = getPlanLimit(plan, planExpiresAt);
-              throw new TRPCError({
-                code: 'FORBIDDEN',
-                message: 'LIMIT_REACHED',
-                cause: { type: 'LIMIT_REACHED', currentCount, limit }
-              });
-            }
+            await requireAttendanceCapacity(ctx.user.id);
           }
         }
 
         const { id, ...updateData } = input;
         const result = await updateUserMatch(id, ctx.user.id, updateData);
+
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (isNewAttendance) {
+          await setFirstAttendedIfNeeded(ctx.user.id);
+        }
 
         invalidateStatsCache(ctx.user.id);
 
@@ -382,17 +376,7 @@ export const userMatchesRouter = router({
         const isNewAttendance = existingResults.length === 0 || existingResults[0].status !== 'attended';
         
         if (isNewAttendance) {
-          const { plan, planExpiresAt } = await getUserPlan(ctx.user.id);
-          const currentCount = await getTotalAttendanceCount(ctx.user.id);
-          
-          if (!canCreateAttendance(plan, planExpiresAt, currentCount)) {
-            const limit = getPlanLimit(plan, planExpiresAt);
-            throw new TRPCError({
-              code: 'FORBIDDEN',
-              message: 'LIMIT_REACHED',
-              cause: { type: 'LIMIT_REACHED', currentCount, limit }
-            });
-          }
+          await requireAttendanceCapacity(ctx.user.id);
         }
 
         let userMatchId: number;
@@ -434,6 +418,11 @@ export const userMatchesRouter = router({
             .limit(1);
           
           userMatchId = newResults[0]?.id ?? 0;
+        }
+
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (isNewAttendance) {
+          await setFirstAttendedIfNeeded(ctx.user.id);
         }
 
         const expenseCategories: Array<{ category: 'transport' | 'ticket' | 'food' | 'other'; amount: number }> = [
@@ -531,41 +520,49 @@ export const userMatchesRouter = router({
     .query(async ({ ctx, input }) => {
       try {
         const matches = await getUserMatches(ctx.user.id, { status: 'attended' });
-        
-        const exportRows = await Promise.all(
-          matches.map(async (um: typeof matches[number]) => {
-            const expenses = await getExpensesByUserMatch(um.id, ctx.user.id);
-            const expensesByCategory = {
-              transport: 0,
-              ticket: 0,
-              food: 0,
-              other: 0,
-            };
-            expenses.forEach(e => {
-              if (e.category in expensesByCategory) {
-                expensesByCategory[e.category as keyof typeof expensesByCategory] += e.amount;
-              }
-            });
-            const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-            return {
-              date: um.match?.date ?? '',
-              opponent: um.match?.opponent ?? '',
-              homeAway: um.match?.isHome ? 'HOME' : 'AWAY',
-              competition: um.match?.competition ?? '',
-              section: um.match?.section ?? '',
-              venue: um.match?.venue ?? '',
-              result: um.match?.resultText ?? '',
-              score: um.match?.score ?? '',
-              transport: expensesByCategory.transport,
-              ticket: expensesByCategory.ticket,
-              food: expensesByCategory.food,
-              other: expensesByCategory.other,
-              totalExpense,
-              note: um.note ?? '',
-            };
-          })
-        );
+        // Issue #131: N+1クエリ解消 - 全経費を一括取得してマップ化
+        const userMatchIds = matches.map((um: { id: number }) => um.id);
+        const allExpenses = await getExpensesByUserMatchIds(userMatchIds, ctx.user.id);
+        const expenseMap = new Map<number, typeof allExpenses>();
+        for (const expense of allExpenses) {
+          const list = expenseMap.get(expense.userMatchId) ?? [];
+          list.push(expense);
+          expenseMap.set(expense.userMatchId, list);
+        }
+
+        const exportRows = matches.map((um: typeof matches[number]) => {
+          const expenses = expenseMap.get(um.id) ?? [];
+          const expensesByCategory = {
+            transport: 0,
+            ticket: 0,
+            food: 0,
+            other: 0,
+          };
+          for (const e of expenses) {
+            if (e.category in expensesByCategory) {
+              expensesByCategory[e.category as keyof typeof expensesByCategory] += e.amount;
+            }
+          }
+          const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+          return {
+            date: um.match?.date ?? '',
+            opponent: um.match?.opponent ?? '',
+            homeAway: um.match?.isHome ? 'HOME' : 'AWAY',
+            competition: um.match?.competition ?? '',
+            section: um.match?.section ?? '',
+            venue: um.match?.venue ?? '',
+            result: um.match?.resultText ?? '',
+            score: um.match?.score ?? '',
+            transport: expensesByCategory.transport,
+            ticket: expensesByCategory.ticket,
+            food: expensesByCategory.food,
+            other: expensesByCategory.other,
+            totalExpense,
+            note: um.note ?? '',
+          };
+        });
 
         if (input?.year) {
           return exportRows.filter(row => {

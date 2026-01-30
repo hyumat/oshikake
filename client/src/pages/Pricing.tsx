@@ -16,6 +16,7 @@ interface PlanFeature {
 const comparisonFeatures: PlanFeature[] = [
   { text: "記録可能試合", free: "7件まで", plus: "無制限", pro: "無制限" },
   { text: "対象シーズン", free: "今シーズン", plus: "今シーズン", pro: "複数シーズン" },
+  { text: "集計の閲覧期間", free: "初回記録から1年", plus: "無制限", pro: "無制限" },
   { text: "観戦メモ・費用の記録", free: true, plus: true, pro: true },
   { text: "基本の集計（観戦数・勝敗・費用合計）", free: true, plus: true, pro: true },
   { text: "高度な集計（内訳・推移グラフ）", free: false, plus: false, pro: true },
@@ -139,7 +140,7 @@ export default function Pricing() {
                 <span className="text-3xl font-bold">{proPrice}</span>
                 <span className="text-muted-foreground ml-1 text-sm">{proPriceNote}</span>
               </div>
-              <CardDescription className="mt-2 text-sm">全ての試合を記録したい方に</CardDescription>
+              <CardDescription className="mt-2 text-sm">全シーズンを自分仕様で管理したい方に</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               <ul className="space-y-2 text-sm">
@@ -150,6 +151,10 @@ export default function Pricing() {
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
                   <span>高度な集計（内訳・推移）</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                  <span>費用カテゴリの自由設定</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
@@ -241,7 +246,19 @@ export default function Pricing() {
             <div>
               <h3 className="font-medium mb-2">どこまで無料で使えますか？</h3>
               <p className="text-muted-foreground text-sm">
-                Freeプランでは、観戦記録（観戦済み）を<strong>7件まで</strong>保存できます。メモや費用の記録、基本の集計もお試しいただけます。
+                Freeプランでは、観戦記録（観戦済み）を<strong>7件まで</strong>保存できます。メモや費用の記録、基本の集計もお試しいただけます。集計の閲覧は初回記録から1年間有効です。
+              </p>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">集計の閲覧期間とは？</h3>
+              <p className="text-muted-foreground text-sm">
+                Freeプランでは、最初の「観戦済み」記録を作成してから<strong>1年間</strong>、観戦集計（勝敗・費用合計など）を閲覧できます。期間終了後も記録は残りますが、集計を引き続き閲覧するにはアップグレードが必要です。Plus/Proプランは期間制限なく閲覧できます。
+              </p>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">「費用カテゴリの自由設定」とは？</h3>
+              <p className="text-muted-foreground text-sm">
+                Free/Plusプランでは「交通費・チケット・飲食・その他」の固定カテゴリで費用を記録します。Proプランではこれに加えて「宿泊」「グッズ」など自由にカテゴリを追加・管理できます。
               </p>
             </div>
             <div>
