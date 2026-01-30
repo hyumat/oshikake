@@ -8,6 +8,13 @@ export const resultWdlEnum = pgEnum("resultWdl", ["W", "D", "L"]);
 export const syncStatusEnum = pgEnum("syncStatus", ["success", "partial", "failed"]);
 export const expenseCategoryEnum = pgEnum("expenseCategory", ["transport", "ticket", "food", "other"]);
 export const matchOutcomeEnum = pgEnum("matchOutcome", ["win", "draw", "loss"]);
+/**
+ * Issue #79: 遠征傾向集約 - 宿泊/交通/予算の選択肢
+ */
+export const lodgingTypeEnum = pgEnum("lodgingType", ["day_trip", "hotel", "friend", "night_bus", "other"]);
+export const transportTypeEnum = pgEnum("transportType", ["shinkansen", "car", "bus", "airplane", "local_train", "other"]);
+export const budgetRangeEnum = pgEnum("budgetRange", ["under_5k", "5k_10k", "10k_20k", "20k_30k", "30k_50k", "over_50k"]);
+
 export const auditActionEnum = pgEnum("auditAction", [
   "attendance_create",
   "attendance_update",
@@ -435,3 +442,33 @@ export const shareTokens = pgTable("share_tokens", {
 
 export type ShareToken = typeof shareTokens.$inferSelect;
 export type InsertShareToken = typeof shareTokens.$inferInsert;
+
+/**
+ * Issue #79: 遠征傾向集約 - travel_intents テーブル
+ *
+ * ユーザーの遠征意向（宿泊・交通手段・予算帯・到着時間帯）を試合ごとに記録。
+ * user×match で一意制約を持ち、upsert パターンで更新する。
+ */
+export const travelIntents = pgTable("travel_intents", {
+  id: serial("id").primaryKey(),
+  /** ユーザーID (users.id を参照) */
+  userId: integer("userId").notNull().references(() => users.id),
+  /** 試合ID (matches.id を参照) */
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  /** 宿泊形態 */
+  lodging: lodgingTypeEnum("lodging").notNull(),
+  /** 交通手段 */
+  transport: transportTypeEnum("transport").notNull(),
+  /** 予算帯 */
+  budget: budgetRangeEnum("budget").notNull(),
+  /** 到着時間帯 (例: "morning", "afternoon", "evening") */
+  arrivalTime: varchar("arrivalTime", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("travel_intents_userId_matchId_idx").on(table.userId, table.matchId),
+  index("travel_intents_matchId_idx").on(table.matchId),
+]);
+
+export type TravelIntent = typeof travelIntents.$inferSelect;
+export type InsertTravelIntent = typeof travelIntents.$inferInsert;
