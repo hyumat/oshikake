@@ -127,13 +127,14 @@ export function calculatePlanStatus(
   };
 }
 
-export type Feature = 
+export type Feature =
   | 'savings'
   | 'export'
   | 'advancedStats'
   | 'multiSeason'
   | 'prioritySupport'
-  | 'noAds';
+  | 'noAds'
+  | 'pastSelf';
 
 const FEATURE_ACCESS: Record<Feature, Plan[]> = {
   savings: ['free', 'plus', 'pro'],
@@ -142,6 +143,7 @@ const FEATURE_ACCESS: Record<Feature, Plan[]> = {
   multiSeason: ['pro'],
   prioritySupport: ['pro'],
   noAds: ['plus', 'pro'],
+  pastSelf: ['plus', 'pro'],
 };
 
 export function canUseFeature(

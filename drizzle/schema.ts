@@ -472,3 +472,78 @@ export const travelIntents = pgTable("travel_intents", {
 
 export type TravelIntent = typeof travelIntents.$inferSelect;
 export type InsertTravelIntent = typeof travelIntents.$inferInsert;
+
+/**
+ * Issue #203: 遠征プラン - 交通・宿泊・立ち寄りスポットの事前メモ
+ */
+export const tripPlanTransportMethodEnum = pgEnum("tripPlanTransportMethod", [
+  "shinkansen", "airplane", "car", "bus", "local_train", "ferry", "other"
+]);
+export const tripPlanDirectionEnum = pgEnum("tripPlanDirection", ["outbound", "return"]);
+export const tripPlanSpotTagEnum = pgEnum("tripPlanSpotTag", [
+  "tourism", "dining", "onsen", "landmark", "merchandise", "other"
+]);
+export const tripPlanSpotPriorityEnum = pgEnum("tripPlanSpotPriority", ["high", "medium", "low"]);
+
+/** 交通プラン */
+export const tripPlanTransports = pgTable("trip_plan_transports", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  direction: tripPlanDirectionEnum("direction").notNull(),
+  method: tripPlanTransportMethodEnum("method").notNull(),
+  departureTime: varchar("departureTime", { length: 16 }),
+  arrivalTime: varchar("arrivalTime", { length: 16 }),
+  departurePlace: varchar("departurePlace", { length: 128 }),
+  arrivalPlace: varchar("arrivalPlace", { length: 128 }),
+  reservationUrl: varchar("reservationUrl", { length: 512 }),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_transports_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanTransport = typeof tripPlanTransports.$inferSelect;
+export type InsertTripPlanTransport = typeof tripPlanTransports.$inferInsert;
+
+/** 宿泊プラン */
+export const tripPlanLodgings = pgTable("trip_plan_lodgings", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  stayOvernight: boolean("stayOvernight").notNull().default(false),
+  hotelName: varchar("hotelName", { length: 256 }),
+  checkIn: varchar("checkIn", { length: 16 }),
+  checkOut: varchar("checkOut", { length: 16 }),
+  reservationUrl: varchar("reservationUrl", { length: 512 }),
+  budgetYen: integer("budgetYen"),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_lodgings_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanLodging = typeof tripPlanLodgings.$inferSelect;
+export type InsertTripPlanLodging = typeof tripPlanLodgings.$inferInsert;
+
+/** 立ち寄りスポット */
+export const tripPlanSpots = pgTable("trip_plan_spots", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  matchId: integer("matchId").notNull().references(() => matches.id),
+  spotName: varchar("spotName", { length: 256 }).notNull(),
+  tag: tripPlanSpotTagEnum("tag"),
+  visitTime: varchar("visitTime", { length: 16 }),
+  url: varchar("url", { length: 512 }),
+  priority: tripPlanSpotPriorityEnum("priority").default("medium"),
+  note: varchar("note", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("trip_plan_spots_userId_matchId_idx").on(table.userId, table.matchId),
+]);
+
+export type TripPlanSpot = typeof tripPlanSpots.$inferSelect;
+export type InsertTripPlanSpot = typeof tripPlanSpots.$inferInsert;
