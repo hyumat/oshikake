@@ -18,6 +18,7 @@ import {
   getTotalAttendanceCount,
   getUserPlan,
   requireAttendanceCapacity,
+  setFirstAttendedIfNeeded,
 } from '../db';
 import { userMatches as userMatchesTable } from '../../drizzle/schema';
 import { FREE_PLAN_LIMIT, getCurrentSeasonYear, calculatePlanStatus } from '../../shared/billing';
@@ -31,10 +32,10 @@ export const userMatchesRouter = router({
     .query(async ({ ctx }) => {
       try {
         const seasonYear = getCurrentSeasonYear();
-        const { plan, planExpiresAt } = await getUserPlan(ctx.user.id);
+        const { plan, planExpiresAt, firstAttendedAt } = await getUserPlan(ctx.user.id);
         const attendanceCount = await getTotalAttendanceCount(ctx.user.id);
-        
-        const status = calculatePlanStatus(plan, planExpiresAt, attendanceCount);
+
+        const status = calculatePlanStatus(plan, planExpiresAt, attendanceCount, firstAttendedAt);
         
         return {
           success: true,
@@ -157,6 +158,11 @@ export const userMatchesRouter = router({
           note: input.note,
         });
 
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (input.status === 'attended') {
+          await setFirstAttendedIfNeeded(ctx.user.id);
+        }
+
         invalidateStatsCache(ctx.user.id);
 
         return {
@@ -191,10 +197,11 @@ export const userMatchesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        let isNewAttendance = false;
         if (input.status === 'attended') {
           const existingMatch = await getUserMatchById(input.id, ctx.user.id);
-          const isNewAttendance = !existingMatch || existingMatch.status !== 'attended';
-          
+          isNewAttendance = !existingMatch || existingMatch.status !== 'attended';
+
           if (isNewAttendance) {
             await requireAttendanceCapacity(ctx.user.id);
           }
@@ -202,6 +209,11 @@ export const userMatchesRouter = router({
 
         const { id, ...updateData } = input;
         const result = await updateUserMatch(id, ctx.user.id, updateData);
+
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (isNewAttendance) {
+          await setFirstAttendedIfNeeded(ctx.user.id);
+        }
 
         invalidateStatsCache(ctx.user.id);
 
@@ -406,6 +418,11 @@ export const userMatchesRouter = router({
             .limit(1);
           
           userMatchId = newResults[0]?.id ?? 0;
+        }
+
+        // Issue #77: 初回観戦済み記録時に firstAttendedAt を設定
+        if (isNewAttendance) {
+          await setFirstAttendedIfNeeded(ctx.user.id);
         }
 
         const expenseCategories: Array<{ category: 'transport' | 'ticket' | 'food' | 'other'; amount: number }> = [

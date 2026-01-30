@@ -67,18 +67,18 @@ export const categoriesRouter = router({
           });
         }
 
-        const result = await db.insert(customCategoriesTable).values({
+        const [created] = await db.insert(customCategoriesTable).values({
           userId: ctx.user.id,
           name: input.name,
           icon: input.icon,
           color: input.color,
           displayOrder: input.displayOrder,
-        });
+        }).returning();
 
         return {
           success: true,
           message: 'カテゴリを作成しました',
-          categoryId: Number(result[0].insertId),
+          categoryId: created.id,
         };
       } catch (error) {
         console.error('[Categories Router] Error creating category:', error);

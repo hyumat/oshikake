@@ -53,6 +53,8 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   /** User's supported team ID (references teams table) */
   supportedTeamId: integer("supportedTeamId"),
+  /** Issue #77: 初回「観戦済み」記録の日時。Free プランの集計閲覧期間の起算点。 */
+  firstAttendedAt: timestamp("firstAttendedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -349,6 +351,8 @@ export const matchExpenses = pgTable("matchExpenses", {
   userMatchId: integer("userMatchId").notNull(),
   userId: integer("userId").notNull(),
   category: expenseCategoryEnum("category").notNull(),
+  /** Issue #74: カスタムカテゴリ参照 (Pro限定)。null の場合は固定カテゴリ */
+  customCategoryId: integer("customCategoryId"),
   amount: integer("amount").notNull(),
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -547,3 +551,25 @@ export const tripPlanSpots = pgTable("trip_plan_spots", {
 
 export type TripPlanSpot = typeof tripPlanSpots.$inferSelect;
 export type InsertTripPlanSpot = typeof tripPlanSpots.$inferInsert;
+
+/**
+ * Issue #74 / #109: カスタム費用カテゴリ（Pro限定）
+ *
+ * Proプランのユーザーが自由に費用カテゴリを追加・管理できる。
+ * Free/Plusは固定カテゴリ (transport, ticket, food, other) のみ。
+ */
+export const customCategories = pgTable("custom_categories", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 64 }).notNull(),
+  icon: varchar("icon", { length: 64 }),
+  color: varchar("color", { length: 32 }),
+  displayOrder: integer("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("custom_categories_userId_idx").on(table.userId),
+]);
+
+export type CustomCategory = typeof customCategories.$inferSelect;
+export type InsertCustomCategory = typeof customCategories.$inferInsert;

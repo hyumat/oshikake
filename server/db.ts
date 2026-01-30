@@ -110,6 +110,30 @@ export async function getExpensesByUserMatchIds(
   }
 }
 
+/**
+ * Issue #77: 初回「観戦済み」記録時に firstAttendedAt を設定する。
+ * 既に値がある場合は何もしない（一度だけ記録される）。
+ */
+export async function setFirstAttendedIfNeeded(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    const [user] = await db.select({ firstAttendedAt: users.firstAttendedAt })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (user && !user.firstAttendedAt) {
+      await db.update(users)
+        .set({ firstAttendedAt: new Date() })
+        .where(eq(users.id, userId));
+    }
+  } catch (error) {
+    console.error('[Database] Failed to set firstAttendedAt:', error);
+  }
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -494,29 +518,31 @@ export async function getTotalAttendanceCount(userId: number): Promise<number> {
   }
 }
 
-export async function getUserPlan(userId: number): Promise<{ plan: Plan; planExpiresAt: Date | null }> {
+export async function getUserPlan(userId: number): Promise<{ plan: Plan; planExpiresAt: Date | null; firstAttendedAt: Date | null }> {
   const db = await getDb();
   if (!db) {
     console.warn('[Database] Cannot get user plan: database not available');
-    return { plan: 'free', planExpiresAt: null };
+    return { plan: 'free', planExpiresAt: null, firstAttendedAt: null };
   }
-  
+
   try {
     const result = await db.select({
       plan: users.plan,
       planExpiresAt: users.planExpiresAt,
+      firstAttendedAt: users.firstAttendedAt,
     })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    
+
     if (result.length === 0) {
-      return { plan: 'free', planExpiresAt: null };
+      return { plan: 'free', planExpiresAt: null, firstAttendedAt: null };
     }
-    
+
     return {
       plan: result[0].plan as Plan,
       planExpiresAt: result[0].planExpiresAt,
+      firstAttendedAt: result[0].firstAttendedAt,
     };
   } catch (error) {
     console.error('[Database] Failed to get user plan:', error);

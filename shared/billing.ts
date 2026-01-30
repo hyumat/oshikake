@@ -20,7 +20,12 @@ export interface Entitlements {
   canExport: boolean;
   canMultiSeason: boolean;
   canAdvancedStats: boolean;
+  canCustomCategories: boolean;
   canPrioritySupport: boolean;
+  /** Issue #77: 集計閲覧期限。null = 無制限 (Plus/Pro)。Free は firstAttendedAt + 1年。 */
+  statsAccessExpiresAt: string | null;
+  /** Issue #77: 集計閲覧が可能か */
+  canViewStats: boolean;
 }
 
 export interface PlanStatus {
@@ -78,16 +83,38 @@ export function canCreateAttendance(
   return currentCount < limit;
 }
 
+/** Issue #77: Free プランの集計閲覧期間（ミリ秒） = 1年 */
+export const FREE_STATS_ACCESS_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * Issue #77: statsAccessExpiresAt を算出する。
+ * Free: firstAttendedAt + 1年。Plus/Pro: null（無制限）。
+ */
+export function getStatsAccessExpiresAt(
+  plan: Plan,
+  planExpiresAt: Date | null,
+  firstAttendedAt: Date | null,
+): Date | null {
+  const effective = getEffectivePlan(plan, planExpiresAt);
+  if (effective !== 'free') return null; // 有料プランは無制限
+  if (!firstAttendedAt) return null; // まだ記録なし = 期限もなし
+  return new Date(firstAttendedAt.getTime() + FREE_STATS_ACCESS_DURATION_MS);
+}
+
 export function getEntitlements(
   plan: Plan,
   planExpiresAt: Date | null,
-  currentAttendanceCount: number
+  currentAttendanceCount: number,
+  firstAttendedAt?: Date | null,
 ): Entitlements {
   const effective = getEffectivePlan(plan, planExpiresAt);
   const limit = getPlanLimit(plan, planExpiresAt);
   const maxAttendances = limit === Infinity ? null : limit;
   const canAddAttendance = currentAttendanceCount < limit;
-  
+
+  const expiresAt = getStatsAccessExpiresAt(plan, planExpiresAt, firstAttendedAt ?? null);
+  const canViewStats = expiresAt === null || expiresAt > new Date();
+
   return {
     effectivePlan: effective,
     maxAttendances,
@@ -95,14 +122,18 @@ export function getEntitlements(
     canExport: effective === 'plus' || effective === 'pro',
     canMultiSeason: effective === 'pro',
     canAdvancedStats: effective === 'pro',
+    canCustomCategories: effective === 'pro',
     canPrioritySupport: effective === 'pro',
+    statsAccessExpiresAt: expiresAt?.toISOString() ?? null,
+    canViewStats,
   };
 }
 
 export function calculatePlanStatus(
   plan: Plan,
   planExpiresAt: Date | null,
-  attendanceCount: number
+  attendanceCount: number,
+  firstAttendedAt?: Date | null,
 ): PlanStatus {
   const userIsPro = isPro(plan, planExpiresAt);
   const userIsPlus = isPlus(plan, planExpiresAt);
@@ -111,7 +142,7 @@ export function calculatePlanStatus(
   const limit = getPlanLimit(plan, planExpiresAt);
   const remaining = limit === Infinity ? Infinity : Math.max(0, limit - attendanceCount);
   const canCreate = attendanceCount < limit;
-  const entitlements = getEntitlements(plan, planExpiresAt, attendanceCount);
+  const entitlements = getEntitlements(plan, planExpiresAt, attendanceCount, firstAttendedAt);
 
   return {
     plan,
@@ -132,6 +163,7 @@ export type Feature =
   | 'export'
   | 'advancedStats'
   | 'multiSeason'
+  | 'customCategories'
   | 'prioritySupport'
   | 'noAds'
   | 'pastSelf';
@@ -141,6 +173,7 @@ const FEATURE_ACCESS: Record<Feature, Plan[]> = {
   export: ['plus', 'pro'],
   advancedStats: ['pro'],
   multiSeason: ['pro'],
+  customCategories: ['pro'],
   prioritySupport: ['pro'],
   noAds: ['plus', 'pro'],
   pastSelf: ['plus', 'pro'],

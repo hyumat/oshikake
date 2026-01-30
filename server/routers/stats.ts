@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { protectedProcedure, router } from '../_core/trpc';
-import { getDb, isDbConnectionError } from '../db';
+import { getDb, isDbConnectionError, getUserPlan } from '../db';
 import { userMatches, matches } from '../../drizzle/schema';
 import { eq, and, sql, type SQL } from 'drizzle-orm';
+import { getStatsAccessExpiresAt, getEffectivePlan } from '../../shared/billing';
 
 type MatchResult = 'win' | 'draw' | 'loss' | 'unknown';
 
@@ -79,7 +81,17 @@ export const statsRouter = router({
         }
 
         const userId = ctx.user.id;
-        
+
+        // Issue #77: Free プランの集計閲覧期間チェック
+        const { plan, planExpiresAt, firstAttendedAt } = await getUserPlan(userId);
+        const expiresAt = getStatsAccessExpiresAt(plan, planExpiresAt, firstAttendedAt);
+        if (expiresAt && expiresAt <= new Date()) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'STATS_ACCESS_EXPIRED',
+          });
+        }
+
         const cacheKey = getCacheKey(userId, input);
         const cached = statsCache.get(cacheKey);
         if (cached && cached.expiresAt > Date.now()) {
