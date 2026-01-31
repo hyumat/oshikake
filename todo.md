@@ -1,126 +1,76 @@
-# Marinos Away Log V2 - TODO
-
-## North Star Goal
-公式の試合情報を基盤データとして取り込み、ユーザーが**観戦した試合の記録**と**費用**を蓄積できる。  
-さらに、観戦試合の**結果集計（勝敗など）**と**費用集計（合計・平均・内訳）**を行えるアプリにする。
+# TODO / Release Checklist（オシカケ）
+> このファイルは「次に何をやるか」を迷わないためのメモ。
+> GitHub Issueが増えすぎても、ここだけ見れば “今やること” が分かる状態を維持する。
 
 ---
 
-## Current Status (High Level)
-
-### ✅ Done / Implemented
-- DBスキーマ（Drizzle）: `matches`, `userMatches`, `syncLog`
-- 公式試合データ同期（tRPC）: `matches.fetchOfficial`
-- 公式試合一覧ページ: `/matches`
-- 試合詳細ページ + 観戦ログCRUD（tRPC + UI）
-- フィルタリング（期間/対戦相手/Home-Away）
-- **Stats 集計API（tRPC）**: `stats.getSummary`, `stats.getAvailableYears`
-  - GitHub Issue #1: matchesテーブルとJOINして勝敗判定（homeScore/awayScore + marinosSide）
-  - 出力形式: `{ period, watchCount, record: {win, draw, loss, unknown}, cost: {total, averagePerMatch} }`
-  - `calculateResult`関数で勝敗ロジックを分離
-  - ユニットテスト23件追加（0件/勝ち/負け/引き分け/unknown混在）
-- **Statsページ（UI）**: `/stats`
-  - GitHub Issue #2: 年セレクト、観戦数/勝分敗/費用集計表示
-  - Empty状態（0件時）、Error UI（再試行ボタン付き）
-  - DB接続エラー時のグレースフルフォールバック
-  - 円表示対応（¥84,200 / ¥12,029形式）
-- **マッチ詳細ページ**: `/matches/:id`
-  - 観戦費用記録（交通費/チケット代/飲食代/その他）
-  - LocalStorageで費用データを永続化
-  - スコア表示（過去試合のみ）
-  - 観戦ステータス管理（参加/不参加/未定）
-
-### 🚧 In Progress / Needs Stabilization
-- スクレイピング精度の固定（公式サイトの構造変化に追従、JSON-LD優先）
-- "実データ" を用いた統合テストの整備（季節を跨ぐデータ・欠損耐性）
-
-### ⏳ Not Started (Post-MVP)
-- 最終QA/最適化
+## 0) いまの前提（現状コードから）
+- 画面：LP / Pricing / Terms / Privacy / Support、アプリ側（Home/Matches/MatchDetail/Expenses/Stats/Savings/Settings/Account）、Admin（Console/Matches/Teams）
+- 認証：現状は `VITE_OAUTH_PORTAL_URL` / `VITE_APP_ID` を使う方式（未設定の場合は /login にフォールバック）
+- プラン：Free/Plus/Pro（Free=観戦記録7件、Freeは広告あり、Statsは初回記録から1年）
+- データ：試合データの同期・管理が存在（Admin/同期・CSVなども実装が進んでいる）
 
 ---
 
-## Post-MVP (Nice-to-have)
-- [ ] 費用カテゴリ内訳（交通/チケット/飲食…）
-- [ ] グラフ/チャート（勝率推移、月別支出など）
-- [ ] オフライン体験の強化（キャッシュ戦略の明文化）
-- [ ] 共有/エクスポート（CSV等）
+## 1) 公開（一般公開/限定公開）に向けた “Release Blockers”
+### 1-1. LP→アプリ導線の整合
+- [ ] **ログイン済みユーザーは `/`（LP）ではなく `/app` へ誘導**（LPに来ても自動リダイレクト or CTA差し替え）
+- [ ] LP内の表現が実態と一致しているか再点検（特に「全クラブ対応」など）
+- [ ] Pricingの表現が、コード上のEntitlementsと完全一致しているか確認（Free=7件、Stats期限、広告、Export等）
+
+### 1-2. 認証方式の方針決定（MVP）
+- [ ] 一般公開時のログイン方式を決める（当面は現方式のままでもOKだが、説明と導線は揃える）
+- [ ] 将来「Google/Appleログイン」へ寄せる場合の移行方針を1枚で書く（後で迷わないため）
+
+### 1-3. セキュリティ最低ライン（公開前に必須）
+- [ ] 秘密情報の棚卸し（ENV/キー/URL/Stripe/Webhook）を確認し、漏れていないかチェック
+- [ ] 依存関係の脆弱性チェック（npm audit等）と主要リスクの潰し込み
+- [ ] APIにレート制限/ヘッダ（Helmet）/CORS方針を適用
+- [ ] Stripe webhook運用の確認（署名検証、失敗時の再処理方針、ログ）
+
+### 1-4. 運用（落ちたときに直せる最低限）
+- [ ] 同期/課金の失敗が「画面 + ログ」で追える（Sync Status / Billing Status）
+- [ ] 重大エラー時の連絡手段（最低限：ログ + 管理者が気づける導線）
 
 ---
 
-## Release Checklist (MVP)
-- [x] Stats 集計API実装（GitHub Issue #1）
-- [x] Statsページ UI実装（GitHub Issue #2）
-- [x] 同期 → 一覧表示 → 詳細 → 観戦記録追加/編集/削除 → Stats表示 が一通り動く
-- [x] テストが全て通る（`pnpm test` → 104件パス）
-- [x] モバイル幅で主要画面が破綻しない
+## 2) MVP体験の磨き込み（最短ループ強化）
+> 「観戦予定 → 支出 → 振り返り → 次の観戦予定」
+
+- [ ] 試合詳細で「予定→観戦済み」への切替が分かりやすいか（迷うポイントの削除）
+- [ ] 支出入力が“最短”になっているか（初期カテゴリ/よく使う項目/直近入力の再利用）
+- [ ] Statsが「次の観戦予定」へ繋がる導線になっているか（CTAやリンク）
 
 ---
 
-## Completed GitHub Issues
-- [x] Issue #1: Stats集計バックエンド実装（2025-12-30）
-- [x] Issue #2: StatsページUI実装（2025-12-30）
-- [x] Issue #6: Stats年別フィルタ・Empty表示（2025-12-30）
-- [x] Issue #9: 試合一覧フィルタリング（期間/対戦相手/Home-Away）（2025-12-30）
-- [x] Issue #10: syncLog永続化（URL/status/exception/duration/counts）（2025-12-31）
-- [x] Issue #11: matchUrl正規化・重複防止（generateMatchKey()関数）（2025-12-31）
-
+## 3) プラン差別化の“最終整合”
+- [ ] Free制限（7件）に関する挙動統一（ボタン非活性/モーダル/Upgrade誘導/FAQ/Terms/Support）
+- [ ] Plus/Pro差別化が UI/コピー/機能ゲート で一致しているか確認
+- [ ] 「キャンペーン（期間限定Pro全開放/クーポン/トライアル）」を導入する場合、権限判定を一本化
 
 ---
 
-## P0: Critical Issues (MVP完成に必須) - ✅ 実装完了
-
-### Issue #145: Google Sheets + GAS API統合
-- [x] Google Sheets設計（match_id, date, opponent, scores, stadium, kickoff, competition, ticket_sales_start, notes）
-- [x] GASスクリプト作成・デプロイ（Bearer Token認証）
-- [x] `server/sheets-sync.ts` 実装（fetchFromGoogleSheets, syncFromGoogleSheets）
-- [x] tRPCルーター実装（matches.syncFromSheets, matches.getSheetsSyncLogs）
-- [ ] 環境変数設定（GAS_API_URL, GAS_API_TOKEN）
-- [ ] 定期同期ジョブ実装（毎日00:00）
-- [ ] テスト実装・実行
-- [ ] 外部スクレイピング依存削除
-
-### Issue #146: DBスキーマ統一
-- [x] Sheets列定義の確定
-- [x] DBスキーマ更新（matchId, date, opponent, homeScore, awayScore, stadium, kickoff, competition, ticketSalesStart, notes）
-- [x] マッピングロジック更新（mapSheetsToDb）
-- [x] 同期ロジックをmatchIdベースに変更
-- [ ] マイグレーション実行（pnpm db:push）
-- [ ] 既存データ検証
-
-### Issue #147: 過去試合上書き防止
-- [x] 上書き制御ロジック実装（syncFromGoogleSheets with overwriteArchived option）
-- [x] isResult判定ロジック実装（homeScore/awayScoreがある場合にisResult=1）
-- [x] テスト実装（sheets-sync.test.ts）
-- [ ] テスト実行（pnpm test）
-- [ ] 既存データ### Issue #148: チケット販売情報表示制御
-- [x] matchHelpers.ts実装（isPastMatch, shouldShowTicketInfo, getTicketSalesStatus）
-- [x] Matchesページ更新（未来試合のみチケット情報表示）
-- [x] テスト実装（matchHelpers.test.ts）
-- [ ] テスト実行（pnpm test）
-- [ ] UI検証ブラウザ確認
-
+## 4) データ運用（試合情報・チケット・結果）
+- [ ] 試合データの登録/編集を **Adminで完結** できる状態にする（Airtable風の編集体験の仕上げ）
+- [ ] CSVインポート/エクスポートの仕様確定（フィールド不一致防止）
+- [ ] 2024シーズン以降の結果蓄積の運用手順を固める（誰が/いつ/どこを更新するか）
+- [ ] 「過去試合になったらチケット情報は不要」など、データのライフサイクルを明文化
 
 ---
 
-## P1: High Priority Issues (MVP後の重要機能)
+## 5) UI/テーマ（任意：後でもOK）
+- [ ] サイト全体の背景/トーンをLPに揃える（Pricing/Terms/Privacy/Supportも）
+- [ ] テーマ選択（現行カラー / Dark / Tokyonight風）を導入する場合、LP適用は工数を見て判断
 
-### Issue #143: 広告表示制御（Free/Plus/Pro）
-- [x] プラン判定ロジック実装（`canShowAds`, `getUserPlan`）
-- [x] `AdBanner` コンポーネントを作成（MVPはプレースホルダ）
-- [x] マッチログ一覧に挿入（ページ下部）
-- [x] 集計ページに挿入（ページ下部）
-- [x] テスト実装（AdBanner.test.tsx）
-- [ ] Plus/Proで表示されないことを確認
-- [ ] 画面確認（PC/SP）スクショを添付
-- [ ] テスト実行（pnpm test）
+---
 
-### Issue #144: マリノス貯金機能
-- [x] DBスキーマ追加（savings_rules, savings_history）
-- [x] tRPCルーター実装（savings.ts）
-- [x] フロントエンドコンポーネント実装（Savings.tsx）
-- [x] App.tsxにルート追加（/savings）
-- [ ] マイグレーション実行（pnpm db:push）
-- [ ] 試合結果確定時の自動トリガー実装
-- [ ] 通知機能実装（ブラウザ通知 or アラート）
-- [ ] テスト実装・実行
-- [ ] モバイル対応確認
+## 6) “あとで困らない”ためのドキュメント整備
+- [ ] 仕様書（ユーザー向け：何ができて何ができないか）
+- [ ] 管理者マニュアル（Admin Consoleの操作、CSVの取り込み、運用ルール）
+- [ ] リリースノート/変更履歴（自分が見返す用。将来ユーザー告知にも転用）
+
+---
+
+## メモ（今はやらない/将来）
+- AI旅程提案、しおりPDF、オフライン、レシートOCR、他人の傾向分析（k匿名性）
+- 全クラブ対応の“保証”は、データ供給/運用が整ってから
