@@ -1,0 +1,173 @@
+{
+  "$schema": "./release_notes.schema.json",
+  "project": "oshikake",
+  "description": "横浜F・マリノス サポーター向け観戦記録・費用管理アプリ",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "date": "2026-01-30",
+      "title": "Post-MVP 機能拡充リリース",
+      "highlights": [
+        "遠征傾向（宿泊・交通・予算）の集約・閲覧機能を追加",
+        "過去の自分（Past Self）振り返り機能を追加（Plus/Pro限定）",
+        "旅行プラン（交通・宿泊・スポット）CRUD 機能を追加",
+        "Pro限定カスタム費用カテゴリ機能を追加",
+        "Freeプラン集計閲覧を初回記録から1年間に制限"
+      ],
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "backend",
+          "summary": "遠征傾向 (travel_intents) バックエンド: upsert / mine / trends (k-anonymity K=20) / delete",
+          "issues": ["#79"],
+          "commits": ["c4248da"],
+          "affectedFiles": ["drizzle/schema.ts", "server/routers/travelIntents.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "frontend",
+          "summary": "遠征傾向入力フォーム (TravelPlanForm) とトレンド表示 (TravelTrends) を MatchDetail に追加",
+          "issues": ["#81"],
+          "commits": ["aa8e6f8"],
+          "affectedFiles": ["client/src/components/TravelPlanForm.tsx", "client/src/components/TravelTrends.tsx", "client/src/pages/MatchDetail.tsx"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "Past Self 機能 (Plus/Pro限定): 同会場・同対戦相手の過去観戦記録を表示",
+          "issues": ["#110"],
+          "commits": ["d569a6c"],
+          "affectedFiles": ["server/routers/pastSelf.ts", "client/src/components/PastSelf.tsx", "shared/billing.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "旅行プラン (Trip Plans) CRUD: 交通・宿泊・スポットの管理機能",
+          "issues": ["#203"],
+          "commits": ["d569a6c"],
+          "affectedFiles": ["drizzle/schema.ts", "server/routers/tripPlans.ts", "client/src/components/TripPlanCard.tsx"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "Pro限定カスタム費用カテゴリ: customCategories テーブル、管理UI、expenses 連携",
+          "issues": ["#74"],
+          "commits": ["fe3f8fd"],
+          "affectedFiles": ["drizzle/schema.ts", "server/routers/categories.ts", "server/routers/expenses.ts", "client/src/components/CustomCategoryManager.tsx", "shared/billing.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "Freeプラン集計閲覧1年制限: firstAttendedAt 追跡、statsAccessExpiresAt エンタイトルメント、StatsPaywall UI",
+          "issues": ["#77"],
+          "commits": ["fe3f8fd"],
+          "affectedFiles": ["drizzle/schema.ts", "server/db.ts", "server/routers/stats.ts", "server/routers/userMatches.ts", "shared/billing.ts", "client/src/components/StatsPaywall.tsx", "client/src/pages/Stats.tsx"]
+        },
+        {
+          "type": "refactor",
+          "scope": "backend",
+          "summary": "N+1クエリ修正、ヘルパー集約 (requireDb, isDbConnectionError, requireAttendanceCapacity, getExpensesByUserMatchIds)、型安全性向上",
+          "issues": ["#131"],
+          "commits": ["76a10cf"],
+          "affectedFiles": ["server/db.ts", "server/routers/userMatches.ts", "server/routers/stats.ts", "server/routers/share.ts"]
+        },
+        {
+          "type": "fix",
+          "scope": "docs",
+          "summary": "Freeプラン上限を全ドキュメント・UIで 7 に統一 (10→7)",
+          "issues": ["#198"],
+          "commits": ["1ca4404"],
+          "affectedFiles": ["docs/billing-implementation-sequence.md", "docs/billing-design.md", "docs/mvp-user-flow.md", "devhistory.md", "client/src/pages/MatchDetail.tsx"]
+        },
+        {
+          "type": "chore",
+          "scope": "frontend",
+          "summary": "Pricing ページ再設計: 比較表拡充、FAQ追加 (カスタムカテゴリ、集計閲覧期間、planned vs attended 説明)",
+          "issues": ["#74", "#77"],
+          "commits": ["fe3f8fd"],
+          "affectedFiles": ["client/src/pages/Pricing.tsx"]
+        }
+      ],
+      "deploy": {
+        "environment": "staging",
+        "commit": "fe3f8fd",
+        "versionTag": "v0.2.0"
+      }
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-01-29",
+      "title": "MVP リリース",
+      "highlights": [
+        "OAuth 認証、観戦記録 CRUD、費用管理の基本機能を実装",
+        "Jリーグ全チーム対応と試合データCSVインポート",
+        "管理者ダッシュボード（試合管理・データ品質監視）",
+        "お気に入りチーム選択とチーム別試合フィルタ",
+        "3段階プラン (Free/Plus/Pro) と Stripe 決済基盤"
+      ],
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "OAuth 認証 (LINE/Google) + セッション管理",
+          "issues": [],
+          "commits": ["c152a36", "9210da7", "53164d3", "9397c05"],
+          "affectedFiles": ["server/_core/auth.ts", "shared/const.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "観戦記録 CRUD (planned/attended)、費用記録、メモ、勝敗判定",
+          "issues": [],
+          "commits": [],
+          "affectedFiles": ["server/routers/userMatches.ts", "server/routers/expenses.ts", "drizzle/schema.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "backend",
+          "summary": "試合データ CSV/Excel インポート機能 (管理者用)",
+          "issues": [],
+          "commits": ["a759886", "d83ca8b", "15c661e", "e283c40", "fcff1e9"],
+          "affectedFiles": ["server/routers/admin.ts"]
+        },
+        {
+          "type": "feat",
+          "scope": "frontend",
+          "summary": "管理者ダッシュボード: データ品質監視、試合編集、ソート・並び替え",
+          "issues": [],
+          "commits": ["8835f57", "9f59c06", "42e8c5d", "1bb2744", "0dfdf18", "ae254af"],
+          "affectedFiles": ["client/src/pages/Admin.tsx"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "お気に入りチーム選択 + チーム別試合フィルタリング",
+          "issues": [],
+          "commits": ["1a2155a", "9514945"],
+          "affectedFiles": ["server/routers/teams.ts", "client/src/pages/Matches.tsx"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "3段階プラン (Free 7件/Plus 無制限/Pro 全機能) + Stripe 決済連携",
+          "issues": [],
+          "commits": [],
+          "affectedFiles": ["shared/billing.ts", "server/routers/billing.ts", "client/src/pages/Pricing.tsx"]
+        },
+        {
+          "type": "feat",
+          "scope": "fullstack",
+          "summary": "観戦集計ページ (Stats): 勝敗・費用合計・年別フィルタ・共有モーダル",
+          "issues": [],
+          "commits": [],
+          "affectedFiles": ["server/routers/stats.ts", "client/src/pages/Stats.tsx", "server/routers/share.ts"]
+        }
+      ],
+      "deploy": {
+        "environment": "staging",
+        "commit": "9514945",
+        "versionTag": "v0.1.0"
+      }
+    }
+  ]
+}
