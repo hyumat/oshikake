@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release Notes",
+  "description": "oshikake リリースノート管理スキーマ",
+  "type": "object",
+  "required": ["project", "releases"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string",
+      "description": "プロジェクト名"
+    },
+    "description": {
+      "type": "string",
+      "description": "プロジェクトの説明"
+    },
+    "releases": {
+      "type": "array",
+      "description": "リリース一覧（新しい順）",
+      "items": {
+        "$ref": "#/$defs/release"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "release": {
+      "type": "object",
+      "required": ["version", "date", "title", "highlights", "changes"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "セマンティックバージョン (例: 0.2.0)"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "リリース日 (YYYY-MM-DD)"
+        },
+        "title": {
+          "type": "string",
+          "description": "リリースタイトル",
+          "minLength": 1
+        },
+        "highlights": {
+          "type": "array",
+          "description": "主な変更点のハイライト (3-5項目)",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "maxItems": 10
+        },
+        "changes": {
+          "type": "array",
+          "description": "変更一覧 (5-20項目推奨)",
+          "items": {
+            "$ref": "#/$defs/change"
+          },
+          "minItems": 1
+        },
+        "deploy": {
+          "$ref": "#/$defs/deploy"
+        }
+      }
+    },
+    "change": {
+      "type": "object",
+      "required": ["type", "scope", "summary"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["feat", "fix", "refactor", "chore", "docs", "test", "perf", "ci"],
+          "description": "変更の種類 (conventional commits)"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["frontend", "backend", "fullstack", "docs", "infra", "ci"],
+          "description": "変更の影響範囲"
+        },
+        "summary": {
+          "type": "string",
+          "description": "変更内容の概要（日本語）",
+          "minLength": 1
+        },
+        "issues": {
+          "type": "array",
+          "description": "関連 Issue 番号 (例: [\"#79\"])",
+          "items": {
+            "type": "string",
+            "pattern": "^#\\d+$"
+          }
+        },
+        "commits": {
+          "type": "array",
+          "description": "関連コミット SHA (短縮形可)",
+          "items": {
+            "type": "string",
+            "minLength": 7
+          }
+        },
+        "affectedFiles": {
+          "type": "array",
+          "description": "影響を受けたファイルパス",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "deploy": {
+      "type": "object",
+      "required": ["environment", "commit"],
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": ["staging", "production"],
+          "description": "デプロイ先環境"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "デプロイ先 URL"
+        },
+        "commit": {
+          "type": "string",
+          "description": "デプロイ対象のコミット SHA",
+          "minLength": 7
+        },
+        "versionTag": {
+          "type": "string",
+          "pattern": "^v\\d+\\.\\d+\\.\\d+$",
+          "description": "Git タグ名 (例: v0.2.0)"
+        }
+      }
+    }
+  }
+}
