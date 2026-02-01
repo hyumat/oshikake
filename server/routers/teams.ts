@@ -27,9 +27,16 @@ export const teamsRouter = router({
         .select({
           id: teams.id,
           name: teams.name,
+          shortName: teams.shortName,
           slug: teams.slug,
           aliases: teams.aliases,
           league: teams.league,
+          emblemUrl: teams.emblemUrl,
+          primaryColor: teams.primaryColor,
+          secondaryColor: teams.secondaryColor,
+          stadiumName: teams.stadiumName,
+          stadiumAddress: teams.stadiumAddress,
+          stadiumCapacity: teams.stadiumCapacity,
           isActive: teams.isActive,
         })
         .from(teams)
@@ -107,8 +114,12 @@ export const teamsRouter = router({
       .select({
         id: teams.id,
         name: teams.name,
+        shortName: teams.shortName,
         slug: teams.slug,
         aliases: teams.aliases,
+        emblemUrl: teams.emblemUrl,
+        primaryColor: teams.primaryColor,
+        secondaryColor: teams.secondaryColor,
       })
       .from(teams)
       .where(eq(teams.id, user[0].supportedTeamId))

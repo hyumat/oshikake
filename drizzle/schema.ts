@@ -72,9 +72,23 @@ export type InsertUser = typeof users.$inferInsert;
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
+  /** 略称 (例: "横浜FM", "鹿島") */
+  shortName: varchar("shortName", { length: 32 }),
   slug: varchar("slug", { length: 32 }).notNull().unique(),
   aliases: text("aliases"),
   league: varchar("league", { length: 8 }),
+  /** エンブレム画像URL */
+  emblemUrl: varchar("emblemUrl", { length: 512 }),
+  /** メインカラー (hex, 例: "#003399") */
+  primaryColor: varchar("primaryColor", { length: 16 }),
+  /** サブカラー (hex, 例: "#FFFFFF") */
+  secondaryColor: varchar("secondaryColor", { length: 16 }),
+  /** ホームスタジアム名 */
+  stadiumName: varchar("stadiumName", { length: 128 }),
+  /** スタジアム住所 */
+  stadiumAddress: varchar("stadiumAddress", { length: 256 }),
+  /** スタジアム収容人数 */
+  stadiumCapacity: integer("stadiumCapacity"),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),

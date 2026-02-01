@@ -460,49 +460,8 @@ export const adminRouter = router({
       });
     }
 
-    const jleagueTeams = [
-      { name: '鹿島アントラーズ', slug: 'kashima', aliases: 'アントラーズ,鹿島', league: 'J1' },
-      { name: '浦和レッズ', slug: 'urawa', aliases: 'レッズ,浦和', league: 'J1' },
-      { name: '柏レイソル', slug: 'kashiwa', aliases: 'レイソル,柏', league: 'J1' },
-      { name: '東京ヴェルディ', slug: 'tokyov', aliases: 'ヴェルディ,東京V', league: 'J1' },
-      { name: 'ＦＣ東京', slug: 'ftokyo', aliases: 'FC東京,東京', league: 'J1' },
-      { name: 'ＦＣ町田ゼルビア', slug: 'machida', aliases: 'ゼルビア,町田', league: 'J1' },
-      { name: '川崎フロンターレ', slug: 'kawasakif', aliases: 'フロンターレ,川崎F', league: 'J1' },
-      { name: '横浜Ｆ・マリノス', slug: 'yokohamafm', aliases: 'マリノス,横浜FM', league: 'J1' },
-      { name: '清水エスパルス', slug: 'shimizu', aliases: 'エスパルス,清水', league: 'J1' },
-      { name: '名古屋グランパス', slug: 'nagoya', aliases: 'グランパス,名古屋', league: 'J1' },
-      { name: '京都サンガF.C.', slug: 'kyoto', aliases: 'サンガ,京都', league: 'J1' },
-      { name: 'ガンバ大阪', slug: 'gosaka', aliases: 'ガンバ,G大阪', league: 'J1' },
-      { name: 'セレッソ大阪', slug: 'cosaka', aliases: 'セレッソ,C大阪', league: 'J1' },
-      { name: 'ヴィッセル神戸', slug: 'kobe', aliases: 'ヴィッセル,神戸', league: 'J1' },
-      { name: 'サンフレッチェ広島', slug: 'hiroshima', aliases: 'サンフレッチェ,広島', league: 'J1' },
-      { name: 'ファジアーノ岡山', slug: 'okayama', aliases: 'ファジアーノ,岡山', league: 'J1' },
-      { name: 'アビスパ福岡', slug: 'fukuoka', aliases: 'アビスパ,福岡', league: 'J1' },
-      { name: 'Ｖ・ファーレン長崎', slug: 'nagasaki', aliases: 'Vファーレン,長崎', league: 'J1' },
-      { name: '水戸ホーリーホック', slug: 'mito', aliases: 'ホーリーホック,水戸', league: 'J1' },
-      { name: 'ジェフユナイテッド千葉', slug: 'chiba', aliases: 'ジェフ,千葉', league: 'J1' },
-      { name: '北海道コンサドーレ札幌', slug: 'sapporo', aliases: 'コンサドーレ,札幌', league: 'J2' },
-      { name: 'ベガルタ仙台', slug: 'sendai', aliases: 'ベガルタ,仙台', league: 'J2' },
-      { name: 'モンテディオ山形', slug: 'yamagata', aliases: 'モンテディオ,山形', league: 'J2' },
-      { name: 'いわきFC', slug: 'iwaki', aliases: 'いわき', league: 'J2' },
-      { name: '栃木SC', slug: 'tochigi', aliases: '栃木', league: 'J2' },
-      { name: 'ザスパ群馬', slug: 'gunma', aliases: 'ザスパ,群馬', league: 'J2' },
-      { name: '大宮アルディージャ', slug: 'omiya', aliases: 'アルディージャ,大宮', league: 'J2' },
-      { name: '横浜ＦＣ', slug: 'yokohamafc', aliases: '横浜FC', league: 'J2' },
-      { name: 'ヴァンフォーレ甲府', slug: 'kofu', aliases: 'ヴァンフォーレ,甲府', league: 'J2' },
-      { name: 'カターレ富山', slug: 'toyama', aliases: 'カターレ,富山', league: 'J2' },
-      { name: 'ツエーゲン金沢', slug: 'kanazawa', aliases: 'ツエーゲン,金沢', league: 'J2' },
-      { name: '藤枝ＭＹＦＣ', slug: 'fujieda', aliases: '藤枝', league: 'J2' },
-      { name: 'ジュビロ磐田', slug: 'iwata', aliases: 'ジュビロ,磐田', league: 'J2' },
-      { name: 'ＦＣ岐阜', slug: 'gifu', aliases: 'FC岐阜,岐阜', league: 'J2' },
-      { name: '徳島ヴォルティス', slug: 'tokushima', aliases: 'ヴォルティス,徳島', league: 'J2' },
-      { name: '愛媛ＦＣ', slug: 'ehime', aliases: '愛媛FC,愛媛', league: 'J2' },
-      { name: 'レノファ山口ＦＣ', slug: 'yamaguchi', aliases: 'レノファ,山口', league: 'J2' },
-      { name: 'ＦＣ今治', slug: 'imabari', aliases: 'FC今治,今治', league: 'J2' },
-      { name: 'ロアッソ熊本', slug: 'kumamoto', aliases: 'ロアッソ,熊本', league: 'J2' },
-      { name: '大分トリニータ', slug: 'oita', aliases: 'トリニータ,大分', league: 'J2' },
-      { name: '鹿児島ユナイテッドＦＣ', slug: 'kagoshima', aliases: '鹿児島', league: 'J2' },
-    ];
+    // Issue #72: シードデータファイルから全チーム情報を取得
+    const { allTeams: jleagueTeams } = await import('../../scripts/seed-teams-data');
 
     try {
       const existingTeams = await db.select({ slug: teams.slug }).from(teams);
@@ -517,7 +476,16 @@ export const adminRouter = router({
             .update(teams)
             .set({
               name: team.name,
+              shortName: team.shortName,
               aliases: team.aliases,
+              league: team.league,
+              emblemUrl: team.emblemUrl,
+              primaryColor: team.primaryColor,
+              secondaryColor: team.secondaryColor,
+              stadiumName: team.stadiumName,
+              stadiumAddress: team.stadiumAddress,
+              stadiumCapacity: team.stadiumCapacity,
+              isActive: true,
               updatedAt: new Date(),
             })
             .where(eq(teams.slug, team.slug));
@@ -525,8 +493,17 @@ export const adminRouter = router({
         } else {
           await db.insert(teams).values({
             name: team.name,
+            shortName: team.shortName,
             slug: team.slug,
             aliases: team.aliases,
+            league: team.league,
+            emblemUrl: team.emblemUrl,
+            primaryColor: team.primaryColor,
+            secondaryColor: team.secondaryColor,
+            stadiumName: team.stadiumName,
+            stadiumAddress: team.stadiumAddress,
+            stadiumCapacity: team.stadiumCapacity,
+            isActive: true,
           });
           inserted++;
         }
