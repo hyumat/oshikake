@@ -13,7 +13,8 @@
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "release:check": "tsx scripts/release-check.ts",
     "release:changelog": "tsx scripts/generate-changelog.ts",
-    "seed:teams": "tsx scripts/seed-teams.ts"
+    "seed:teams": "tsx scripts/seed-teams.ts",
+    "seed:matches-2025": "tsx scripts/seed-matches-2025.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
